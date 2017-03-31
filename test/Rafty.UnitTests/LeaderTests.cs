@@ -10,6 +10,7 @@ using Rafty.Messages;
 using Rafty.Messaging;
 using Rafty.Raft;
 using Rafty.Responses;
+using Rafty.ServiceDiscovery;
 using Rafty.State;
 using Shouldly;
 using TestStack.BDDfy;

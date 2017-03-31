@@ -1,6 +1,6 @@
 using System;
 
-namespace Rafty
+namespace Rafty.ServiceDiscovery
 {
     public class ServerInCluster
     {

@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging.Console;
 using Rafty.Messaging;
 using Rafty.Raft;
+using Rafty.ServiceDiscovery;
 using Rafty.State;
 using Shouldly;
 using TestStack.BDDfy;

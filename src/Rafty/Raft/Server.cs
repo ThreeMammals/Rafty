@@ -7,6 +7,7 @@ using Rafty.Commands;
 using Rafty.Messages;
 using Rafty.Messaging;
 using Rafty.Responses;
+using Rafty.ServiceDiscovery;
 using Rafty.State;
 
 namespace Rafty.Raft

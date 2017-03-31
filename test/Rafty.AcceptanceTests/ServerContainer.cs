@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Rafty.Messaging;
 using Rafty.Raft;
+using Rafty.ServiceDiscovery;
 using Rafty.State;
 
 namespace Rafty.AcceptanceTests
