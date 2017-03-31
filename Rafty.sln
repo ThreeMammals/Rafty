@@ -1,0 +1,70 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.4
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rafty", "src\Rafty\Rafty.csproj", "{FBA5DE26-53A7-4467-87F1-5776ACFF21E0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rafty.ManualTests", "test\Rafty.ManualTests\Rafty.ManualTests.csproj", "{C77E8DD1-261F-401F-9315-F855B6043CED}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rafty.AcceptanceTests", "test\Rafty.AcceptanceTests\Rafty.AcceptanceTests.csproj", "{71B78E55-8D75-41D3-96B3-5994A1B44655}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rafty.UnitTests", "test\Rafty.UnitTests\Rafty.UnitTests.csproj", "{E4308304-559A-40C6-BCB0-0D0FD6105892}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{20D80BB9-AEF2-4AF7-8A33-549E9C625EC7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{205EA4B5-42B4-4DC1-BC4D-DFAFE776F4FE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C2A72A84-B4FD-4778-97E8-65B156344659}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		build-and-release-unstable.ps1 = build-and-release-unstable.ps1
+		build-and-run-tests.ps1 = build-and-run-tests.ps1
+		build.cake = build.cake
+		build.ps1 = build.ps1
+		build.sh = build.sh
+		GitVersion.yml = GitVersion.yml
+		global.json = global.json
+		LICENSE.md = LICENSE.md
+		README.md = README.md
+		release.ps1 = release.ps1
+		ReleaseNotes.md = ReleaseNotes.md
+		run-acceptance-tests.ps1 = run-acceptance-tests.ps1
+		run-benchmarks.ps1 = run-benchmarks.ps1
+		run-unit-tests.ps1 = run-unit-tests.ps1
+		version.ps1 = version.ps1
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FBA5DE26-53A7-4467-87F1-5776ACFF21E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBA5DE26-53A7-4467-87F1-5776ACFF21E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBA5DE26-53A7-4467-87F1-5776ACFF21E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBA5DE26-53A7-4467-87F1-5776ACFF21E0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C77E8DD1-261F-401F-9315-F855B6043CED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C77E8DD1-261F-401F-9315-F855B6043CED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C77E8DD1-261F-401F-9315-F855B6043CED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C77E8DD1-261F-401F-9315-F855B6043CED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71B78E55-8D75-41D3-96B3-5994A1B44655}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71B78E55-8D75-41D3-96B3-5994A1B44655}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71B78E55-8D75-41D3-96B3-5994A1B44655}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71B78E55-8D75-41D3-96B3-5994A1B44655}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E4308304-559A-40C6-BCB0-0D0FD6105892}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4308304-559A-40C6-BCB0-0D0FD6105892}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4308304-559A-40C6-BCB0-0D0FD6105892}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4308304-559A-40C6-BCB0-0D0FD6105892}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FBA5DE26-53A7-4467-87F1-5776ACFF21E0} = {20D80BB9-AEF2-4AF7-8A33-549E9C625EC7}
+		{C77E8DD1-261F-401F-9315-F855B6043CED} = {205EA4B5-42B4-4DC1-BC4D-DFAFE776F4FE}
+		{71B78E55-8D75-41D3-96B3-5994A1B44655} = {205EA4B5-42B4-4DC1-BC4D-DFAFE776F4FE}
+		{E4308304-559A-40C6-BCB0-0D0FD6105892} = {205EA4B5-42B4-4DC1-BC4D-DFAFE776F4FE}
+	EndGlobalSection
+EndGlobal
