@@ -12,6 +12,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Newtonsoft.Json;
+using Rafty.Commands;
+using Rafty.Infrastructure;
+using Rafty.Messaging;
+using Rafty.Raft;
+using Rafty.ServiceDiscovery;
+using Rafty.State;
 using Shouldly;
 
 namespace Rafty.AcceptanceTests

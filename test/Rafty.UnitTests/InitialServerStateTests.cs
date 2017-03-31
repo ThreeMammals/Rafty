@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging.Console;
+using Rafty.Messaging;
+using Rafty.Raft;
+using Rafty.State;
 using Shouldly;
 using TestStack.BDDfy;
 using Xunit;

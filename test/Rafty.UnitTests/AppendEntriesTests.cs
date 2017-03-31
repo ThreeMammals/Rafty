@@ -1,6 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging.Console;
+using Rafty.Commands;
+using Rafty.Messages;
+using Rafty.Messaging;
+using Rafty.Raft;
+using Rafty.Responses;
+using Rafty.State;
 using Shouldly;
 using TestStack.BDDfy;
 using Xunit;

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Rafty.Infrastructure;
+using Rafty.ServiceDiscovery;
 using Shouldly;
 using TestStack.BDDfy;
 using Xunit;
