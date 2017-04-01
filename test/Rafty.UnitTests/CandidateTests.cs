@@ -20,12 +20,13 @@ namespace Rafty.UnitTests
     {
         private Mock<IMessageBus> _messageBus;
         private Server _server;
-        private List<ServerInCluster> _remoteServers;
+        private InMemoryServersInCluster _serversInCluster;
         private FakeStateMachine _fakeStateMachine;
 
         public CandidateTests()
         {
             _messageBus = new Mock<IMessageBus>();
+            _serversInCluster = new InMemoryServersInCluster();
         }
 
         [Fact]
@@ -112,7 +113,7 @@ namespace Rafty.UnitTests
 
         private void GivenAllServersAppendEntries()
         {
-            var response = _remoteServers.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
 
             _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
         }
@@ -187,21 +188,21 @@ namespace Rafty.UnitTests
 
         private void TheServerReceivesVotesFromAllRemoteServers()
         {
-            var response = _remoteServers.Select(remoteServer => Task.FromResult(new RequestVoteResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new RequestVoteResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
 
             _messageBus.Setup(x => x.Send(It.IsAny<RequestVote>())).ReturnsInOrder(response);
         }
 
          private void TheServerDoesNotReceivesVotesFromAllRemoteServers()
         {
-            var response = _remoteServers.Select(remoteServer => Task.FromResult(new RequestVoteResponse(_server.CurrentTerm, false, remoteServer.Id, _server.Id))).ToList();
+            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new RequestVoteResponse(_server.CurrentTerm, false, remoteServer.Id, _server.Id))).ToList();
 
             _messageBus.Setup(x => x.Send(It.IsAny<RequestVote>())).ReturnsInOrder(response);
         }
 
         private void GivenTheFollowingRemoteServers(List<ServerInCluster> remoteServers)
         {
-            _remoteServers = remoteServers;
+            _serversInCluster.Add(remoteServers);
         }
 
         private void ThenTheServerRequestsVotesFromAllRemoteServers()
@@ -242,7 +243,7 @@ namespace Rafty.UnitTests
         private void GivenANewServer()
         {
             _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(_messageBus.Object, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
         }
     }
 }

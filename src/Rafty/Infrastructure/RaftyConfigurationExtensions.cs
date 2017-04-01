@@ -24,11 +24,11 @@ namespace Rafty.Infrastructure
             IStateMachine stateMachine, 
             IServiceRegistry serviceRegistry, 
             ILogger logger,
-            List<ServerInCluster> remoteServers,
+            IServersInCluster serversInCluster,
             string raftyBasePath = null)
         {
             builder.UseRaftyForTesting(baseUri, messageSender, messageBus, stateMachine, serviceRegistry,
-                logger, remoteServers, raftyBasePath);
+                logger, serversInCluster, raftyBasePath);
 
             return builder;
         }
@@ -40,12 +40,12 @@ namespace Rafty.Infrastructure
            IStateMachine stateMachine,
            IServiceRegistry serviceRegistry,
            ILogger logger,
-           List<ServerInCluster> remoteServers,
+           IServersInCluster serversInCluster,
            string raftyBasePath = null)
         {
             var urlConfig = RaftyUrlConfig.Get(raftyBasePath);
 
-            var server = new Server(messageBus, remoteServers, stateMachine, logger);
+            var server = new Server(messageBus, serversInCluster, stateMachine, logger);
 
             serviceRegistry.Register(new RegisterService(RaftyServiceDiscoveryName.Get(), server.Id, baseUri));
 
@@ -53,7 +53,7 @@ namespace Rafty.Infrastructure
 
             var serverInCluster = new ServerInCluster(server.Id);
 
-            remoteServers.Add(serverInCluster);
+            serversInCluster.Add(serverInCluster);
 
             builder.Map(urlConfig.appendEntriesUrl, app =>
             {

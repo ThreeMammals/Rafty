@@ -15,19 +15,19 @@ namespace Rafty.Raft
     public class Server
     {
         private readonly IMessageBus _messageBus;
-        private readonly List<ServerInCluster> _serversInCluster;
+        private readonly IServersInCluster _serversInClusterInCluster;
         private readonly IStateMachine _stateMachine;
         private readonly ILogger _logger;
         private bool _appendingEntries;
         private readonly object _lock = new object();
         private Guid _lastAppendEntriesMessageId;
 
-        public Server(IMessageBus messageBus, List<ServerInCluster> remoteServers, IStateMachine stateMachine, ILogger logger)
+        public Server(IMessageBus messageBus, IServersInCluster serversInCluster, IStateMachine stateMachine, ILogger logger)
         {
             _stateMachine = stateMachine;
             _logger = logger;
             _messageBus = messageBus;
-            _serversInCluster = remoteServers ?? new List<ServerInCluster>();
+            _serversInClusterInCluster = serversInCluster;
             Id = Guid.NewGuid();
             Log = new List<Log>();
             NextIndex = new List<Next>();
@@ -47,17 +47,16 @@ namespace Rafty.Raft
         public Guid Id { get; private set; }
         public int CurrentTermVotes { get; private set; }
         public int CurrentTermAppendEntriesResponse { get; private set; }
-        public int CountOfRemoteServers => _serversInCluster.Count;
         public Guid LeaderId { get; private set; }
 
         public RequestVoteResponse Receive(RequestVote requestVote)
         {
             _logger.LogDebug($"Server: {Id} received request vote in term: {CurrentTerm}");
 
-            if (!_serversInCluster.Select(x => x.Id).Contains(requestVote.CandidateId))
+            if (!_serversInClusterInCluster.Contains(requestVote.CandidateId))
             {
                 var remoteServer = new ServerInCluster(requestVote.CandidateId);
-                _serversInCluster.Add(remoteServer);
+                _serversInClusterInCluster.Add(remoteServer);
             }
 
             // If RPC request or response contains term T > currentTerm:
@@ -129,10 +128,10 @@ namespace Rafty.Raft
         public AppendEntriesResponse Receive(AppendEntries appendEntries)
         {
 
-            if (!_serversInCluster.Select(x => x.Id).Contains(appendEntries.LeaderId))
+            if (!_serversInClusterInCluster.Contains(appendEntries.LeaderId))
             {
                 var remoteServer = new ServerInCluster(appendEntries.LeaderId);
-                _serversInCluster.Add(remoteServer);
+                _serversInClusterInCluster.Add(remoteServer);
             }
 
             if (State is Leader)
@@ -356,7 +355,7 @@ namespace Rafty.Raft
 
         private List<ServerInCluster> GetRemoteServers()
         {
-            return _serversInCluster.Where(x => x.Id != Id).ToList();
+            return _serversInClusterInCluster.Get(x => x.Id != Id);
         }
 
         private void BecomeFollowerAndMatchTerm(int term, Guid leaderId)
@@ -382,7 +381,7 @@ namespace Rafty.Raft
             {
                 CurrentTermVotes++;
 
-                if (CurrentTermVotes >= (_serversInCluster.Count / 2) + 1)
+                if (CurrentTermVotes >= (_serversInClusterInCluster.Count / 2) + 1)
                 {
                     BecomeLeader();
                 }
@@ -412,7 +411,6 @@ namespace Rafty.Raft
 
                     var currentMatch = MatchIndex.First(x => x.Id == appendEntriesResponse.FollowerId);
                     MatchIndex.Remove(currentMatch);
-                    var nextMatchIndex = currentMatch.MatchIndex + 1;
                     var match = new Match(appendEntriesResponse.FollowerId, currentNext.NextIndex);
                     MatchIndex.Add(match);
                 }
@@ -421,7 +419,7 @@ namespace Rafty.Raft
                 {
                     CurrentTermAppendEntriesResponse++;
 
-                    if (CurrentTermAppendEntriesResponse >= (_serversInCluster.Count / 2) + 1)
+                    if (CurrentTermAppendEntriesResponse >= (_serversInClusterInCluster.Count / 2) + 1)
                     {
                         if ((CommitIndex == 0 && LastApplied == 0) || CommitIndex > LastApplied)
                         {

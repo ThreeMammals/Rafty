@@ -16,8 +16,13 @@ namespace Rafty.UnitTests
     {
         private Server _server;
         private FakeMessageBus _messageBus;
-        private List<ServerInCluster> _remoteServers;
+        private IServersInCluster _serversInCluster;
         private FakeStateMachine _fakeStateMachine;
+
+        public InitialServerStateTests()
+        {
+            _serversInCluster = new InMemoryServersInCluster();
+        }
 
         [Fact]
         public void server_should_have_current_term_of_zero_on_init()
@@ -122,7 +127,7 @@ namespace Rafty.UnitTests
         {
             _fakeStateMachine = new FakeStateMachine();
             _messageBus = new FakeMessageBus();
-            _server = new Server(_messageBus, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
         }
 
         private void ThenTheServerHasAnId()

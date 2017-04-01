@@ -19,12 +19,13 @@ namespace Rafty.UnitTests
         private FakeMessageBus _messageBus;
         private readonly Mock<IMessageBus> _messageBusMock;
         private Server _server;
-        private List<ServerInCluster> _remoteServers;
+        private IServersInCluster _serversInCluster;
         private FakeStateMachine _fakeStateMachine;
 
         public FollowerTests()
         {
             _messageBusMock = new Mock<IMessageBus>();
+            _serversInCluster = new InMemoryServersInCluster();
         }
 
         [Fact]
@@ -73,13 +74,13 @@ namespace Rafty.UnitTests
         {
             _fakeStateMachine = new FakeStateMachine();
             _messageBus = new FakeMessageBus();
-            _server = new Server(_messageBus, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
         }
 
         private void GivenANewServer(Mock<IMessageBus> mock)
         {
             _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(mock.Object, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(mock.Object, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
         }
 
         private void TheServerIsAFollower()

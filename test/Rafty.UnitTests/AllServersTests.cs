@@ -20,13 +20,13 @@ namespace Rafty.UnitTests
     {
         private Mock<IMessageBus>_messageBus;
         private Server _server;
-        private List<ServerInCluster> _remoteServers;
+        private IServersInCluster _serversInCluster;
         private FakeStateMachine _fakeStateMachine;
 
         public AllServersTests()
         {
             _messageBus = new Mock<IMessageBus>();
-            _remoteServers = new List<ServerInCluster>();
+            _serversInCluster = new InMemoryServersInCluster();
         }
 
         [Fact]
@@ -70,7 +70,7 @@ namespace Rafty.UnitTests
 
         private void GivenTheFollowingRemoteServers(List<ServerInCluster> remoteServers)
         {
-            _remoteServers = remoteServers;
+            _serversInCluster.Add(remoteServers);
         }
 
         private void ServerReceives(BecomeCandidate becomeCandidate)
@@ -155,7 +155,7 @@ namespace Rafty.UnitTests
 
         private void TheRemoteServerCountIs(int expected)
         {
-            _remoteServers.Count.ShouldBe(expected);
+            _serversInCluster.Count.ShouldBe(expected);
         }
 
         private void TheServerIsAFollower()
@@ -186,7 +186,7 @@ namespace Rafty.UnitTests
          private void GivenANewServer()
         {
             _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(_messageBus.Object, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
         }
     }
 }

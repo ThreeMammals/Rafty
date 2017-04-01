@@ -6,10 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Newtonsoft.Json;
 using Rafty.Commands;
@@ -24,7 +21,7 @@ namespace Rafty.AcceptanceTests
 {
     public class AcceptanceTestsSteps : IDisposable
     {
-        private List<ServerInCluster> _remoteServers;
+        private IServersInCluster _serversInCluster;
         private List<string> _remoteServerLocations;
         private ServiceRegistry _serviceRegistry;
         private List<ServerContainer> _servers;
@@ -32,7 +29,7 @@ namespace Rafty.AcceptanceTests
 
         public AcceptanceTestsSteps()
         {
-            _remoteServers = new List<ServerInCluster>();
+            _serversInCluster = new InMemoryServersInCluster();
             _serviceRegistry = new ServiceRegistry();
             _servers = new List<ServerContainer>();
         }
@@ -122,7 +119,8 @@ namespace Rafty.AcceptanceTests
             var result = _servers.First(x => x.ServerUrl == baseUrlOfServerToAssert);
 
             result.Server.Id.ShouldNotBe(default(Guid));
-            result.Server.CountOfRemoteServers.ShouldBe(6);
+            _serversInCluster.Count.ShouldBe(6);
+            //result.Server.CountOfRemoteServers.ShouldBe(6);
             var termMatchWithLeader = false;
             var stopWatch = Stopwatch.StartNew();
             while (stopWatch.ElapsedMilliseconds < 90000)
@@ -202,7 +200,7 @@ namespace Rafty.AcceptanceTests
                         serverContainer.MessageSender.Stop();
                         serverContainer.MessageBus.Stop();
                         serverContainer.WebHost.Dispose();
-                        _remoteServers.Remove(serverContainer.ServerInCluster);
+                        _serversInCluster.Remove(serverContainer.ServerInCluster);
                         _servers.Remove(serverContainer);
                         killedLeader = true;
                         break;
@@ -249,7 +247,7 @@ namespace Rafty.AcceptanceTests
                     var logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
-                        _serviceRegistry, logger, _remoteServers);
+                        _serviceRegistry, logger, _serversInCluster);
 
                     server = result.server;
                     serverInCluster = result.serverInCluster;
@@ -270,7 +268,7 @@ namespace Rafty.AcceptanceTests
                 serverContainer.MessageSender.Stop();
                 serverContainer.MessageBus.Stop();
                 serverContainer.WebHost.Dispose();
-                _remoteServers.Remove(serverContainer.ServerInCluster);
+                _serversInCluster.Remove(serverContainer.ServerInCluster);
             }
 
             Thread.Sleep(1000);
