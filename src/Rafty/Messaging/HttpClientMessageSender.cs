@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Rafty.Commands;
 using Rafty.Infrastructure;
@@ -25,16 +26,17 @@ namespace Rafty.Messaging
         private readonly string _appendEntriesUrl;
         private readonly string _requestVoteUrl;
         private readonly string _commandUrl;
+        private readonly ILogger _logger;
 
-        public HttpClientMessageSender(IServiceRegistry serviceRegistry, string raftyBasePath = null)
+        public HttpClientMessageSender(IServiceRegistry serviceRegistry, ILogger logger, string raftyBasePath = null)
         {
             var urlConfig = RaftyUrlConfig.Get(raftyBasePath);
 
             _appendEntriesUrl = urlConfig.appendEntriesUrl;
             _requestVoteUrl = urlConfig.requestVoteUrl;
             _commandUrl = urlConfig.commandUrl;
-
             _serviceRegistry = serviceRegistry;
+            _logger = logger;
             _sendToSelfHandlers = new Dictionary<Type, Action<IMessage>>
             {
                 {typeof(BecomeCandidate), x => _server.Receive((BecomeCandidate) x)},
@@ -64,7 +66,7 @@ namespace Rafty.Messaging
             }
             catch (Exception exception)
             {
-                Console.WriteLine(exception);
+                _logger.LogError(new EventId(1), exception, "Error in Send(AppendEntries appendEntries)");
                 throw;
             }
         }
@@ -90,7 +92,7 @@ namespace Rafty.Messaging
             }
             catch (Exception exception)
             {
-                Console.WriteLine(exception);
+                _logger.LogError(new EventId(1), exception, "Error in Send(RequestVote requestVote)");
                 throw;
             }
         }
@@ -116,7 +118,7 @@ namespace Rafty.Messaging
             }
             catch (Exception exception)
             {
-                Console.WriteLine(exception);
+                _logger.LogError(new EventId(1), exception, "Error in Send(ICommand command, Guid leaderId)");
                 throw;
             }
         }
@@ -156,7 +158,5 @@ namespace Rafty.Messaging
         {
             _server = server;
         }
-
-
     }
 }

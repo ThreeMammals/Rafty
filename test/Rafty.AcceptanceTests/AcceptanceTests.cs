@@ -134,7 +134,7 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
-        public void followe_should_forward_command_to_leader()
+        public void follower_should_forward_command_to_leader()
         {
             var remoteServers = new List<string>
             {

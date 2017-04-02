@@ -6,7 +6,7 @@ namespace Rafty.Messages
     {
         public BecomeCandidate(Guid lastAppendEntriesMessageIdFromLeader)
         {
-            this.LastAppendEntriesMessageIdFromLeader = lastAppendEntriesMessageIdFromLeader;
+            LastAppendEntriesMessageIdFromLeader = lastAppendEntriesMessageIdFromLeader;
         }
         public Guid LastAppendEntriesMessageIdFromLeader { get; private set; }
     }

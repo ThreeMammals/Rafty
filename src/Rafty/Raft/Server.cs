@@ -22,7 +22,10 @@ namespace Rafty.Raft
         private readonly object _lock = new object();
         private Guid _lastAppendEntriesMessageId;
 
-        public Server(IMessageBus messageBus, IServersInCluster serversInCluster, IStateMachine stateMachine, ILogger logger)
+        public Server(IMessageBus messageBus, 
+            IServersInCluster serversInCluster, 
+            IStateMachine stateMachine, 
+            ILogger logger)
         {
             _stateMachine = stateMachine;
             _logger = logger;

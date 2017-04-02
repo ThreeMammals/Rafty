@@ -120,7 +120,6 @@ namespace Rafty.AcceptanceTests
 
             result.Server.Id.ShouldNotBe(default(Guid));
             _serversInCluster.Count.ShouldBe(6);
-            //result.Server.CountOfRemoteServers.ShouldBe(6);
             var termMatchWithLeader = false;
             var stopWatch = Stopwatch.StartNew();
             while (stopWatch.ElapsedMilliseconds < 90000)
@@ -241,10 +240,10 @@ namespace Rafty.AcceptanceTests
                 })
                 .Configure(app =>
                 {
-                    messageSender = new HttpClientMessageSender(_serviceRegistry);
+                    var logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
+                    messageSender = new HttpClientMessageSender(_serviceRegistry, logger);
                     messageBus = new InMemoryBus(messageSender);
                     stateMachine = new FakeStateMachine();
-                    var logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
                         _serviceRegistry, logger, _serversInCluster);
