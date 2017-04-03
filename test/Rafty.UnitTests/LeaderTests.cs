@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Console;
 using Moq;
 using Moq.Language.Flow;
-using Rafty.Commands;
+using Rafty.AcceptanceTests;
 using Rafty.Messages;
 using Rafty.Messaging;
 using Rafty.Raft;

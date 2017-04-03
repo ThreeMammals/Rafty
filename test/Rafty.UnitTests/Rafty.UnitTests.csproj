@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rafty\Rafty.csproj" />
+    <ProjectReference Include="..\Rafty.AcceptanceTests\Rafty.AcceptanceTests.csproj" />
   </ItemGroup>
 
 

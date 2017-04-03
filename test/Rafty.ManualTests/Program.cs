@@ -34,10 +34,16 @@ namespace Rafty.ManualTests
             Console.WriteLine("ThenTheOtherNodesAreFollowers finished");
 
             steps.ACommandIsSentToAFollower();
-            Console.WriteLine("ACommandIsSentToTheLeader finished");
+            Console.WriteLine("AFakeCommandIsSentToTheLeader finished");
 
-            steps.TheCommandIsPersistedToAllStateMachines(0, 5);
-            Console.WriteLine("TheCommandIsPersistedToAllStateMachines finished");
+            steps.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5);
+            Console.WriteLine("ThenTheFakeCommandIsPersistedToAllStateMachines finished");
+
+            steps.AFakeCommandTwoIsSentToTheLeader();
+            Console.WriteLine("AFakeCommandTwoIsSentToTheLeader finished");
+
+            steps.ThenTheFakeCommandTwoIsPersistedToAllStateMachines(1, 5);
+            Console.WriteLine("ThenTheFakeCommandTwoIsPersistedToAllStateMachines finished");
 
             //timer.Dispose();
             steps.Dispose();

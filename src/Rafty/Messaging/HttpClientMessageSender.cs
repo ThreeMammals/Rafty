@@ -50,7 +50,10 @@ namespace Rafty.Messaging
             try
             {
                 var serverToSendMessageTo = _serviceRegistry.Get(RaftyServiceDiscoveryName.Get()).First(x => x.Id == appendEntries.FollowerId);
-                var json = JsonConvert.SerializeObject(appendEntries);
+                var json = JsonConvert.SerializeObject(appendEntries, Formatting.None, new JsonSerializerSettings
+                {
+                    TypeNameHandling= TypeNameHandling.All
+                });
                 var httpContent = new StringContent(json);
                 httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
@@ -76,7 +79,10 @@ namespace Rafty.Messaging
             try
             {
                 var serverToSendMessageTo = _serviceRegistry.Get(RaftyServiceDiscoveryName.Get()).First(x => x.Id == requestVote.VoterId);
-                var json = JsonConvert.SerializeObject(requestVote);
+                var json = JsonConvert.SerializeObject(requestVote, Formatting.None, new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.All
+                });
                 var httpContent = new StringContent(json);
                 httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
@@ -102,7 +108,10 @@ namespace Rafty.Messaging
             try
             {
                 var serverToSendMessageTo = _serviceRegistry.Get(RaftyServiceDiscoveryName.Get()).First(x => x.Id == leaderId);
-                var json = JsonConvert.SerializeObject(command);
+                var json = JsonConvert.SerializeObject(command, Formatting.None, new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.All
+                });
                 var httpContent = new StringContent(json);
                 httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 

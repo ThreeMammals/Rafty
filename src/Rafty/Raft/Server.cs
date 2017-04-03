@@ -265,7 +265,7 @@ namespace Rafty.Raft
             {
                 _logger.LogDebug("Server Received Command");
                 _appendingEntries = true;
-                Log.Add(new Log(CurrentTerm, (FakeCommand)command));
+                Log.Add(new Log(CurrentTerm, command));
                 CommitIndex = Log.Count - 1;
 
                 var remoteServers = GetRemoteServers();

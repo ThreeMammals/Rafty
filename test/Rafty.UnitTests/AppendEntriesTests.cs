@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging.Console;
-using Rafty.Commands;
+using Rafty.AcceptanceTests;
 using Rafty.Messages;
 using Rafty.Messaging;
 using Rafty.Raft;

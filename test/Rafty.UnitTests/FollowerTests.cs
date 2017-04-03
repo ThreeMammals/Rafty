@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging.Console;
 using Moq;
+using Rafty.AcceptanceTests;
 using Rafty.Commands;
 using Rafty.Messages;
 using Rafty.Messaging;

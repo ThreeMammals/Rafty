@@ -104,8 +104,8 @@ namespace Rafty.AcceptanceTests
             this.Given(x => _s.GivenTheFollowingServersAreRunning(remoteServers))
                 .And(x => _s.ThenANewLeaderIsElected())
                 .And(x => _s.ThenTheOtherNodesAreFollowers(4))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(0, 5))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5))
                 .BDDfy();
         }
 
@@ -124,12 +124,34 @@ namespace Rafty.AcceptanceTests
             this.Given(x => _s.GivenTheFollowingServersAreRunning(remoteServers))
                 .And(x => _s.ThenANewLeaderIsElected())
                 .And(x => _s.ThenTheOtherNodesAreFollowers(4))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(0, 5))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(1, 5))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(2, 5))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(1, 5))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(2, 5))
+                .BDDfy();
+        }
+
+        [Fact]
+        public void after_leader_is_elected_should_persist_different_commands_to_all_servers()
+        {
+            var remoteServers = new List<string>
+            {
+                "http://localhost:5231",
+                "http://localhost:5232",
+                "http://localhost:5233",
+                "http://localhost:5234",
+                "http://localhost:5235",
+            };
+
+            this.Given(x => _s.GivenTheFollowingServersAreRunning(remoteServers))
+                .And(x => _s.ThenANewLeaderIsElected())
+                .And(x => _s.ThenTheOtherNodesAreFollowers(4))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5))
+                .When(x => _s.AFakeCommandTwoIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandTwoIsPersistedToAllStateMachines(1, 5))
                 .BDDfy();
         }
 
@@ -149,7 +171,7 @@ namespace Rafty.AcceptanceTests
                 .And(x => _s.ThenANewLeaderIsElected())
                 .And(x => _s.ThenTheOtherNodesAreFollowers(4))
                 .When(x => _s.ACommandIsSentToAFollower())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(0, 5))
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5))
                 .BDDfy();
         }
 
@@ -168,15 +190,15 @@ namespace Rafty.AcceptanceTests
             this.Given(x => _s.GivenTheFollowingServersAreRunning(remoteServers))
                 .And(x => _s.ThenANewLeaderIsElected())
                 .And(x => _s.ThenTheOtherNodesAreFollowers(4))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(0, 5))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5))
                 .And(x => _s.WhenTheLeaderDies())
                 .And(x => _s.ThenANewLeaderIsElected())
                 .And(x => _s.ThenTheOtherNodesAreFollowers(3))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(1, 4))
-                .When(x => _s.ACommandIsSentToTheLeader())
-                .Then(x => _s.TheCommandIsPersistedToAllStateMachines(2, 4))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(1, 4))
+                .When(x => _s.AFakeCommandIsSentToTheLeader())
+                .Then(x => _s.ThenTheFakeCommandIsPersistedToAllStateMachines(2, 4))
                 .BDDfy();
         }
 

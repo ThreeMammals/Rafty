@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging.Console;
 using Newtonsoft.Json;
-using Rafty.Commands;
 using Rafty.Infrastructure;
 using Rafty.Messaging;
 using Rafty.Raft;
@@ -25,7 +24,8 @@ namespace Rafty.AcceptanceTests
         private List<string> _remoteServerLocations;
         private ServiceRegistry _serviceRegistry;
         private List<ServerContainer> _servers;
-        private FakeCommand _command;
+        private FakeCommand _fakeCommand;
+        private FakeCommandTwo _fakeCommandTwo;
 
         public AcceptanceTestsSteps()
         {
@@ -62,7 +62,7 @@ namespace Rafty.AcceptanceTests
             return timer;
         }
 
-        public void TheCommandIsPersistedToAllStateMachines(int index, int serversToCheck)
+        public void ThenTheFakeCommandIsPersistedToAllStateMachines(int index, int serversToCheck)
         {
             var stopWatch = Stopwatch.StartNew();
             var updated = new List<Guid>();
@@ -76,7 +76,7 @@ namespace Rafty.AcceptanceTests
                     if (fakeStateMachine.Commands.Count > 0)
                     {
                         var command = (FakeCommand)fakeStateMachine.Commands[index];
-                        command.Id.ShouldBe(_command.Id);
+                        command.Id.ShouldBe(_fakeCommand.Id);
                         if (!updated.Contains(server.Server.Id))
                         {
                             updated.Add(server.Server.Id);
@@ -93,7 +93,7 @@ namespace Rafty.AcceptanceTests
             updated.Count.ShouldBe(serversToCheck);
         }
 
-        public void ACommandIsSentToTheLeader()
+        public void AFakeCommandIsSentToTheLeader()
         {
             var leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
             while(leader == null)
@@ -101,9 +101,12 @@ namespace Rafty.AcceptanceTests
                 ThenANewLeaderIsElected();
                 leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
             }
-            _command = new FakeCommand(Guid.NewGuid());
+            _fakeCommand = new FakeCommand(Guid.NewGuid());
             var urlOfLeader = leader.ServerUrl;
-            var json = JsonConvert.SerializeObject(_command);
+            var json = JsonConvert.SerializeObject(_fakeCommand, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
             var httpContent = new StringContent(json);
 
             using (var httpClient = new HttpClient())
@@ -246,7 +249,7 @@ namespace Rafty.AcceptanceTests
                     stateMachine = new FakeStateMachine();
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
-                        _serviceRegistry, logger, _serversInCluster);
+                        _serviceRegistry, logger, _serversInCluster, new JsonConverter[]{ new FakeCommandConverter(), new FakeCommandTwoConverter() });
 
                     server = result.server;
                     serverInCluster = result.serverInCluster;
@@ -283,9 +286,12 @@ namespace Rafty.AcceptanceTests
                 leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
                 follower = _servers.FirstOrDefault(x => x.Server.State is Follower);
             }
-            _command = new FakeCommand(Guid.NewGuid());
+            _fakeCommand = new FakeCommand(Guid.NewGuid());
             var urlOfLeader = follower.ServerUrl;
-            var json = JsonConvert.SerializeObject(_command);
+            var json = JsonConvert.SerializeObject(_fakeCommand, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
             var httpContent = new StringContent(json);
 
             using (var httpClient = new HttpClient())
@@ -301,6 +307,61 @@ namespace Rafty.AcceptanceTests
             {
                 
             }
+        }
+
+        public void AFakeCommandTwoIsSentToTheLeader()
+        {
+            var leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
+            while (leader == null)
+            {
+                ThenANewLeaderIsElected();
+                leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
+            }
+            _fakeCommandTwo = new FakeCommandTwo("Some test desciption");
+            var urlOfLeader = leader.ServerUrl;
+            var json = JsonConvert.SerializeObject(_fakeCommandTwo, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
+            var httpContent = new StringContent(json);
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.BaseAddress = new Uri(urlOfLeader);
+                var response = httpClient.PostAsync("/command", httpContent).Result;
+                response.EnsureSuccessStatusCode();
+            }
+        }
+
+        public void ThenTheFakeCommandTwoIsPersistedToAllStateMachines(int index, int serversToCheck)
+        {
+            var stopWatch = Stopwatch.StartNew();
+            var updated = new List<Guid>();
+
+            while (stopWatch.ElapsedMilliseconds < 90000)
+            {
+                foreach (var server in _servers)
+                {
+                    var fakeStateMachine = (FakeStateMachine)server.StateMachine;
+
+                    if (fakeStateMachine.Commands.Count > 0)
+                    {
+                        var command = (FakeCommandTwo)fakeStateMachine.Commands[index];
+                        command.Description.ShouldBe(_fakeCommandTwo.Description);
+                        if (!updated.Contains(server.Server.Id))
+                        {
+                            updated.Add(server.Server.Id);
+                        }
+                    }
+                }
+
+                if (updated.Count == serversToCheck)
+                {
+                    break;
+                }
+            }
+
+            updated.Count.ShouldBe(serversToCheck);
         }
     }
 }

@@ -25,10 +25,11 @@ namespace Rafty.Infrastructure
             IServiceRegistry serviceRegistry, 
             ILogger logger,
             IServersInCluster serversInCluster,
+            JsonConverter[] jsonConverters,
             string raftyBasePath = null)
         {
             builder.UseRaftyForTesting(baseUri, messageSender, messageBus, stateMachine, serviceRegistry,
-                logger, serversInCluster, raftyBasePath);
+                logger, serversInCluster, jsonConverters, raftyBasePath);
 
             return builder;
         }
@@ -41,6 +42,7 @@ namespace Rafty.Infrastructure
            IServiceRegistry serviceRegistry,
            ILogger logger,
            IServersInCluster serversInCluster,
+           JsonConverter[] jsonConverters,
            string raftyBasePath = null)
         {
             var urlConfig = RaftyUrlConfig.Get(raftyBasePath);
@@ -63,7 +65,7 @@ namespace Rafty.Infrastructure
                     {
                         var reader = new StreamReader(context.Request.Body);
                         var content = reader.ReadToEnd();
-                        var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(content);
+                        var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(content, jsonConverters);
                         var appendEntriesResponse = server.Receive(appendEntries);
                         await context.Response.WriteAsync(JsonConvert.SerializeObject(appendEntriesResponse));
                     }
@@ -82,7 +84,7 @@ namespace Rafty.Infrastructure
                     {
                         var reader = new StreamReader(context.Request.Body);
                         var content = reader.ReadToEnd();
-                        var requestVote = JsonConvert.DeserializeObject<RequestVote>(content);
+                        var requestVote = JsonConvert.DeserializeObject<RequestVote>(content, jsonConverters);
                         var requestVoteResponse = server.Receive(requestVote);
                         await context.Response.WriteAsync(JsonConvert.SerializeObject(requestVoteResponse));
                     }
@@ -101,7 +103,7 @@ namespace Rafty.Infrastructure
                     {
                         var reader = new StreamReader(context.Request.Body);
                         var content = reader.ReadToEnd();
-                        var command = JsonConvert.DeserializeObject<FakeCommand>(content);
+                        var command = JsonConvert.DeserializeObject<Command>(content, jsonConverters);
                         var sendCommandToLeaderResponse = server.Receive(command);
                         await context.Response.WriteAsync(JsonConvert.SerializeObject(sendCommandToLeaderResponse));
                     }
