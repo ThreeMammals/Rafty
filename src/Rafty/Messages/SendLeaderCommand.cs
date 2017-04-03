@@ -1,5 +1,4 @@
 using System;
-using Newtonsoft.Json;
 using Rafty.Commands;
 
 namespace Rafty.Messages

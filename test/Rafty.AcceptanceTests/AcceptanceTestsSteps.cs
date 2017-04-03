@@ -25,7 +25,6 @@ namespace Rafty.AcceptanceTests
         private ServiceRegistry _serviceRegistry;
         private List<ServerContainer> _servers;
         private FakeCommand _fakeCommand;
-        private FakeCommandTwo _fakeCommandTwo;
 
         public AcceptanceTestsSteps()
         {
@@ -249,7 +248,7 @@ namespace Rafty.AcceptanceTests
                     stateMachine = new FakeStateMachine();
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
-                        _serviceRegistry, logger, _serversInCluster, new JsonConverter[]{ new FakeCommandConverter(), new FakeCommandTwoConverter() });
+                        _serviceRegistry, logger, _serversInCluster, new JsonConverter[]{ new FakeCommandConverter()});
 
                     server = result.server;
                     serverInCluster = result.serverInCluster;
@@ -307,61 +306,6 @@ namespace Rafty.AcceptanceTests
             {
                 
             }
-        }
-
-        public void AFakeCommandTwoIsSentToTheLeader()
-        {
-            var leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
-            while (leader == null)
-            {
-                ThenANewLeaderIsElected();
-                leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
-            }
-            _fakeCommandTwo = new FakeCommandTwo("Some test desciption");
-            var urlOfLeader = leader.ServerUrl;
-            var json = JsonConvert.SerializeObject(_fakeCommandTwo, Formatting.None, new JsonSerializerSettings
-            {
-                TypeNameHandling = TypeNameHandling.All
-            });
-            var httpContent = new StringContent(json);
-
-            using (var httpClient = new HttpClient())
-            {
-                httpClient.BaseAddress = new Uri(urlOfLeader);
-                var response = httpClient.PostAsync("/command", httpContent).Result;
-                response.EnsureSuccessStatusCode();
-            }
-        }
-
-        public void ThenTheFakeCommandTwoIsPersistedToAllStateMachines(int index, int serversToCheck)
-        {
-            var stopWatch = Stopwatch.StartNew();
-            var updated = new List<Guid>();
-
-            while (stopWatch.ElapsedMilliseconds < 90000)
-            {
-                foreach (var server in _servers)
-                {
-                    var fakeStateMachine = (FakeStateMachine)server.StateMachine;
-
-                    if (fakeStateMachine.Commands.Count > 0)
-                    {
-                        var command = (FakeCommandTwo)fakeStateMachine.Commands[index];
-                        command.Description.ShouldBe(_fakeCommandTwo.Description);
-                        if (!updated.Contains(server.Server.Id))
-                        {
-                            updated.Add(server.Server.Id);
-                        }
-                    }
-                }
-
-                if (updated.Count == serversToCheck)
-                {
-                    break;
-                }
-            }
-
-            updated.Count.ShouldBe(serversToCheck);
         }
     }
 }

@@ -39,12 +39,6 @@ namespace Rafty.ManualTests
             steps.ThenTheFakeCommandIsPersistedToAllStateMachines(0, 5);
             Console.WriteLine("ThenTheFakeCommandIsPersistedToAllStateMachines finished");
 
-            steps.AFakeCommandTwoIsSentToTheLeader();
-            Console.WriteLine("AFakeCommandTwoIsSentToTheLeader finished");
-
-            steps.ThenTheFakeCommandTwoIsPersistedToAllStateMachines(1, 5);
-            Console.WriteLine("ThenTheFakeCommandTwoIsPersistedToAllStateMachines finished");
-
             //timer.Dispose();
             steps.Dispose();
             return 1;
