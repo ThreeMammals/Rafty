@@ -25,6 +25,7 @@ namespace Rafty.AcceptanceTests
         private ServiceRegistry _serviceRegistry;
         private List<ServerContainer> _servers;
         private FakeCommand _fakeCommand;
+        private FooCommand _fooCommand;
 
         public AcceptanceTestsSteps()
         {
@@ -163,14 +164,59 @@ namespace Rafty.AcceptanceTests
             fourFollowers.ShouldBeTrue();
         }
 
-        internal void ThenTheFakeCommandTwoIsPersistedToAllStateMachines(int v1, int v2)
+        internal void ThenTheFakeCommandTwoIsPersistedToAllStateMachines(int index, int serversToCheck)
         {
-            throw new NotImplementedException();
+              var stopWatch = Stopwatch.StartNew();
+            var updated = new List<Guid>();
+
+            while (stopWatch.ElapsedMilliseconds < 90000)
+            {
+                foreach (var server in _servers)
+                {
+                    var fakeStateMachine = (FakeStateMachine)server.StateMachine;
+
+                    if (fakeStateMachine.Commands.Count > 0)
+                    {
+                        var command = (FooCommand)fakeStateMachine.Commands[index];
+                        command.Description.ShouldBe(_fooCommand.Description);
+                        if (!updated.Contains(server.Server.Id))
+                        {
+                            updated.Add(server.Server.Id);
+                        }
+                    }
+                }
+
+                if (updated.Count == serversToCheck)
+                {
+                    break;
+                }
+            }
+
+            updated.Count.ShouldBe(serversToCheck);
         }
 
         internal void AFakeCommandTwoIsSentToTheLeader()
         {
-            throw new NotImplementedException();
+              var leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
+            while(leader == null)
+            {
+                ThenANewLeaderIsElected();
+                leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
+            }
+            _fooCommand = new FooCommand("some description.....");
+            var urlOfLeader = leader.ServerUrl;
+            var json = JsonConvert.SerializeObject(_fooCommand, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
+            var httpContent = new StringContent(json);
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.BaseAddress = new Uri(urlOfLeader);
+                var response = httpClient.PostAsync("/command", httpContent).Result;
+                response.EnsureSuccessStatusCode();
+            }
         }
 
         public void ThenANewLeaderIsElected()
@@ -258,7 +304,7 @@ namespace Rafty.AcceptanceTests
                     stateMachine = new FakeStateMachine();
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
-                        _serviceRegistry, logger, _serversInCluster, new JsonConverter[]{ new FakeCommandConverter()});
+                        _serviceRegistry, logger, _serversInCluster);
 
                     server = result.server;
                     serverInCluster = result.serverInCluster;
