@@ -1,6 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging.Console;
+using Rafty.AcceptanceTests;
+using Rafty.Messages;
+using Rafty.Messaging;
+using Rafty.Raft;
+using Rafty.Responses;
+using Rafty.ServiceDiscovery;
+using Rafty.State;
 using Shouldly;
 using TestStack.BDDfy;
 using Xunit;
@@ -11,9 +18,14 @@ namespace Rafty.UnitTests
     {
         private Server _server;
         private FakeMessageBus _messageBus;
-        private List<ServerInCluster> _remoteServers;
+        private IServersInCluster _serversInCluster;
         private FakeStateMachine _fakeStateMachine;
         private AppendEntriesResponse _result;
+
+        public AppendEntriesTests()
+        {
+            _serversInCluster = new InMemoryServersInCluster();
+        }
 
         [Fact]
         public void server_should_reply_true_if_entries_is_empty()
@@ -198,7 +210,7 @@ namespace Rafty.UnitTests
         {
             _fakeStateMachine = new FakeStateMachine();
             _messageBus = new FakeMessageBus();
-            _server = new Server(_messageBus, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
         }
 
         private void ThenTheLogContainsEntriesCount(int expectedCount)

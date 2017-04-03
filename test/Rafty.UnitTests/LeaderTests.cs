@@ -5,6 +5,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Console;
 using Moq;
 using Moq.Language.Flow;
+using Rafty.AcceptanceTests;
+using Rafty.Messages;
+using Rafty.Messaging;
+using Rafty.Raft;
+using Rafty.Responses;
+using Rafty.ServiceDiscovery;
+using Rafty.State;
 using Shouldly;
 using TestStack.BDDfy;
 using Xunit;
@@ -15,7 +22,7 @@ namespace Rafty.UnitTests
     {
         private Mock<IMessageBus> _messageBus;
         private Server _server;
-        private List<ServerInCluster> _remoteServers;
+        private InMemoryServersInCluster _serversInCluster;
         private FakeCommand _fakeCommand;
         private FakeStateMachine _fakeStateMachine;
 
@@ -23,7 +30,7 @@ namespace Rafty.UnitTests
         public LeaderTests()
         {
             _messageBus = new Mock<IMessageBus>();
-            _remoteServers = new List<ServerInCluster>();
+            _serversInCluster = new InMemoryServersInCluster();
         }
 
         [Fact]
@@ -280,7 +287,7 @@ namespace Rafty.UnitTests
 
         private void ThenTheNextIndexIsUpdated(int expected)
         {
-            foreach(var remoteSever in _remoteServers.Where(x => x.Id != _server.Id))
+            foreach(var remoteSever in _serversInCluster.All.Where(x => x.Id != _server.Id))
             {
                 var next = _server.NextIndex.First(x => x.Id == remoteSever.Id);
                 next.NextIndex.ShouldBe(expected);
@@ -289,7 +296,7 @@ namespace Rafty.UnitTests
 
         private void ThenTheMatchIndexIsUpdated(int expected)
         {
-            foreach(var remoteSever in _remoteServers.Where(x => x.Id != _server.Id))
+            foreach(var remoteSever in _serversInCluster.All.Where(x => x.Id != _server.Id))
             {
                 var match = _server.MatchIndex.First(x => x.Id == remoteSever.Id);
                 match.MatchIndex.ShouldBe(expected);
@@ -298,7 +305,7 @@ namespace Rafty.UnitTests
 
         private void ThenTheMatchIndexIsInitialisedForEachRemoteServer()
         {
-            foreach(var remoteServer in _remoteServers.Where(x => x.Id != _server.Id))
+            foreach(var remoteServer in _serversInCluster.All.Where(x => x.Id != _server.Id))
             {
                 var match = _server.MatchIndex.First(x => x.Id == remoteServer.Id);
                 match.MatchIndex.ShouldBe(0);
@@ -307,7 +314,7 @@ namespace Rafty.UnitTests
 
         private void ThenTheNextIndexIsInitialisedForEachRemoteServer()
         {
-            foreach(var remoteServer in _remoteServers.Where(x => x.Id != _server.Id))
+            foreach(var remoteServer in _serversInCluster.All.Where(x => x.Id != _server.Id))
             {
                 var next = _server.NextIndex.First(x => x.Id == remoteServer.Id);
                 next.NextIndex.ShouldBe(0);
@@ -326,7 +333,7 @@ namespace Rafty.UnitTests
 
         private void WhenTheServerReceivesAMajorityOfResponses()
         {
-            var response = _remoteServers.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
 
             _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
         }
@@ -375,18 +382,18 @@ namespace Rafty.UnitTests
 
         private void TheServerReceivesAppendEntriesResponsesForCommand()
         {
-            var response = _remoteServers.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
             
             _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
         }
 
         private void TheServerReceivesAMajorityOfVotes()
         {
-            var requestVoteResponses = _remoteServers.Select(x => Task.FromResult(new RequestVoteResponse(0, true, x.Id, Guid.NewGuid()))).ToList();
+            var requestVoteResponses = _serversInCluster.All.Select(x => Task.FromResult(new RequestVoteResponse(0, true, x.Id, Guid.NewGuid()))).ToList();
 
             _messageBus.Setup(x => x.Send(It.IsAny<RequestVote>())).ReturnsInOrder(requestVoteResponses);
             
-            var response = _remoteServers.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
 
             _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
         }
@@ -398,7 +405,7 @@ namespace Rafty.UnitTests
 
         private void GivenTheFollowingRemoteServers(List<ServerInCluster> remoteServers)
         {
-            _remoteServers = remoteServers;
+            _serversInCluster.Add(remoteServers);
         }
 
         private void ThenTheCurrentTermVotesAre(int expected)
@@ -414,8 +421,8 @@ namespace Rafty.UnitTests
         private void GivenANewServer()
         {
             _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(_messageBus.Object, _remoteServers, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
-            _remoteServers.Add(new ServerInCluster(_server.Id));
+            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _serversInCluster.Add(new ServerInCluster(_server.Id));
         }
     }
 

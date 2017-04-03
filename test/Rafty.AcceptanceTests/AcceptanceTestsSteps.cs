@@ -6,27 +6,30 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Newtonsoft.Json;
+using Rafty.Infrastructure;
+using Rafty.Messaging;
+using Rafty.Raft;
+using Rafty.ServiceDiscovery;
+using Rafty.State;
 using Shouldly;
 
 namespace Rafty.AcceptanceTests
 {
     public class AcceptanceTestsSteps : IDisposable
     {
-        private List<ServerInCluster> _remoteServers;
+        private IServersInCluster _serversInCluster;
         private List<string> _remoteServerLocations;
         private ServiceRegistry _serviceRegistry;
         private List<ServerContainer> _servers;
-        private FakeCommand _command;
+        private FakeCommand _fakeCommand;
+        private FooCommand _fooCommand;
 
         public AcceptanceTestsSteps()
         {
-            _remoteServers = new List<ServerInCluster>();
+            _serversInCluster = new InMemoryServersInCluster();
             _serviceRegistry = new ServiceRegistry();
             _servers = new List<ServerContainer>();
         }
@@ -59,7 +62,7 @@ namespace Rafty.AcceptanceTests
             return timer;
         }
 
-        public void TheCommandIsPersistedToAllStateMachines(int index, int serversToCheck)
+        public void ThenTheFakeCommandIsPersistedToAllStateMachines(int index, int serversToCheck)
         {
             var stopWatch = Stopwatch.StartNew();
             var updated = new List<Guid>();
@@ -73,7 +76,7 @@ namespace Rafty.AcceptanceTests
                     if (fakeStateMachine.Commands.Count > 0)
                     {
                         var command = (FakeCommand)fakeStateMachine.Commands[index];
-                        command.Id.ShouldBe(_command.Id);
+                        command.Id.ShouldBe(_fakeCommand.Id);
                         if (!updated.Contains(server.Server.Id))
                         {
                             updated.Add(server.Server.Id);
@@ -90,7 +93,7 @@ namespace Rafty.AcceptanceTests
             updated.Count.ShouldBe(serversToCheck);
         }
 
-        public void ACommandIsSentToTheLeader()
+        public void AFakeCommandIsSentToTheLeader()
         {
             var leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
             while(leader == null)
@@ -98,9 +101,12 @@ namespace Rafty.AcceptanceTests
                 ThenANewLeaderIsElected();
                 leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
             }
-            _command = new FakeCommand(Guid.NewGuid());
+            _fakeCommand = new FakeCommand(Guid.NewGuid());
             var urlOfLeader = leader.ServerUrl;
-            var json = JsonConvert.SerializeObject(_command);
+            var json = JsonConvert.SerializeObject(_fakeCommand, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
             var httpContent = new StringContent(json);
 
             using (var httpClient = new HttpClient())
@@ -116,7 +122,7 @@ namespace Rafty.AcceptanceTests
             var result = _servers.First(x => x.ServerUrl == baseUrlOfServerToAssert);
 
             result.Server.Id.ShouldNotBe(default(Guid));
-            result.Server.CountOfRemoteServers.ShouldBe(6);
+            _serversInCluster.Count.ShouldBe(6);
             var termMatchWithLeader = false;
             var stopWatch = Stopwatch.StartNew();
             while (stopWatch.ElapsedMilliseconds < 90000)
@@ -158,6 +164,61 @@ namespace Rafty.AcceptanceTests
             fourFollowers.ShouldBeTrue();
         }
 
+        internal void ThenTheFakeCommandTwoIsPersistedToAllStateMachines(int index, int serversToCheck)
+        {
+              var stopWatch = Stopwatch.StartNew();
+            var updated = new List<Guid>();
+
+            while (stopWatch.ElapsedMilliseconds < 90000)
+            {
+                foreach (var server in _servers)
+                {
+                    var fakeStateMachine = (FakeStateMachine)server.StateMachine;
+
+                    if (fakeStateMachine.Commands.Count > 0)
+                    {
+                        var command = (FooCommand)fakeStateMachine.Commands[index];
+                        command.Description.ShouldBe(_fooCommand.Description);
+                        if (!updated.Contains(server.Server.Id))
+                        {
+                            updated.Add(server.Server.Id);
+                        }
+                    }
+                }
+
+                if (updated.Count == serversToCheck)
+                {
+                    break;
+                }
+            }
+
+            updated.Count.ShouldBe(serversToCheck);
+        }
+
+        internal void AFakeCommandTwoIsSentToTheLeader()
+        {
+              var leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
+            while(leader == null)
+            {
+                ThenANewLeaderIsElected();
+                leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
+            }
+            _fooCommand = new FooCommand("some description.....");
+            var urlOfLeader = leader.ServerUrl;
+            var json = JsonConvert.SerializeObject(_fooCommand, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
+            var httpContent = new StringContent(json);
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.BaseAddress = new Uri(urlOfLeader);
+                var response = httpClient.PostAsync("/command", httpContent).Result;
+                response.EnsureSuccessStatusCode();
+            }
+        }
+
         public void ThenANewLeaderIsElected()
         {
             var stopWatch = Stopwatch.StartNew();
@@ -196,7 +257,7 @@ namespace Rafty.AcceptanceTests
                         serverContainer.MessageSender.Stop();
                         serverContainer.MessageBus.Stop();
                         serverContainer.WebHost.Dispose();
-                        _remoteServers.Remove(serverContainer.ServerInCluster);
+                        _serversInCluster.Remove(serverContainer.ServerInCluster);
                         _servers.Remove(serverContainer);
                         killedLeader = true;
                         break;
@@ -237,13 +298,13 @@ namespace Rafty.AcceptanceTests
                 })
                 .Configure(app =>
                 {
-                    messageSender = new HttpClientMessageSender(_serviceRegistry);
+                    var logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
+                    messageSender = new HttpClientMessageSender(_serviceRegistry, logger);
                     messageBus = new InMemoryBus(messageSender);
                     stateMachine = new FakeStateMachine();
-                    var logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
-                        _serviceRegistry, logger, _remoteServers);
+                        _serviceRegistry, logger, _serversInCluster);
 
                     server = result.server;
                     serverInCluster = result.serverInCluster;
@@ -264,7 +325,7 @@ namespace Rafty.AcceptanceTests
                 serverContainer.MessageSender.Stop();
                 serverContainer.MessageBus.Stop();
                 serverContainer.WebHost.Dispose();
-                _remoteServers.Remove(serverContainer.ServerInCluster);
+                _serversInCluster.Remove(serverContainer.ServerInCluster);
             }
 
             Thread.Sleep(1000);
@@ -280,9 +341,12 @@ namespace Rafty.AcceptanceTests
                 leader = _servers.SingleOrDefault(x => x.Server.State is Leader);
                 follower = _servers.FirstOrDefault(x => x.Server.State is Follower);
             }
-            _command = new FakeCommand(Guid.NewGuid());
+            _fakeCommand = new FakeCommand(Guid.NewGuid());
             var urlOfLeader = follower.ServerUrl;
-            var json = JsonConvert.SerializeObject(_command);
+            var json = JsonConvert.SerializeObject(_fakeCommand, Formatting.None, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All
+            });
             var httpContent = new StringContent(json);
 
             using (var httpClient = new HttpClient())
