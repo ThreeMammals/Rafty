@@ -163,6 +163,16 @@ namespace Rafty.AcceptanceTests
             fourFollowers.ShouldBeTrue();
         }
 
+        internal void ThenTheFakeCommandTwoIsPersistedToAllStateMachines(int v1, int v2)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal void AFakeCommandTwoIsSentToTheLeader()
+        {
+            throw new NotImplementedException();
+        }
+
         public void ThenANewLeaderIsElected()
         {
             var stopWatch = Stopwatch.StartNew();
