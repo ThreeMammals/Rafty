@@ -350,7 +350,7 @@ namespace Rafty.UnitTests
 
         private void ServerReceives(AppendEntries appendEntries)
         {
-            _server.Receive(appendEntries);
+            _server.Receive(appendEntries).Wait();
         }
 
         private void ThenTheServerSendAppendEntriesToEachRemoteServer()
@@ -362,7 +362,7 @@ namespace Rafty.UnitTests
         private void WhenTheServerReceivesACommand(FakeCommand fakeCommand)
         {
             _fakeCommand = fakeCommand;
-            _server.Receive(fakeCommand);
+            _server.Receive(fakeCommand).Wait();
         }
 
         private void TheServerWillSendAnotherHeartbeatLater()

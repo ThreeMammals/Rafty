@@ -3,6 +3,8 @@ using Rafty.Commands;
 
 namespace Rafty.State
 {
+    using System.Threading.Tasks;
+
     public class FakeStateMachine : IStateMachine
     {
         public List<ICommand> Commands;
@@ -12,7 +14,7 @@ namespace Rafty.State
             Commands = new List<ICommand>();
         }
 
-        public void Apply(ICommand command)
+        public async Task Apply(ICommand command)
         {
             Commands.Add(command);
         }

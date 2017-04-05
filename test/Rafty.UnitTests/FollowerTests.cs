@@ -62,7 +62,7 @@ namespace Rafty.UnitTests
 
         private void ServerReceives(FakeCommand fakeCommand)
         {
-            _server.Receive(fakeCommand);
+            _server.Receive(fakeCommand).Wait();
         }
 
         private void ThenTheServerReceivesBecomeCandidate()

@@ -128,7 +128,7 @@ namespace Rafty.Raft
             SendElectionTimeoutMessage(10);
         }
 
-        public AppendEntriesResponse Receive(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Receive(AppendEntries appendEntries)
         {
 
             if (!_serversInClusterInCluster.Contains(appendEntries.LeaderId))
@@ -217,7 +217,7 @@ namespace Rafty.Raft
                 {
                     LastApplied++;
                 }
-                _stateMachine.Apply(Log[LastApplied].Command);
+                await _stateMachine.Apply(Log[LastApplied].Command);
                 return new AppendEntriesResponse(CurrentTerm, true, Id, appendEntries.LeaderId);
 
             }
@@ -254,11 +254,11 @@ namespace Rafty.Raft
             }
         }
 
-        public SendLeaderCommandResponse Receive(ICommand command)
+        public async Task<SendLeaderCommandResponse> Receive(ICommand command)
         {
             if (State is Follower)
             {
-                _messageBus.Send(command, LeaderId);
+                await _messageBus.Send(command, LeaderId);
             }
 
             if (State is Leader)
@@ -306,7 +306,7 @@ namespace Rafty.Raft
                 {
                     _logger.LogDebug($"Processing Append entries counter: {counter}");
                     _logger.LogDebug($"Processing Append entries result was: {task.Result.Success} counter: {counter}");
-                    Receive(task.Result);
+                    await Receive(task.Result);
                     _logger.LogDebug($"Processed Append entries counter: {counter}");
                 }
             }
@@ -391,7 +391,7 @@ namespace Rafty.Raft
             }
         }
 
-        private void Receive(AppendEntriesResponse appendEntriesResponse)
+        private async Task Receive(AppendEntriesResponse appendEntriesResponse)
         {
             if (State is Leader)
             {
@@ -428,7 +428,7 @@ namespace Rafty.Raft
                         {
                             var entry = Log[Log.Count - 1];
                             LastApplied = Log.Count - 1;
-                            _stateMachine.Apply(entry.Command);
+                            await _stateMachine.Apply(entry.Command);
                         }
 
                         CurrentTermAppendEntriesResponse = 0;
@@ -451,7 +451,7 @@ namespace Rafty.Raft
 
                         Task.WaitAll(task);
 
-                        Receive(task.Result);
+                        await Receive(task.Result);
                     }
                 }
             }

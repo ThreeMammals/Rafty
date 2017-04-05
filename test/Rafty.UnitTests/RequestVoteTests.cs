@@ -100,7 +100,7 @@ namespace Rafty.UnitTests
 
             var appendEntries = new AppendEntries(1, Guid.NewGuid(), index, 0, entries, 0, Guid.NewGuid());
 
-            _server.Receive(appendEntries);
+            _server.Receive(appendEntries).Wait();
         }
 
         private void ThenTheReplyIs(RequestVoteResponse expected)
@@ -128,7 +128,7 @@ namespace Rafty.UnitTests
 
         private void GivenTheCurrentTermIs(int term)
         {
-            _server.Receive(new AppendEntries(term, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid()));
+            _server.Receive(new AppendEntries(term, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid())).Wait();
         }
     }
 }

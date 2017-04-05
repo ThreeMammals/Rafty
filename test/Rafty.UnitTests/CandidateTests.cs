@@ -232,7 +232,7 @@ namespace Rafty.UnitTests
 
         private void ServerReceives(AppendEntries appendEntries)
         {
-            _server.Receive(appendEntries);
+            _server.Receive(appendEntries).Wait();
         }
 
         private void TheServerIsACandidate()

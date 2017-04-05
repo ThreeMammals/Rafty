@@ -41,7 +41,7 @@ namespace Rafty.Messaging
             {
                 {typeof(BecomeCandidate), x => _server.Receive((BecomeCandidate) x)},
                 {typeof(SendHeartbeat), x => _server.Receive((SendHeartbeat) x)},
-                {typeof(Command), x => _server.Receive((Command) x)},
+                {typeof(Command), async x => await _server.Receive((Command) x)},
             };
         }
 

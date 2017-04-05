@@ -2,8 +2,10 @@ using Rafty.Commands;
 
 namespace Rafty.State
 {
+    using System.Threading.Tasks;
+
     public interface IStateMachine
     {
-        void Apply(ICommand command);
+        Task Apply(ICommand command);
     }
 }

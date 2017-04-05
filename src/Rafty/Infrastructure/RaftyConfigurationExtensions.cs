@@ -66,7 +66,7 @@ namespace Rafty.Infrastructure
                         {
                             TypeNameHandling = TypeNameHandling.All
                         });
-                        var appendEntriesResponse = server.Receive(appendEntries);
+                        var appendEntriesResponse = await server.Receive(appendEntries);
                         await context.Response.WriteAsync(JsonConvert.SerializeObject(appendEntriesResponse));
                     }
                     catch (Exception exception)
@@ -110,7 +110,7 @@ namespace Rafty.Infrastructure
                         {
                             TypeNameHandling = TypeNameHandling.All
                         });
-                        var sendCommandToLeaderResponse = server.Receive(command);
+                        var sendCommandToLeaderResponse = await server.Receive(command);
                         await context.Response.WriteAsync(JsonConvert.SerializeObject(sendCommandToLeaderResponse));
                     }
                     catch (Exception exception)

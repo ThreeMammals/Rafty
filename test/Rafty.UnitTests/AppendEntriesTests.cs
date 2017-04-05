@@ -182,12 +182,12 @@ namespace Rafty.UnitTests
 
         private void GivenTheServerRecieves(AppendEntries appendEntries)
         {
-            _server.Receive(appendEntries);
+            _server.Receive(appendEntries).Wait();
         }
 
         private void GivenTheCurrentTermIs(int term)
         {
-            _server.Receive(new AppendEntries(term, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid()));
+            _server.Receive(new AppendEntries(term, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid())).Wait();
         }
 
         private void ThenTheCurrentTermIs(int expected)
@@ -203,7 +203,7 @@ namespace Rafty.UnitTests
 
         private void ServerReceives(AppendEntries appendEntries)
         {
-            _result = _server.Receive(appendEntries);
+            _result = _server.Receive(appendEntries).Result;
         }
 
         private void GivenANewServer()
