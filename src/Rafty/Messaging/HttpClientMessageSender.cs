@@ -154,15 +154,6 @@ namespace Rafty.Messaging
             }
         }
 
-        public void Stop()
-        {
-            while (_sleeping)
-            {
-                
-            }
-            _stopSendingMessages = true;
-        }
-
         public void SetServer(Server server)
         {
             _server = server;
@@ -170,7 +161,11 @@ namespace Rafty.Messaging
 
         public void Dispose()
         {
-            Stop();
+            while (_sleeping)
+            {
+
+            }
+            _stopSendingMessages = true;
         }
     }
 }

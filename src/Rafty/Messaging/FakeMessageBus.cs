@@ -16,11 +16,6 @@ namespace Rafty.Messaging
             SendToSelfMessages = new List<IMessage>();
         }
 
-        public void Stop()
-        {
-            
-        }
-
         public void Publish(SendToSelf message)
         {
             SendToSelfMessages.Add(message);
@@ -39,6 +34,9 @@ namespace Rafty.Messaging
         public async Task<SendLeaderCommandResponse> Send(ICommand command, Guid leaderId)
         {
             return default(SendLeaderCommandResponse);
+        }
+        public void Dispose()
+        {
         }
     }
 }

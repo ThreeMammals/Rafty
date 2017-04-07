@@ -60,12 +60,6 @@ namespace Rafty.Messaging
             }
         }
 
-        public void Stop()
-        {
-            _publishing = false;
-            _cancellationTokenSource.Cancel(true);
-        }
-
         public string Name => "InMemoryBus";
 
         public int Count => _messages.Count;
@@ -87,7 +81,8 @@ namespace Rafty.Messaging
 
         public void Dispose()
         {
-            Stop();
+            _publishing = false;
+            _cancellationTokenSource.Cancel(true);
         }
     }
 }

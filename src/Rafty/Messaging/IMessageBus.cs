@@ -9,7 +9,7 @@ namespace Rafty.Messaging
     public interface IMessageBus
     {
         void Publish(SendToSelf message);
-        void Stop();
+        void Dispose();
         Task<AppendEntriesResponse> Send(AppendEntries appendEntries);
         Task<RequestVoteResponse> Send(RequestVote requestVote);
         Task<SendLeaderCommandResponse> Send(ICommand command, Guid leaderId);

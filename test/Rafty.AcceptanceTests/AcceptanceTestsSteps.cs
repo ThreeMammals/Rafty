@@ -256,8 +256,8 @@ namespace Rafty.AcceptanceTests
                 {
                     if (serverContainer.Server.State is Leader)
                     {
-                        serverContainer.MessageSender.Stop();
-                        serverContainer.MessageBus.Stop();
+                        serverContainer.MessageSender.Dispose();
+                        serverContainer.MessageBus.Dispose();
                         serverContainer.WebHost.Dispose();
                         _serversInCluster.Remove(serverContainer.ServerInCluster);
                         _servers.Remove(serverContainer);

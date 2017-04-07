@@ -141,9 +141,9 @@ namespace Rafty.Infrastructure
             try
             {
                 var messageSender = serviceProvider.GetRequiredService<IMessageSender>();
-                messageSender.Stop();
+                messageSender.Dispose();
                 var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
-                messageBus.Stop();
+                messageBus.Dispose();
             }
             catch (Exception e)
             {
