@@ -7,6 +7,8 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Newtonsoft.Json;
 using Rafty.Infrastructure;
@@ -20,10 +22,10 @@ namespace Rafty.AcceptanceTests
 {
     public class AcceptanceTestsSteps : IDisposable
     {
-        private IServersInCluster _serversInCluster;
+        private readonly IServersInCluster _serversInCluster;
         private List<string> _remoteServerLocations;
-        private ServiceRegistry _serviceRegistry;
-        private List<ServerContainer> _servers;
+        private readonly IServiceRegistry _serviceRegistry;
+        private readonly List<ServerContainer> _servers;
         private FakeCommand _fakeCommand;
         private FooCommand _fooCommand;
 
@@ -284,25 +286,29 @@ namespace Rafty.AcceptanceTests
         private async Task GivenAServerIsRunning(string baseUrl)
         {
             Server server = null;
-            HttpClientMessageSender messageSender = null;
+            IMessageSender messageSender = null;
             ServerInCluster serverInCluster = null;
-            InMemoryBus messageBus = null;
+            IMessageBus messageBus = null;
             IStateMachine stateMachine = null;
+            ILogger logger = null;
 
             var webHost = new WebHostBuilder()
                 .UseUrls(baseUrl)
                 .UseKestrel()
                 .UseContentRoot(Directory.GetCurrentDirectory())
-                .ConfigureServices(x =>
+                .ConfigureServices(s =>
                 {
+                    logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
+                    s.AddSingleton<ILogger>(logger);
+                    messageSender = new HttpClientMessageSender(_serviceRegistry, logger);
+                    s.AddSingleton<IMessageSender>(messageSender);
+                    messageBus = new InMemoryBus(messageSender);
+                    s.AddSingleton<IMessageBus>(messageBus);
+                    stateMachine = new FakeStateMachine();
+                    s.AddSingleton<IStateMachine>(stateMachine);
                 })
                 .Configure(app =>
                 {
-                    var logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
-                    messageSender = new HttpClientMessageSender(_serviceRegistry, logger);
-                    messageBus = new InMemoryBus(messageSender);
-                    stateMachine = new FakeStateMachine();
-
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
                         _serviceRegistry, logger, _serversInCluster);
 
@@ -322,13 +328,8 @@ namespace Rafty.AcceptanceTests
         {
             foreach (var serverContainer in _servers)
             {
-                serverContainer.MessageSender.Stop();
-                serverContainer.MessageBus.Stop();
                 serverContainer.WebHost.Dispose();
-                _serversInCluster.Remove(serverContainer.ServerInCluster);
             }
-
-            Thread.Sleep(1000);
         }
 
         public void ACommandIsSentToAFollower()

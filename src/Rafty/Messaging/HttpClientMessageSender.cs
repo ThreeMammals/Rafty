@@ -16,7 +16,7 @@ using Rafty.ServiceDiscovery;
 
 namespace Rafty.Messaging
 {
-    public class HttpClientMessageSender : IMessageSender
+    public class HttpClientMessageSender : IMessageSender, IDisposable
     {
         private readonly IServiceRegistry _serviceRegistry;
         private Server _server;
@@ -166,6 +166,11 @@ namespace Rafty.Messaging
         public void SetServer(Server server)
         {
             _server = server;
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }

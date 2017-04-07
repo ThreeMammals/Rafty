@@ -10,7 +10,7 @@ using Rafty.Responses;
 
 namespace Rafty.Messaging
 {
-    public class InMemoryBus : IMessageBus, IReportable
+    public class InMemoryBus : IMessageBus, IReportable, IDisposable
     {
         private readonly IMessageSender _messageSender;
         private readonly Thread _publishingThread;
@@ -83,6 +83,11 @@ namespace Rafty.Messaging
         public async Task<SendLeaderCommandResponse> Send(ICommand command, Guid leaderId)
         {
             return await _messageSender.Send(command, leaderId);
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }

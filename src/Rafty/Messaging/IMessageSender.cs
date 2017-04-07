@@ -14,5 +14,6 @@ namespace Rafty.Messaging
         Task<AppendEntriesResponse> Send(AppendEntries appendEntries);
         Task<RequestVoteResponse> Send(RequestVote requestVote);
         Task<SendLeaderCommandResponse> Send(ICommand command, Guid leaderId);
+        void Stop();
     }
 }

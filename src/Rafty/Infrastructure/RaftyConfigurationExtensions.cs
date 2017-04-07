@@ -1,7 +1,9 @@
 ﻿using System;
 using System.IO;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Rafty.Commands;
@@ -119,7 +121,35 @@ namespace Rafty.Infrastructure
                     }
                 });
             });
+
+            var applicationLifetime = builder.ApplicationServices.GetRequiredService<IApplicationLifetime>();
+
+            applicationLifetime.ApplicationStopping.Register(() => OnStopping(builder.ApplicationServices));
+
+            applicationLifetime.ApplicationStopped.Register(() => OnStopped(builder.ApplicationServices));
+
             return (builder, server, serverInCluster);
+        }
+
+        private static void OnStopped(IServiceProvider serviceProvider)
+        {
+
+        }
+
+        private static void OnStopping(IServiceProvider serviceProvider)
+        {
+            try
+            {
+                var messageSender = serviceProvider.GetRequiredService<IMessageSender>();
+                messageSender.Stop();
+                var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
+                messageBus.Stop();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
         }
     }
 }
