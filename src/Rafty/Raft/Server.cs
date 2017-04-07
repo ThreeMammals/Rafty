@@ -51,15 +51,13 @@ namespace Rafty.Raft
         public int CurrentTermVotes { get; private set; }
         public int CurrentTermAppendEntriesResponse { get; private set; }
         public Guid LeaderId { get; private set; }
-
         public RequestVoteResponse Receive(RequestVote requestVote)
         {
             _logger.LogDebug($"Server: {Id} received request vote in term: {CurrentTerm}");
 
             if (!_serversInClusterInCluster.Contains(requestVote.CandidateId))
             {
-                var remoteServer = new ServerInCluster(requestVote.CandidateId);
-                _serversInClusterInCluster.Add(remoteServer);
+                AddNewServerToServersInCluster(requestVote);
             }
 
             // If RPC request or response contains term T > currentTerm:
@@ -130,11 +128,9 @@ namespace Rafty.Raft
 
         public async Task<AppendEntriesResponse> Receive(AppendEntries appendEntries)
         {
-
             if (!_serversInClusterInCluster.Contains(appendEntries.LeaderId))
             {
-                var remoteServer = new ServerInCluster(appendEntries.LeaderId);
-                _serversInClusterInCluster.Add(remoteServer);
+                AddNewServerToServersInCluster(appendEntries);
             }
 
             if (State is Leader)
@@ -356,6 +352,12 @@ namespace Rafty.Raft
             }
         }
 
+        private void AddNewServerToServersInCluster(RequestVote requestVote)
+        {
+            var remoteServer = new ServerInCluster(requestVote.CandidateId);
+            _serversInClusterInCluster.Add(remoteServer);
+        }
+
         private List<ServerInCluster> GetRemoteServers()
         {
             return _serversInClusterInCluster.Get(x => x.Id != Id);
@@ -390,7 +392,6 @@ namespace Rafty.Raft
                 }
             }
         }
-
         private async Task Receive(AppendEntriesResponse appendEntriesResponse)
         {
             if (State is Leader)
@@ -473,6 +474,12 @@ namespace Rafty.Raft
             var becomeCandidate = new BecomeCandidate(_lastAppendEntriesMessageId);
             var sendToSelf = new SendToSelf(becomeCandidate, delayInSeconds);
             _messageBus.Publish(sendToSelf);
+        }
+
+        private void AddNewServerToServersInCluster(AppendEntries appendEntries)
+        {
+            var remoteServer = new ServerInCluster(appendEntries.LeaderId);
+            _serversInClusterInCluster.Add(remoteServer);
         }
     }
 }
