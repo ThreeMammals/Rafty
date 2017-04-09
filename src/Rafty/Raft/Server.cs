@@ -25,10 +25,10 @@ namespace Rafty.Raft
         public Server(IMessageBus messageBus, 
             IServersInCluster serversInCluster, 
             IStateMachine stateMachine, 
-            ILogger logger)
+            ILoggerFactory loggerFactory)
         {
             _stateMachine = stateMachine;
-            _logger = logger;
+            _logger = loggerFactory.CreateLogger<Server>();
             _messageBus = messageBus;
             _serversInClusterInCluster = serversInCluster;
             Id = Guid.NewGuid();

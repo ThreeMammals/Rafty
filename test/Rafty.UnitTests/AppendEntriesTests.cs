@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Rafty.AcceptanceTests;
 using Rafty.Messages;
@@ -210,7 +211,7 @@ namespace Rafty.UnitTests
         {
             _fakeStateMachine = new FakeStateMachine();
             _messageBus = new FakeMessageBus();
-            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new LoggerFactory());
         }
 
         private void ThenTheLogContainsEntriesCount(int expectedCount)

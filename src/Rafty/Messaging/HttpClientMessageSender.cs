@@ -28,7 +28,7 @@ namespace Rafty.Messaging
         private readonly string _commandUrl;
         private readonly ILogger _logger;
 
-        public HttpClientMessageSender(IServiceRegistry serviceRegistry, ILogger logger, string raftyBasePath = null)
+        public HttpClientMessageSender(IServiceRegistry serviceRegistry, ILoggerFactory loggerFactory, string raftyBasePath = null)
         {
             var urlConfig = RaftyUrlConfig.Get(raftyBasePath);
 
@@ -36,7 +36,7 @@ namespace Rafty.Messaging
             _requestVoteUrl = urlConfig.requestVoteUrl;
             _commandUrl = urlConfig.commandUrl;
             _serviceRegistry = serviceRegistry;
-            _logger = logger;
+            _logger = loggerFactory.CreateLogger<HttpClientMessageSender>();
             _sendToSelfHandlers = new Dictionary<Type, Action<IMessage>>
             {
                 {typeof(BecomeCandidate), x => _server.Receive((BecomeCandidate) x)},

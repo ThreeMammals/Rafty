@@ -290,7 +290,6 @@ namespace Rafty.AcceptanceTests
             ServerInCluster serverInCluster = null;
             IMessageBus messageBus = null;
             IStateMachine stateMachine = null;
-            ILogger logger = null;
 
             var webHost = new WebHostBuilder()
                 .UseUrls(baseUrl)
@@ -298,19 +297,24 @@ namespace Rafty.AcceptanceTests
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .ConfigureServices(s =>
                 {
-                    logger = new ConsoleLogger("ConsoleLogger", (x, y) => true, true);
-                    s.AddSingleton<ILogger>(logger);
-                    messageSender = new HttpClientMessageSender(_serviceRegistry, logger);
-                    s.AddSingleton<IMessageSender>(messageSender);
-                    messageBus = new InMemoryBus(messageSender);
-                    s.AddSingleton<IMessageBus>(messageBus);
-                    stateMachine = new FakeStateMachine();
-                    s.AddSingleton<IStateMachine>(stateMachine);
+                    s.AddSingleton<IMessageSender, HttpClientMessageSender>();
+                    s.AddSingleton<IMessageBus, InMemoryBus>();
+                    s.AddSingleton<IStateMachine, FakeStateMachine>();
+                    s.AddSingleton<IServersInCluster, InMemoryServersInCluster>();
+                    //s.AddSingleton<IServiceRegistry, ServiceRegistry>();
                 })
                 .Configure(app =>
                 {
+                    var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
+
+                    messageSender = app.ApplicationServices.GetRequiredService<IMessageSender>();
+                    messageBus = app.ApplicationServices.GetRequiredService<IMessageBus>();
+                    stateMachine = app.ApplicationServices.GetRequiredService<IStateMachine>();
+                    //var _serviceRegistry = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
+                    //_serversInCluster = app.ApplicationServices.GetRequiredService<IServersInCluster>();
+
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
-                        _serviceRegistry, logger, _serversInCluster);
+                        _serviceRegistry, loggerFactory, _serversInCluster);
 
                     server = result.server;
                     serverInCluster = result.serverInCluster;

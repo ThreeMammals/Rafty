@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Moq;
 using Rafty.Messages;
@@ -243,7 +244,7 @@ namespace Rafty.UnitTests
         private void GivenANewServer()
         {
             _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new LoggerFactory());
         }
     }
 }

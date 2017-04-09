@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Moq;
 using Rafty.AcceptanceTests;
@@ -75,13 +76,13 @@ namespace Rafty.UnitTests
         {
             _fakeStateMachine = new FakeStateMachine();
             _messageBus = new FakeMessageBus();
-            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new LoggerFactory());
         }
 
         private void GivenANewServer(Mock<IMessageBus> mock)
         {
             _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(mock.Object, _serversInCluster, _fakeStateMachine, new ConsoleLogger("ConsoleLogger", (x, y) => true, true));
+            _server = new Server(mock.Object, _serversInCluster, _fakeStateMachine, new LoggerFactory());
         }
 
         private void TheServerIsAFollower()

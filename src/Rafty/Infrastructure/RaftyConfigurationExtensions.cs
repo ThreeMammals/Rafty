@@ -24,12 +24,12 @@ namespace Rafty.Infrastructure
             IMessageBus messageBus, 
             IStateMachine stateMachine, 
             IServiceRegistry serviceRegistry, 
-            ILogger logger,
+            ILoggerFactory loggerFactory,
             IServersInCluster serversInCluster,
             string raftyBasePath = null)
         {
             builder.UseRaftyForTesting(baseUri, messageSender, messageBus, stateMachine, serviceRegistry,
-                logger, serversInCluster, raftyBasePath);
+                loggerFactory, serversInCluster, raftyBasePath);
 
             return builder;
         }
@@ -40,13 +40,14 @@ namespace Rafty.Infrastructure
            IMessageBus messageBus,
            IStateMachine stateMachine,
            IServiceRegistry serviceRegistry,
-           ILogger logger,
+           ILoggerFactory loggerFactory,
            IServersInCluster serversInCluster,
            string raftyBasePath = null)
         {
             var urlConfig = RaftyUrlConfig.Get(raftyBasePath);
 
-            var server = new Server(messageBus, serversInCluster, stateMachine, logger);
+            var server = new Server(messageBus, serversInCluster, stateMachine, loggerFactory);
+            var logger = loggerFactory.CreateLogger<IApplicationBuilder>();
 
             serviceRegistry.Register(new RegisterService(RaftyServiceDiscoveryName.Get(), server.Id, baseUri));
 
