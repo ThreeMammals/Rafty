@@ -32,7 +32,7 @@ namespace Rafty.AcceptanceTests
         public AcceptanceTestsSteps()
         {
             _serversInCluster = new InMemoryServersInCluster();
-            _serviceRegistry = new ServiceRegistry();
+            _serviceRegistry = new InMemoryServiceRegistry();
             _servers = new List<ServerContainer>();
         }
 
@@ -301,7 +301,7 @@ namespace Rafty.AcceptanceTests
                     s.AddSingleton<IMessageBus, InMemoryBus>();
                     s.AddSingleton<IStateMachine, FakeStateMachine>();
                     s.AddSingleton<IServersInCluster, InMemoryServersInCluster>();
-                    //s.AddSingleton<IServiceRegistry, ServiceRegistry>();
+                    s.AddSingleton<IServiceRegistry>(_serviceRegistry);
                 })
                 .Configure(app =>
                 {
@@ -310,8 +310,6 @@ namespace Rafty.AcceptanceTests
                     messageSender = app.ApplicationServices.GetRequiredService<IMessageSender>();
                     messageBus = app.ApplicationServices.GetRequiredService<IMessageBus>();
                     stateMachine = app.ApplicationServices.GetRequiredService<IStateMachine>();
-                    //var _serviceRegistry = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
-                    //_serversInCluster = app.ApplicationServices.GetRequiredService<IServersInCluster>();
 
                     var result = app.UseRaftyForTesting(new Uri(baseUrl), messageSender, messageBus, stateMachine, 
                         _serviceRegistry, loggerFactory, _serversInCluster);

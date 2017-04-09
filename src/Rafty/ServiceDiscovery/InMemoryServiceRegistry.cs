@@ -3,9 +3,9 @@ using System.Linq;
 
 namespace Rafty.ServiceDiscovery
 {
-    public class ServiceRegistry : IServiceRegistry
+    public class InMemoryServiceRegistry : IServiceRegistry
     {
-        public ServiceRegistry()
+        public InMemoryServiceRegistry()
         {
             Services = new List<Service>();
         }

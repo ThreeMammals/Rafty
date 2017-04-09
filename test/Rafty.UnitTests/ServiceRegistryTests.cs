@@ -11,12 +11,12 @@ namespace Rafty.UnitTests
     public class ServiceRegistryTests
     {
         private RegisterService _registerService;
-        private readonly ServiceRegistry _serviceRegistry;
+        private readonly InMemoryServiceRegistry _inMemoryServiceRegistry;
         private List<Service> _result;
 
         public ServiceRegistryTests()
         {
-            _serviceRegistry = new ServiceRegistry();
+            _inMemoryServiceRegistry = new InMemoryServiceRegistry();
         }
 
         [Fact]
@@ -46,12 +46,12 @@ namespace Rafty.UnitTests
 
         private void WhenIRegisterTheService()
         {
-            _serviceRegistry.Register(_registerService);
+            _inMemoryServiceRegistry.Register(_registerService);
         }
 
         private void ThenItIsRegistered()
         {
-            _serviceRegistry.Services.Count.ShouldBe(1);
+            _inMemoryServiceRegistry.Services.Count.ShouldBe(1);
         }
 
         private void GivenAListOfRegisteredServices()
@@ -60,13 +60,13 @@ namespace Rafty.UnitTests
             for (int i = 0; i < 5; i++)
             {
                 var registerService = new RegisterService(RaftyServiceDiscoveryName.Get(), Guid.NewGuid(), new Uri($"www.rafty.co.uk:123{i}"));
-                _serviceRegistry.Register(registerService);
+                _inMemoryServiceRegistry.Register(registerService);
             }
         }
 
         private void WhenIGetTheRegisteredServices()
         {
-            _result = _serviceRegistry.Get(RaftyServiceDiscoveryName.Get());
+            _result = _inMemoryServiceRegistry.Get(RaftyServiceDiscoveryName.Get());
         }
 
         private void ThenTheServicesAreReturned()
