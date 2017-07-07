@@ -43,4 +43,9 @@
     <PackageReference Include="System.ValueTuple" Version="4.3.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="FiniteStateMachine\" />
+    <Folder Include="Concensus\" />
+  </ItemGroup>
+
 </Project>
