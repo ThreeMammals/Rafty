@@ -3,7 +3,7 @@ namespace Rafty.UnitTests
     using Log;
     using Xunit;
 
-    public class Tests
+    public class LogTests
     {
         [Fact]
         public void ShouldApplyLog()
