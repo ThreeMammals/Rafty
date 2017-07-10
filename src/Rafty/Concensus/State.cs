@@ -31,7 +31,7 @@ namespace Rafty.Concensus
     public class Node
     {
         private List<Guid> _appendEntriesIdsReceived;
-        private Guid _previousAppendEntriesId;
+        private Guid _appendEntriesAtPreviousHeartbeat;
 
         public Node(CurrentState initialState)
         {
@@ -58,9 +58,9 @@ namespace Rafty.Concensus
                 State = State.Handle(timeout);
             }
 
-            if(_appendEntriesIdsReceived.Any())
+            if(AppendEntriesReceived())
             {
-                _previousAppendEntriesId = _appendEntriesIdsReceived.Last();
+                _appendEntriesAtPreviousHeartbeat = _appendEntriesIdsReceived.Last();
             }
         }
 
@@ -70,6 +70,11 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse();
         }
 
+        private bool AppendEntriesReceived()
+        {
+            return _appendEntriesIdsReceived.Any();
+        }
+
         private bool NoHeartbeatSinceLastTimeout()
         {
             if(!_appendEntriesIdsReceived.Any())
@@ -77,7 +82,7 @@ namespace Rafty.Concensus
                 return true;
             }
 
-            return _appendEntriesIdsReceived.Last() == _previousAppendEntriesId;
+            return _appendEntriesIdsReceived.Last() == _appendEntriesAtPreviousHeartbeat;
         }
     }
 }
