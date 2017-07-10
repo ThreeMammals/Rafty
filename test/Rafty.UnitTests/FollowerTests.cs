@@ -73,6 +73,17 @@ namespace Rafty.UnitTests
             _node.State.ShouldBeOfType<Follower>();
         }
 
+        [Fact]
+        public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
+        {
+            _node.State.ShouldBeOfType<Follower>();
+            _node.Handle(new AppendEntries(Guid.NewGuid()));
+            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
+            _node.Handle(new AppendEntries(Guid.NewGuid()));
+            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
+            _node.State.ShouldBeOfType<Follower>();
+        }
+
           [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
         {
