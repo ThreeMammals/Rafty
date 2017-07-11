@@ -5,30 +5,51 @@ using System.Threading;
 
 namespace Rafty.Concensus
 {
-    public class Node
+    public class VoteForSelf
+    {
+
+    }
+    
+    public class Node : IDisposable
     {
         private List<Guid> _appendEntriesIdsReceived;
         private Guid _appendEntriesAtPreviousHeartbeat;
+        private TimeoutMessager _bus;
 
         public Node(CurrentState initialState)
         {
             _appendEntriesIdsReceived = new List<Guid>();
-            State = new Follower(initialState);
+            _bus = new TimeoutMessager(this);
+            State = new Follower(initialState, _bus);
+            _bus.Start();
         }
 
         public IState State { get; private set; }
 
-        public AppendEntriesResponse Response(AppendEntries appendEntries)
+        public void Handle(Message message)
         {
-            throw new NotImplementedException();
+            if(message.GetType() == typeof(BeginElection))
+            {
+                Handle((BeginElection)message);
+            }
+
+            if(message.GetType() == typeof(Timeout))
+            {
+                Handle((Timeout)message);
+            }
         }
 
-        public RequestVoteResponse Response(RequestVote requestVote)
+        private void Handle(BeginElection beginElection)
         {
-            throw new NotImplementedException();
+            // • On conversion to candidate, start election:
+            // • Increment currentTerm
+            // • Vote for self
+            State = State.Handle(new VoteForSelf());
+            // • Reset election timer
+            // • Send RequestVote RPCs to all other servers
         }
 
-        public void Handle(Timeout timeout)
+        private void Handle(Timeout timeout)
         {
             if(NoHeartbeatSinceLastTimeout())
             {
@@ -45,6 +66,11 @@ namespace Rafty.Concensus
         {
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
             return new AppendEntriesResponse();
+        }
+
+        public void Dispose()
+        {
+            _bus.Dispose();
         }
 
         private bool AppendEntriesReceived()

@@ -6,13 +6,15 @@ using Xunit;
 
 namespace Rafty.UnitTests
 {
-    public class CandidateTests
+    public class CandidateTests : IDisposable
     {
         private Node _node;
+        private Guid _id;
 
         public CandidateTests()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0);
+            _id = Guid.NewGuid();
+            var currentState = new CurrentState(_id, new List<IPeer>(), 0);
             _node = new Node(currentState);
         }
 
@@ -22,6 +24,19 @@ namespace Rafty.UnitTests
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.CurrentState.CurrentTerm.ShouldBe(1);
+        }
+
+        [Fact]
+        public void ShouldVoteForSelfWhenElectionStarts()
+        {           
+            _node.State.ShouldBeOfType<Follower>();
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.State.CurrentState.VotedFor.ShouldBe(_id);
+        }
+
+        public void Dispose()
+        {
+            _node.Dispose();
         }
     }
 }

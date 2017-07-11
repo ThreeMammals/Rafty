@@ -7,8 +7,8 @@ namespace Rafty.Concensus
 {
     public class TimeoutMessager : IDisposable
     {
-        private readonly Thread _publishingThread;
-        private readonly BlockingCollection<Timeout> _timeouts;
+        private Thread _publishingThread;
+        private readonly BlockingCollection<Message> _messages;
         private readonly List<Guid> _seenMessageIds;
         private bool _publishing;
         private readonly CancellationTokenSource _cancellationTokenSource;
@@ -18,35 +18,44 @@ namespace Rafty.Concensus
         {
             _node = state;
             _seenMessageIds = new List<Guid>();
-            _timeouts = new BlockingCollection<Timeout>();
+            _messages = new BlockingCollection<Message>();
             _cancellationTokenSource = new CancellationTokenSource();
-            _publishingThread = new Thread(Start);
-            _publishingThread.Start();
         }
 
         public void Publish(Timeout timeout)
         {
-            _timeouts.Add(timeout);
+            _messages.Add(timeout);
         }
 
-        private void Start()
+        public void Publish(BeginElection beginElection)
         {
+            _messages.Add(beginElection);
+        }
+
+        public void Start()
+        {
+            _publishingThread = new Thread(Process);
+            _publishingThread.Start();
             _publishing = true;
+        }
+
+        private void Process()
+        {
 
             while (_publishing)
             {
                 try
                 {
-                    foreach (var timeout in _timeouts.GetConsumingEnumerable(_cancellationTokenSource.Token))
+                    foreach (var message in _messages.GetConsumingEnumerable(_cancellationTokenSource.Token))
                     {
-                        if (_seenMessageIds.Contains(timeout.MessageId))
+                        if (_seenMessageIds.Contains(message.MessageId))
                         {
                             return;
                         }
 
-                        Thread.Sleep(timeout.Delay);
-                        _node.Handle(timeout);
-                        _seenMessageIds.Add(timeout.MessageId);
+                        Thread.Sleep(message.Delay);
+                        _node.Handle(message);
+                        _seenMessageIds.Add(message.MessageId);
                     }
                 }
                 catch (OperationCanceledException exception)

@@ -5,10 +5,15 @@ namespace Rafty.Concensus
 {
     public sealed class Candidate : IState
     {
-        public Candidate(CurrentState stateValues) 
+        public Candidate(CurrentState currentState) 
         {
-            var nextTerm = stateValues.CurrentTerm + 1;
-            var nextState = new CurrentState(stateValues.Id, stateValues.Peers, nextTerm);
+            // • On conversion to candidate, start election:
+            // • Increment currentTerm
+            // • Vote for self
+            // • Reset election timer
+            // • Send RequestVote RPCs to all other servers
+            var nextTerm = currentState.CurrentTerm + 1;
+            var nextState = new CurrentState(currentState.Id, currentState.Peers, nextTerm);
             CurrentState = nextState;
         }
 
@@ -19,7 +24,7 @@ namespace Rafty.Concensus
             throw new NotImplementedException();
         }
 
-        IState IState.Handle(Timeout timeout)
+        public IState Handle(VoteForSelf voteForSelf)
         {
             throw new NotImplementedException();
         }

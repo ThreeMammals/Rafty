@@ -8,7 +8,7 @@ using System.Threading;
 
 namespace Rafty.UnitTests
 {
-    public class FollowerTests
+    public class FollowerTests : IDisposable
     {
         private Node _node;
 
@@ -100,6 +100,11 @@ namespace Rafty.UnitTests
             _node.Handle(new TimeoutBuilder().Build());
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
+        }
+
+        public void Dispose()
+        {
+            _node.Dispose();
         }
     }
 }
