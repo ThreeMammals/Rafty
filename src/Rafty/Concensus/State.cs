@@ -66,7 +66,7 @@ namespace Rafty.Concensus
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            _appendEntriesIdsReceived.Add(appendEntries.Id);
+            _appendEntriesIdsReceived.Add(appendEntries.MessageId);
             return new AppendEntriesResponse();
         }
 

@@ -52,7 +52,7 @@ namespace Rafty.UnitTests
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeader()
         {           
              _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
+            _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
 
             //todo is this the best way to do messaging at integration level?
@@ -68,8 +68,8 @@ namespace Rafty.UnitTests
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntries(Guid.NewGuid()));
-            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
+            _node.Handle(new AppendEntriesBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
         }
 
@@ -77,10 +77,10 @@ namespace Rafty.UnitTests
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
         {
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntries(Guid.NewGuid()));
-            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
-            _node.Handle(new AppendEntries(Guid.NewGuid()));
-            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
+            _node.Handle(new AppendEntriesBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.Handle(new AppendEntriesBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
         }
 
@@ -88,9 +88,9 @@ namespace Rafty.UnitTests
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
         {
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntries(Guid.NewGuid()));
-            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
-            _node.Handle(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
+            _node.Handle(new AppendEntriesBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
         }
     }
