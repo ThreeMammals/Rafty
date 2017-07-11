@@ -14,7 +14,7 @@ namespace Rafty.UnitTests
         public CandidateTests()
         {
             _id = Guid.NewGuid();
-            var currentState = new CurrentState(_id, new List<IPeer>(), 0);
+            var currentState = new CurrentState(_id, new List<IPeer>(), 0, default(Guid));
             _node = new Node(currentState);
         }
 

@@ -14,7 +14,7 @@ namespace Rafty.UnitTests
 
         public FollowerTests()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0);
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid));
             _node = new Node(currentState);
         }
         

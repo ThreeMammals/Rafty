@@ -4,17 +4,12 @@ using System.Linq;
 using System.Threading;
 
 namespace Rafty.Concensus
-{
-    public class VoteForSelf
-    {
-
-    }
-    
+{ 
     public class Node : IDisposable
     {
-        private List<Guid> _appendEntriesIdsReceived;
+        private readonly List<Guid> _appendEntriesIdsReceived;
         private Guid _appendEntriesAtPreviousHeartbeat;
-        private TimeoutMessager _bus;
+        private readonly TimeoutMessager _bus;
 
         public Node(CurrentState initialState)
         {
@@ -28,6 +23,9 @@ namespace Rafty.Concensus
 
         public void Handle(Message message)
         {
+            //todo - could run middleware type functions here?
+
+            //todo - these handlers should be in a dictionary
             if(message.GetType() == typeof(BeginElection))
             {
                 Handle((BeginElection)message);
@@ -39,14 +37,20 @@ namespace Rafty.Concensus
             }
         }
 
+        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        {
+            _appendEntriesIdsReceived.Add(appendEntries.MessageId);
+            return new AppendEntriesResponse();
+        }
+
+        public void Dispose()
+        {
+            _bus.Dispose();
+        }
+
         private void Handle(BeginElection beginElection)
         {
-            // • On conversion to candidate, start election:
-            // • Increment currentTerm
-            // • Vote for self
-            State = State.Handle(new VoteForSelf());
-            // • Reset election timer
-            // • Send RequestVote RPCs to all other servers
+            State = State.Handle(beginElection);
         }
 
         private void Handle(Timeout timeout)
@@ -60,17 +64,6 @@ namespace Rafty.Concensus
             {
                 _appendEntriesAtPreviousHeartbeat = _appendEntriesIdsReceived.Last();
             }
-        }
-
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
-        {
-            _appendEntriesIdsReceived.Add(appendEntries.MessageId);
-            return new AppendEntriesResponse();
-        }
-
-        public void Dispose()
-        {
-            _bus.Dispose();
         }
 
         private bool AppendEntriesReceived()

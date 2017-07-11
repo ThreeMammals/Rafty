@@ -16,8 +16,8 @@ namespace Rafty.Concensus
         {
             throw new NotImplementedException();
         }
-        
-        public IState Handle(VoteForSelf voteForSelf)
+
+        public IState Handle(BeginElection beginElection)
         {
             throw new NotImplementedException();
         }

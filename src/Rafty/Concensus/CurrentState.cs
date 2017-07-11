@@ -5,11 +5,12 @@ namespace Rafty.Concensus
 {
     public class CurrentState
     {
-        public CurrentState(Guid id, List<IPeer> peers, long currentTerm)
+        public CurrentState(Guid id, List<IPeer> peers, long currentTerm, Guid votedFor)
         {
             Id = id;
             CurrentTerm = currentTerm;
             Peers = peers;
+            VotedFor = votedFor;
         }
 
         public long CurrentTerm { get; private set; }

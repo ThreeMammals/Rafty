@@ -22,9 +22,9 @@ namespace Rafty.Concensus
             return new Candidate(CurrentState);
         }
 
-        public IState Handle(VoteForSelf voteForSelf)
+        public IState Handle(BeginElection beginElection)
         {
-            throw new NotImplementedException();
+            return this;
         }
     }
 }
