@@ -5,29 +5,6 @@ using System.Threading;
 
 namespace Rafty.Concensus
 {
-    public interface IState
-    {
-        IState Handle(Timeout timeout);
-        CurrentState CurrentState {get;}
-    }
-
-    public class CurrentState
-    {
-        public CurrentState(Guid id, List<IPeer> peers)
-        {
-            this.Id = id;
-
-        }
-
-        public long CurrentTerm { get; private set; }
-        public Guid VotedFor { get; private set; }
-        public long CommitIndex { get; private set; }
-        public long LastApplied { get; private set; }
-        public Uri Address { get; private set; }
-        public Guid Id { get; private set; }
-        public List<IPeer> Peers { get; private set; }
-    }
-
     public class Node
     {
         private List<Guid> _appendEntriesIdsReceived;

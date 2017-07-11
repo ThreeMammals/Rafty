@@ -14,7 +14,7 @@ namespace Rafty.UnitTests
 
         public FollowerTests()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>());
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0);
             _node = new Node(currentState);
         }
         
@@ -65,6 +65,14 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
+        public void ShouldIncrementCurrentTermWhenElectionStarts()
+        {           
+             _node.State.ShouldBeOfType<Follower>();
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.State.ShouldBeOfType<Candidate>();
+        }
+
+        [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
             _node.State.ShouldBeOfType<Follower>();
@@ -84,7 +92,7 @@ namespace Rafty.UnitTests
             _node.State.ShouldBeOfType<Follower>();
         }
 
-          [Fact]
+        [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
         {
             _node.State.ShouldBeOfType<Follower>();

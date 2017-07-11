@@ -7,7 +7,9 @@ namespace Rafty.Concensus
     {
         public Candidate(CurrentState stateValues) 
         {
-            CurrentState = stateValues;
+            var nextTerm = stateValues.CurrentTerm + 1;
+            var nextState = new CurrentState(stateValues.Id, stateValues.Peers, nextTerm);
+            CurrentState = nextState;
         }
 
         public CurrentState CurrentState {get;private set;}
