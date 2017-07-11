@@ -50,6 +50,8 @@ namespace Rafty.Concensus
             {
                 try
                 {
+                    _messagesBeingProcessed.RemoveAll(x => x.Task.IsCompleted);
+
                     foreach (var message in _messages.GetConsumingEnumerable(_messagesCancellationTokenSource.Token))
                     {
                         if (_seenMessageIds.Contains(message.MessageId))
