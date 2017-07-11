@@ -10,7 +10,7 @@ namespace Rafty.UnitTests
 {
     public class FollowerTests : IDisposable
     {
-        private Node _node;
+        private readonly Node _node;
 
         public FollowerTests()
         {
@@ -56,7 +56,7 @@ namespace Rafty.UnitTests
             _node.State.ShouldBeOfType<Candidate>();
 
             //todo is this the best way to do messaging at integration level?
-            // using(var timeOutMessenger = new TimeoutMessager(_node))
+            // using(var timeOutMessenger = new SendToSelf(_node))
             // {
             //     timeOutMessenger.Publish(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
             //     Thread.Sleep(100);

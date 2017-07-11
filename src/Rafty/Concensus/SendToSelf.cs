@@ -6,24 +6,25 @@ using System.Threading.Tasks;
 
 namespace Rafty.Concensus
 {
-    public class TimeoutMessager : IDisposable
+    public class SendToSelf : IDisposable
     {
-        private Task _publishingTask;
+        private Thread _publishingThread;
         private readonly BlockingCollection<Message> _messages;
         private readonly List<Guid> _seenMessageIds;
         private bool _publishing;
         private readonly CancellationTokenSource _messagesCancellationTokenSource;
         private readonly CancellationTokenSource _taskCancellationTokenSource;
+        private readonly INode _node;
+        private readonly List<TaskAndCancellationToken> _messagesBeingProcessed;
 
-        private Node _node;
-
-        public TimeoutMessager(Node state)
+        public SendToSelf(INode state)
         {
             _node = state;
             _seenMessageIds = new List<Guid>();
             _messages = new BlockingCollection<Message>();
             _taskCancellationTokenSource = new CancellationTokenSource();
             _messagesCancellationTokenSource = new CancellationTokenSource();
+            _messagesBeingProcessed = new List<TaskAndCancellationToken>();
         }
 
         public void Publish(Timeout timeout)
@@ -38,14 +39,13 @@ namespace Rafty.Concensus
 
         public void Start()
         {
-            _publishingTask = new Task(Process, _taskCancellationTokenSource.Token);
-            _publishingTask.Start();
+            _publishingThread = new Thread(Process);
+            _publishingThread.Start();
             _publishing = true;
         }
 
         private void Process()
         {
-
             while (_publishing)
             {
                 try
@@ -57,9 +57,12 @@ namespace Rafty.Concensus
                             return;
                         }
 
-                        //todo - this is wrong as it blocks messages that need to be processed
-                        Thread.Sleep(message.Delay);
-                        _node.Handle(message);
+                        var cancel = new CancellationTokenSource();
+                        Action action = () => Process(message);
+                        var task = new Task(action, cancel.Token);
+                        task.Start();
+                        var taskAndCancel = new TaskAndCancellationToken(task, cancel);
+                        _messagesBeingProcessed.Add(taskAndCancel);
                         _seenMessageIds.Add(message.MessageId);
                     }
                 }
@@ -70,9 +73,21 @@ namespace Rafty.Concensus
             }
         }
 
+        private async Task Process(Message message)
+        {
+            await Task.Delay(message.Delay);
+            _node.Handle(message);
+        }
+
         public void Dispose()
         {
             _publishing = false;
+
+            foreach (var taskAndCancellationToken in _messagesBeingProcessed)
+            {
+                taskAndCancellationToken.CancellationTokenSource.Cancel(true);
+            }
+
             _taskCancellationTokenSource.Cancel(true);
             _messagesCancellationTokenSource.Cancel(true);
         }

@@ -14,11 +14,6 @@ namespace Rafty.Concensus
 
         public Timeout Build()
         {
-            if(_delay == null)
-            {
-                _delay = TimeSpan.FromMilliseconds(0);
-            }
-
             return new Timeout(_delay);
         }
     }
@@ -26,11 +21,8 @@ namespace Rafty.Concensus
     public class Timeout : Message
     {
         public Timeout(TimeSpan delay)
-            :base(Guid.NewGuid())
+            :base(Guid.NewGuid(), delay)
         {
-            this.Delay = delay;
         }
-
-        public TimeSpan Delay { get; private set; }
     }
 }

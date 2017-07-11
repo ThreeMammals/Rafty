@@ -8,8 +8,8 @@ namespace Rafty.UnitTests
 {
     public class CandidateTests : IDisposable
     {
-        private Node _node;
-        private Guid _id;
+        private readonly Node _node;
+        private readonly Guid _id;
 
         public CandidateTests()
         {

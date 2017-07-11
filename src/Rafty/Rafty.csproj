@@ -45,7 +45,6 @@
 
   <ItemGroup>
     <Folder Include="FiniteStateMachine\" />
-    <Folder Include="Concensus\" />
   </ItemGroup>
 
 </Project>

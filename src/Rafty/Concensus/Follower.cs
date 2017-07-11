@@ -5,12 +5,12 @@ namespace Rafty.Concensus
 {
     public class Follower : IState
     {
-        private TimeoutMessager _bus;
+        private readonly SendToSelf _sendToSelf;
 
-        public Follower(CurrentState state, TimeoutMessager bus)
+        public Follower(CurrentState state, SendToSelf sendToSelf)
         {
             CurrentState = state;
-            _bus = bus;
+            _sendToSelf = sendToSelf;
         }
 
         public CurrentState CurrentState {get;private set;}
@@ -18,7 +18,7 @@ namespace Rafty.Concensus
         public IState Handle(Timeout timeout)
         {
             //begin election.....
-            _bus.Publish(new BeginElection());
+            _sendToSelf.Publish(new BeginElection());
             return new Candidate(CurrentState);
         }
 

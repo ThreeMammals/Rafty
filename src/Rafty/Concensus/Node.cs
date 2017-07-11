@@ -5,18 +5,18 @@ using System.Threading;
 
 namespace Rafty.Concensus
 { 
-    public class Node : IDisposable
+    public class Node : IDisposable, INode
     {
         private readonly List<Guid> _appendEntriesIdsReceived;
         private Guid _appendEntriesAtPreviousHeartbeat;
-        private readonly TimeoutMessager _bus;
+        private readonly SendToSelf _sendToSelf;
 
         public Node(CurrentState initialState)
         {
             _appendEntriesIdsReceived = new List<Guid>();
-            _bus = new TimeoutMessager(this);
-            State = new Follower(initialState, _bus);
-            _bus.Start();
+            _sendToSelf = new SendToSelf(this);
+            State = new Follower(initialState, _sendToSelf);
+            _sendToSelf.Start();
         }
 
         public IState State { get; private set; }
@@ -45,7 +45,7 @@ namespace Rafty.Concensus
 
         public void Dispose()
         {
-            _bus.Dispose();
+            _sendToSelf.Dispose();
         }
 
         private void Handle(BeginElection beginElection)
