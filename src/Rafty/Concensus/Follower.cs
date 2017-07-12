@@ -5,9 +5,9 @@ namespace Rafty.Concensus
 {
     public class Follower : IState
     {
-        private readonly SendToSelf _sendToSelf;
+        private readonly ISendToSelf _sendToSelf;
 
-        public Follower(CurrentState state, SendToSelf sendToSelf)
+        public Follower(CurrentState state, ISendToSelf sendToSelf)
         {
             CurrentState = state;
             _sendToSelf = sendToSelf;

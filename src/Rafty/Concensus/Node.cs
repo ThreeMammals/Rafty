@@ -9,14 +9,13 @@ namespace Rafty.Concensus
     {
         private readonly List<Guid> _appendEntriesIdsReceived;
         private Guid _appendEntriesAtPreviousHeartbeat;
-        private readonly SendToSelf _sendToSelf;
+        private readonly ISendToSelf _sendToSelf;
 
-        public Node(CurrentState initialState)
+        public Node(CurrentState initialState, ISendToSelf sendToSelf)
         {
             _appendEntriesIdsReceived = new List<Guid>();
-            _sendToSelf = new SendToSelf(this);
+            _sendToSelf = sendToSelf;
             State = new Follower(initialState, _sendToSelf);
-            _sendToSelf.Start();
         }
 
         public IState State { get; private set; }

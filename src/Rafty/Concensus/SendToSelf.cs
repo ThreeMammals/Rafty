@@ -6,20 +6,19 @@ using System.Threading.Tasks;
 
 namespace Rafty.Concensus
 {
-    public class SendToSelf : IDisposable
+    public class SendToSelf : ISendToSelf, IDisposable
     {
         private Thread _publishingThread;
         private readonly BlockingCollection<Message> _messages;
         private readonly List<Guid> _seenMessageIds;
         private bool _publishing;
+        private INode _node;
         private readonly CancellationTokenSource _messagesCancellationTokenSource;
         private readonly CancellationTokenSource _taskCancellationTokenSource;
-        private readonly INode _node;
         private readonly List<TaskAndCancellationToken> _messagesBeingProcessed;
 
-        public SendToSelf(INode state)
+        public SendToSelf()
         {
-            _node = state;
             _seenMessageIds = new List<Guid>();
             _messages = new BlockingCollection<Message>();
             _taskCancellationTokenSource = new CancellationTokenSource();
@@ -37,8 +36,9 @@ namespace Rafty.Concensus
             _messages.Add(beginElection);
         }
 
-        public void Start()
-        {
+        public void SetNode(INode node)
+        {           
+            _node = node;
             _publishingThread = new Thread(Process);
             _publishingThread.Start();
             _publishing = true;

@@ -46,18 +46,20 @@ namespace Rafty.UnitTests
         public SendToSelfTests()
         {
             _node = new FakeNode();
-            _sendToSelf = new SendToSelf(_node);
-            _sendToSelf.Start();
+            _sendToSelf = new SendToSelf();
+            _sendToSelf.SetNode(_node);
         }
 
         [Fact]
-        public async Task Test()
+        public async Task ShouldReceiveDelayedMessagesInCorrectOrder()
         {
-            var oneSecond = new Timeout(TimeSpan.FromMilliseconds(1000));
-            var halfASecond = new Timeout(TimeSpan.FromMilliseconds(500));
+            var oneSecond = new Timeout(TimeSpan.FromMilliseconds(10));
+            var halfASecond = new Timeout(TimeSpan.FromMilliseconds(5));
             _sendToSelf.Publish(oneSecond);
             _sendToSelf.Publish(halfASecond);
-            await Task.Delay(5000);
+            //This is a bit shitty but probably the best way to test the 
+            //integration between this and the INode
+            await Task.Delay(20);
             _node.Messages[0].MessageId.ShouldBe(halfASecond.MessageId);
             _node.Messages[1].MessageId.ShouldBe(oneSecond.MessageId);
         }

@@ -10,12 +10,15 @@ namespace Rafty.UnitTests
     {
         private readonly Node _node;
         private readonly Guid _id;
+        private ISendToSelf _sendToSelf;
 
         public CandidateTests()
         {
             _id = Guid.NewGuid();
             var currentState = new CurrentState(_id, new List<IPeer>(), 0, default(Guid));
-            _node = new Node(currentState);
+            _sendToSelf = new SendToSelf();
+            _node = new Node(currentState, _sendToSelf);
+            _sendToSelf.SetNode(_node);
         }
 
         [Fact]
@@ -32,6 +35,12 @@ namespace Rafty.UnitTests
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.CurrentState.VotedFor.ShouldBe(_id);
+        }
+
+        [Fact]
+        public void ShouldResetElectionTimerWhenElectionStarts()
+        {
+            throw new NotImplementedException();
         }
 
         public void Dispose()
