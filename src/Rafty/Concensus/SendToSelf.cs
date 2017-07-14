@@ -1,24 +1,22 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Rafty.Concensus
 {
-    using System.Linq;
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     public class SendToSelf : ISendToSelf, IDisposable
     {
-        private Thread _publishingThread;
         private readonly BlockingCollection<Message> _messages;
-        private readonly List<Guid> _seenMessageIds;
-        private bool _publishing;
-        private INode _node;
-        private readonly CancellationTokenSource _messagesCancellationTokenSource;
-        private readonly CancellationTokenSource _taskCancellationTokenSource;
         private readonly List<TaskAndCancellationToken> _messagesBeingProcessed;
+        private readonly CancellationTokenSource _messagesCancellationTokenSource;
+        private readonly List<Guid> _seenMessageIds;
+        private readonly CancellationTokenSource _taskCancellationTokenSource;
         private bool _disposing;
+        private INode _node;
+        private bool _publishing;
+        private Thread _publishingThread;
 
         public SendToSelf()
         {
@@ -41,11 +39,37 @@ namespace Rafty.Concensus
         }
 
         public void SetNode(INode node)
-        {           
+        {
             _node = node;
             _publishingThread = new Thread(Process);
             _publishingThread.Start();
             _publishing = true;
+        }
+
+        public void Dispose()
+        {
+            _disposing = true;
+            var disposing = true;
+
+            while (disposing)
+            {
+                try
+                {
+                    _publishing = false;
+
+                    foreach (var taskAndCancellationToken in _messagesBeingProcessed)
+                        taskAndCancellationToken.CancellationTokenSource.Cancel(true);
+
+                    _taskCancellationTokenSource.Cancel(true);
+                    _messagesCancellationTokenSource.Cancel(true);
+                    disposing = false;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
+         
         }
 
         private void Process()
@@ -88,33 +112,6 @@ namespace Rafty.Concensus
         {
             await Task.Delay(message.Delay);
             _node.Handle(message);
-        }
-
-        public void Dispose()
-        {
-            _disposing = true;
-            var disposing = true;
-
-            while (disposing)
-            {
-                try
-                {
-                    _publishing = false;
-
-                    foreach (var taskAndCancellationToken in _messagesBeingProcessed)
-                    {
-                        taskAndCancellationToken.CancellationTokenSource.Cancel(true);
-                    }
-
-                    _taskCancellationTokenSource.Cancel(true);
-                    _messagesCancellationTokenSource.Cancel(true);
-                    disposing = false;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
         }
     }
 }

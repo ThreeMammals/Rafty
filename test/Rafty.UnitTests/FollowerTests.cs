@@ -1,49 +1,47 @@
-using System;
-using System.Collections.Generic;
-using Moq;
-using Shouldly;
-using Xunit;
-using Rafty.Concensus;
-using System.Threading;
-
 namespace Rafty.UnitTests
 {
+    using System;
+    using System.Collections.Generic;
+    using Concensus;
+    using Shouldly;
+    using Xunit;
+
+/* Followers(§5.2):
+• Respond to RPCs from candidates and leaders
+• If election timeout elapses without receiving AppendEntries
+RPC from current leader or granting vote to candidate:
+convert to candidate*/
+
     public class FollowerTests : IDisposable
     {
-        private Node _node;
-        private ISendToSelf _sendToSelf;
-        private CurrentState _currentState;
-
         public FollowerTests()
         {
             _sendToSelf = new SendToSelf();
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5));
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid),
+                TimeSpan.FromSeconds(5));
             _node = new Node(_currentState, _sendToSelf);
             _sendToSelf.SetNode(_node);
         }
-        
+
+        public void Dispose()
+        {
+            _node.Dispose();
+        }
+
+        private readonly Node _node;
+        private readonly ISendToSelf _sendToSelf;
+        private readonly CurrentState _currentState;
+
         [Fact]
-        public void ShouldStartAsFollower()
-        {            
-            _node.State.ShouldBeOfType<Follower>();
+        public void CommitIndexShouldBeInitialisedToZero()
+        {
+            _node.State.CurrentState.CommitIndex.ShouldBe(0);
         }
 
         [Fact]
         public void CurrentTermShouldBeInitialisedToZero()
         {
             _node.State.CurrentState.CurrentTerm.ShouldBe(0);
-        }
-
-        [Fact]
-        public void VotedForShouldBeInitialisedToNone()
-        {
-            _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
-        }
-
-        [Fact]
-        public void CommitIndexShouldBeInitialisedToZero()
-        {
-            _node.State.CurrentState.CommitIndex.ShouldBe(0);
         }
 
         [Fact]
@@ -54,8 +52,8 @@ namespace Rafty.UnitTests
 
         [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeader()
-        {           
-             _node.State.ShouldBeOfType<Follower>();
+        {
+            _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
 
@@ -69,9 +67,19 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
+        public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
+        {
+            _node.State.ShouldBeOfType<Follower>();
+            _node.Handle(new AppendEntriesBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.State.ShouldBeOfType<Candidate>();
+        }
+
+        [Fact]
         public void ShouldIncrementCurrentTermWhenElectionStarts()
-        {           
-             _node.State.ShouldBeOfType<Follower>();
+        {
+            _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
         }
@@ -97,18 +105,15 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
+        public void ShouldStartAsFollower()
         {
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntriesBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
-            _node.State.ShouldBeOfType<Candidate>();
         }
 
-        public void Dispose()
+        [Fact]
+        public void VotedForShouldBeInitialisedToNone()
         {
-            _node.Dispose();
+            _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
         }
     }
 }

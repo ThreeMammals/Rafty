@@ -1,8 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Text;
-
-namespace Rafty.Log
+﻿namespace Rafty.Log
 {
+    using System.Collections.Generic;
+
     public class InMemoryLog : ILog
     {
         private readonly List<LogEntry> _log;

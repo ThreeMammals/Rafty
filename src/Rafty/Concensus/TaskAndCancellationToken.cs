@@ -1,8 +1,8 @@
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Rafty.Concensus
 {
+    using System.Threading;
+    using System.Threading.Tasks;
+
     internal class TaskAndCancellationToken
     {
         public TaskAndCancellationToken(Task task, CancellationTokenSource cancellationTokenSource)

@@ -1,8 +1,8 @@
-using System.Collections.Generic;
-using Rafty.Concensus;
-
 namespace Rafty.UnitTests
 {
+    using System.Collections.Generic;
+    using Concensus;
+
     public class TestingSendToSelf : ISendToSelf
     {
         private INode _node;
@@ -13,8 +13,8 @@ namespace Rafty.UnitTests
             BeginElections = new List<BeginElection>();
         }
 
-        public List<Timeout> Timeouts {get;private set;}
-        public List<BeginElection> BeginElections {get;private set;}
+        public List<Timeout> Timeouts { get; }
+        public List<BeginElection> BeginElections { get; }
 
         public void Dispose()
         {

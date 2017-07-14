@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using Rafty.AcceptanceTests;
-
-namespace Rafty.ManualTests
+﻿namespace Rafty.ManualTests
 {
-    class Program
+    using System;
+
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             Console.WriteLine("here we go again...");
         }

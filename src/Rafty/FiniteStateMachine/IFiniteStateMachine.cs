@@ -1,7 +1,7 @@
-﻿using System.Threading.Tasks;
-
-namespace Rafty.FiniteStateMachine
+﻿namespace Rafty.FiniteStateMachine
 {
+    using System.Threading.Tasks;
+
     public interface IFiniteStateMachine
     {
         void Handle<T>(T command);

@@ -1,21 +1,24 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Rafty.Concensus;
-using Shouldly;
-using Xunit;
-
 namespace Rafty.UnitTests
 {
-    using Castle.Components.DictionaryAdapter;
+    using System;
+    using System.Collections.Generic;
+    using Concensus;
+    using Shouldly;
+    using Xunit;
+
+/*Candidates(§5.2):
+• On conversion to candidate, start election:
+• Increment currentTerm
+• Vote for self
+• Reset election timer
+• Send RequestVote RPCs to all other servers
+• If votes received from majority of servers: become leader
+• If AppendEntries RPC received from new leader: convert to
+follower
+• If election timeout elapses: start new election*/
 
     public class CandidateTests : IDisposable
     {
-        private Node _node;
-        private readonly Guid _id;
-        private SendToSelf _sendToSelf;
-        private CurrentState _currentState;
-
         public CandidateTests()
         {
             _id = Guid.NewGuid();
@@ -25,37 +28,83 @@ namespace Rafty.UnitTests
             _sendToSelf.SetNode(_node);
         }
 
+        public void Dispose()
+        {
+            _sendToSelf.Dispose();
+        }
+
+        private Node _node;
+        private readonly Guid _id;
+        private readonly SendToSelf _sendToSelf;
+        private CurrentState _currentState;
+
+        [Fact]
+        public void ShouldBecomeFollowerIfDoesntReceiveMajorityOfVotes()
+        {
+            var peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                peers.Add(new FakePeer(false));
+            }
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0));
+            var testingSendToSelf = new TestingSendToSelf();
+            _node = new Node(_currentState, testingSendToSelf);
+            testingSendToSelf.SetNode(_node);
+            var candidate = new Candidate(_currentState, testingSendToSelf);
+            candidate.Handle(new BeginElection()).ShouldBeOfType<Follower>();
+        }
+
+        [Fact]
+        public void ShouldBecomeFollowerIfDoesntReceiveMajorityOfVotesAccountingForServer()
+        {
+            var peers = new List<IPeer>
+            {
+                new FakePeer(false),
+                new FakePeer(false),
+                new FakePeer(true),
+                new FakePeer(true)
+            };
+
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0));
+            var testingSendToSelf = new TestingSendToSelf();
+            _node = new Node(_currentState, testingSendToSelf);
+            testingSendToSelf.SetNode(_node);
+            var candidate = new Candidate(_currentState, testingSendToSelf);
+            candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
+        }
+
+        [Fact]
+        public void ShouldBecomeLeaderIfReceivesMajorityOfVotes()
+        {
+            var peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                peers.Add(new FakePeer(true));
+            }
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0));
+            var testingSendToSelf = new TestingSendToSelf();
+            _node = new Node(_currentState, testingSendToSelf);
+            testingSendToSelf.SetNode(_node);
+            var candidate = new Candidate(_currentState, testingSendToSelf);
+            candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
+        }
+
         [Fact]
         public void ShouldIncrementCurrentTermWhenElectionStarts()
-        {           
+        {
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.CurrentState.CurrentTerm.ShouldBe(1);
         }
 
         [Fact]
-        public void ShouldVoteForSelfWhenElectionStarts()
-        {           
-            _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new TimeoutBuilder().Build());
-            _node.State.CurrentState.VotedFor.ShouldBe(_id);
-        }
-
-        [Fact]
-        public async Task ShouldResetTimeoutWhenElectionStarts()
-        {         
-            var testingSendToSelf = new TestingSendToSelf(); 
-            _node = new Node(_currentState, testingSendToSelf);
-            testingSendToSelf.SetNode(_node);
-            var candidate = new Candidate(_currentState, testingSendToSelf);
-            candidate.Handle(new BeginElection());
-            testingSendToSelf.Timeouts.Count.ShouldBe(1);
-        }
-
-        [Fact]
-        public async Task ShouldRequestVotesFromAllPeersWhenElectionStarts()
+        public void ShouldRequestVotesFromAllPeersWhenElectionStarts()
         {
-            var peers = FakePeer.Build(4);
+            var peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                peers.Add(new FakePeer(true));
+            }
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0));
             var testingSendToSelf = new TestingSendToSelf();
             _node = new Node(_currentState, testingSendToSelf);
@@ -69,9 +118,23 @@ namespace Rafty.UnitTests
             });
         }
 
-        public void Dispose()
+        [Fact]
+        public void ShouldResetTimeoutWhenElectionStarts()
         {
-            _sendToSelf.Dispose();
+            var testingSendToSelf = new TestingSendToSelf();
+            _node = new Node(_currentState, testingSendToSelf);
+            testingSendToSelf.SetNode(_node);
+            var candidate = new Candidate(_currentState, testingSendToSelf);
+            candidate.Handle(new BeginElection());
+            testingSendToSelf.Timeouts.Count.ShouldBe(1);
+        }
+
+        [Fact]
+        public void ShouldVoteForSelfWhenElectionStarts()
+        {
+            _node.State.ShouldBeOfType<Follower>();
+            _node.Handle(new TimeoutBuilder().Build());
+            _node.State.CurrentState.VotedFor.ShouldBe(_id);
         }
     }
 }

@@ -1,17 +1,17 @@
-using System;
-using System.Collections.Generic;
-using Rafty.Log;
-
 namespace Rafty.Concensus
 {
+    using System;
+    using System.Collections.Generic;
+    using Log;
+
     public class AppendEntriesBuilder
     {
-        private long _term;
-        private Guid _leaderId;
-        private long _previousLogIndex; 
-        private long _previousLogTerm;
-        private List<LogEntry> _entries; 
+        private List<LogEntry> _entries;
         private long _leaderCommitIndex;
+        private Guid _leaderId;
+        private long _previousLogIndex;
+        private long _previousLogTerm;
+        private long _term;
 
         public AppendEntriesBuilder WithTerm(long term)
         {
@@ -51,7 +51,7 @@ namespace Rafty.Concensus
 
         public AppendEntriesBuilder WithEntry(LogEntry entry)
         {
-            _entries = new List<LogEntry>{entry};
+            _entries = new List<LogEntry> {entry};
             return this;
         }
 

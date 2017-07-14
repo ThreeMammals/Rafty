@@ -1,16 +1,15 @@
-using System;
-using System.Collections.Generic;
-
 namespace Rafty.Concensus
 {
+    using System;
+
     public sealed class Leader : IState
     {
-        public Leader(CurrentState currentState) 
+        public Leader(CurrentState currentState)
         {
             CurrentState = currentState;
         }
 
-        public CurrentState CurrentState {get;private set;}
+        public CurrentState CurrentState { get; }
 
         public IState Handle(Timeout timeout)
         {

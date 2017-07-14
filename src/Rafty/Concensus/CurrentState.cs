@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
-
 namespace Rafty.Concensus
 {
+    using System;
+    using System.Collections.Generic;
+
     public class CurrentState
     {
         public CurrentState(Guid id, List<IPeer> peers, long currentTerm, Guid votedFor, TimeSpan timeout)
@@ -21,6 +21,6 @@ namespace Rafty.Concensus
         public Uri Address { get; private set; }
         public Guid Id { get; private set; }
         public List<IPeer> Peers { get; private set; }
-        public TimeSpan Timeout {get;private set;}
+        public TimeSpan Timeout { get; private set; }
     }
 }

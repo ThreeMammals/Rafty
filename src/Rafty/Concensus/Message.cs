@@ -1,7 +1,7 @@
-using System;
-
 namespace Rafty.Concensus
 {
+    using System;
+
     public abstract class Message
     {
         public Message(Guid messageId)
@@ -16,7 +16,7 @@ namespace Rafty.Concensus
             Delay = delay;
         }
 
-        public Guid MessageId {get;private set;}
-        public TimeSpan Delay {get;private set;}
+        public Guid MessageId { get; private set; }
+        public TimeSpan Delay { get; private set; }
     }
 }

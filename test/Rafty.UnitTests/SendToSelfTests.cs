@@ -1,23 +1,27 @@
-﻿using System;
-using System.Threading.Tasks;
-using Rafty.Concensus;
-using Shouldly;
-using Xunit;
-using Timeout = Rafty.Concensus.Timeout;
-
-namespace Rafty.UnitTests
+﻿namespace Rafty.UnitTests
 {
+    using System;
+    using System.Threading.Tasks;
+    using Concensus;
+    using Shouldly;
+    using Xunit;
+
     public class SendToSelfTests : IDisposable
     {
-        private readonly FakeNode _node;
-        private readonly SendToSelf _sendToSelf;
-
         public SendToSelfTests()
         {
             _node = new FakeNode();
             _sendToSelf = new SendToSelf();
             _sendToSelf.SetNode(_node);
         }
+
+        public void Dispose()
+        {
+            _sendToSelf?.Dispose();
+        }
+
+        private readonly FakeNode _node;
+        private readonly SendToSelf _sendToSelf;
 
         [Fact]
         public async Task ShouldReceiveDelayedMessagesInCorrectOrder()
@@ -31,11 +35,6 @@ namespace Rafty.UnitTests
             await Task.Delay(500);
             _node.Messages[0].MessageId.ShouldBe(halfASecond.MessageId);
             _node.Messages[1].MessageId.ShouldBe(oneSecond.MessageId);
-        }
-
-        public void Dispose()
-        {
-            _sendToSelf?.Dispose();
         }
     }
 }

@@ -1,7 +1,7 @@
-using System;
-
 namespace Rafty.Concensus
 {
+    using System;
+
     public class TimeoutBuilder
     {
         private TimeSpan _delay;
@@ -17,11 +17,11 @@ namespace Rafty.Concensus
             return new Timeout(_delay);
         }
     }
-    
+
     public class Timeout : Message
     {
         public Timeout(TimeSpan delay)
-            :base(Guid.NewGuid(), delay)
+            : base(Guid.NewGuid(), delay)
         {
         }
     }

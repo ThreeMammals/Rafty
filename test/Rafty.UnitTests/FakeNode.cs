@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using Rafty.Concensus;
-
 namespace Rafty.UnitTests
 {
+    using System;
+    using System.Collections.Generic;
+    using Concensus;
+
     internal class FakeNode : INode
     {
         public FakeNode()
@@ -11,7 +11,7 @@ namespace Rafty.UnitTests
             Messages = new List<Message>();
         }
 
-        public List<Message> Messages { get; private set; }
+        public List<Message> Messages { get; }
 
         public IState State { get; }
 

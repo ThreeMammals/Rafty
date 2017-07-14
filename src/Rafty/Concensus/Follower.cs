@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Rafty.Concensus
 {
     public sealed class Follower : IState
@@ -13,7 +10,7 @@ namespace Rafty.Concensus
             _sendToSelf = sendToSelf;
         }
 
-        public CurrentState CurrentState {get;private set;}
+        public CurrentState CurrentState { get; }
 
         public IState Handle(Timeout timeout)
         {
