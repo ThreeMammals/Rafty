@@ -1,15 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26228.4
+VisualStudioVersion = 15.0.26430.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rafty", "src\Rafty\Rafty.csproj", "{FBA5DE26-53A7-4467-87F1-5776ACFF21E0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rafty.ManualTests", "test\Rafty.ManualTests\Rafty.ManualTests.csproj", "{C77E8DD1-261F-401F-9315-F855B6043CED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rafty.AcceptanceTests", "test\Rafty.AcceptanceTests\Rafty.AcceptanceTests.csproj", "{71B78E55-8D75-41D3-96B3-5994A1B44655}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rafty.AcceptanceTests", "test\Rafty.AcceptanceTests\Rafty.AcceptanceTests.csproj", "{71B78E55-8D75-41D3-96B3-5994A1B44655}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rafty.UnitTests", "test\Rafty.UnitTests\Rafty.UnitTests.csproj", "{E4308304-559A-40C6-BCB0-0D0FD6105892}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rafty.UnitTests", "test\Rafty.UnitTests\Rafty.UnitTests.csproj", "{E4308304-559A-40C6-BCB0-0D0FD6105892}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{20D80BB9-AEF2-4AF7-8A33-549E9C625EC7}"
 EndProject
