@@ -19,7 +19,7 @@ namespace Rafty.Concensus
         {
             //begin election.....
             _sendToSelf.Publish(new BeginElection());
-            return new Candidate(CurrentState);
+            return new Candidate(CurrentState, _sendToSelf);
         }
 
         public IState Handle(BeginElection beginElection)

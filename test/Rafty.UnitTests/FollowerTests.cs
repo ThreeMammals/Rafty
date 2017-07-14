@@ -10,14 +10,15 @@ namespace Rafty.UnitTests
 {
     public class FollowerTests : IDisposable
     {
-        private readonly Node _node;
+        private Node _node;
         private ISendToSelf _sendToSelf;
+        private CurrentState _currentState;
 
         public FollowerTests()
         {
             _sendToSelf = new SendToSelf();
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid));
-            _node = new Node(currentState, _sendToSelf);
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5));
+            _node = new Node(_currentState, _sendToSelf);
             _sendToSelf.SetNode(_node);
         }
         

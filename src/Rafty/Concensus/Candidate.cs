@@ -6,16 +6,18 @@ namespace Rafty.Concensus
     public sealed class Candidate : IState
     {
         private int _votesThisElection;
+        private ISendToSelf _sendToSelf;
 
-        public Candidate(CurrentState currentState) 
+        public Candidate(CurrentState currentState, ISendToSelf sendToSelf) 
         {
+            _sendToSelf = sendToSelf;
             // • On conversion to candidate, start election:
             // • Increment currentTerm
             var nextTerm = currentState.CurrentTerm + 1;
             // • Vote for self
             _votesThisElection++;
             var votedFor = currentState.Id;
-            var nextState = new CurrentState(currentState.Id, currentState.Peers, nextTerm, votedFor);
+            var nextState = new CurrentState(currentState.Id, currentState.Peers, nextTerm, votedFor, currentState.Timeout);
             CurrentState = nextState;
         }
 
@@ -30,6 +32,7 @@ namespace Rafty.Concensus
         {
             // • On conversion to candidate, start election:
             // • Reset election timer
+            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
             // • Send RequestVote RPCs to all other servers
             return this;
         }
