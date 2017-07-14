@@ -5,11 +5,10 @@ namespace Rafty.UnitTests
 {
     public class TestingSendToSelf : ISendToSelf
     {
-        private ISendToSelf _sendToSelf;
+        private INode _node;
 
-        public TestingSendToSelf(ISendToSelf sendToSelf)
+        public TestingSendToSelf()
         {
-            _sendToSelf = sendToSelf;
             Timeouts = new List<Timeout>();
             BeginElections = new List<BeginElection>();
         }
@@ -19,24 +18,21 @@ namespace Rafty.UnitTests
 
         public void Dispose()
         {
-            _sendToSelf.Dispose();
         }
 
         public void Publish(Timeout timeout)
         {
             Timeouts.Add(timeout);
-            _sendToSelf.Publish(timeout);
         }
 
         public void Publish(BeginElection beginElection)
         {
             BeginElections.Add(beginElection);
-            _sendToSelf.Publish(beginElection);
         }
 
         public void SetNode(INode node)
         {
-            _sendToSelf.SetNode(node);
+            _node = node;
         }
     }
 }

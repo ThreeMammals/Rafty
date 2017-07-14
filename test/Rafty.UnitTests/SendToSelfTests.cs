@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using Castle.Components.DictionaryAdapter;
 using Rafty.Concensus;
 using Shouldly;
 using Xunit;
@@ -25,13 +22,13 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldReceiveDelayedMessagesInCorrectOrder()
         {
-            var oneSecond = new Timeout(TimeSpan.FromMilliseconds(10));
-            var halfASecond = new Timeout(TimeSpan.FromMilliseconds(5));
+            var oneSecond = new Timeout(TimeSpan.FromMilliseconds(100));
+            var halfASecond = new Timeout(TimeSpan.FromMilliseconds(50));
             _sendToSelf.Publish(oneSecond);
             _sendToSelf.Publish(halfASecond);
             //This is a bit shitty but probably the best way to test the 
             //integration between this and the INode
-            await Task.Delay(20);
+            await Task.Delay(500);
             _node.Messages[0].MessageId.ShouldBe(halfASecond.MessageId);
             _node.Messages[1].MessageId.ShouldBe(oneSecond.MessageId);
         }

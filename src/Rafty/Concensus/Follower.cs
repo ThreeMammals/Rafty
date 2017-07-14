@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Rafty.Concensus
 {
-    public class Follower : IState
+    public sealed class Follower : IState
     {
         private readonly ISendToSelf _sendToSelf;
 
@@ -17,7 +17,6 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
-            //begin election.....
             _sendToSelf.Publish(new BeginElection());
             return new Candidate(CurrentState, _sendToSelf);
         }

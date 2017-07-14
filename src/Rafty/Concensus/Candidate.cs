@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace Rafty.Concensus
@@ -34,6 +33,10 @@ namespace Rafty.Concensus
             // • Reset election timer
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
             // • Send RequestVote RPCs to all other servers
+            CurrentState.Peers.ForEach(peer =>
+            {
+                peer.Request(new RequestVote());
+            });
             return this;
         }
     }

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace Rafty.Concensus
 {
+    using System.Linq;
+
     public class SendToSelf : ISendToSelf, IDisposable
     {
         private Thread _publishingThread;
@@ -16,9 +18,11 @@ namespace Rafty.Concensus
         private readonly CancellationTokenSource _messagesCancellationTokenSource;
         private readonly CancellationTokenSource _taskCancellationTokenSource;
         private readonly List<TaskAndCancellationToken> _messagesBeingProcessed;
+        private bool _disposing;
 
         public SendToSelf()
         {
+            _disposing = false;
             _seenMessageIds = new List<Guid>();
             _messages = new BlockingCollection<Message>();
             _taskCancellationTokenSource = new CancellationTokenSource();
@@ -46,6 +50,11 @@ namespace Rafty.Concensus
 
         private void Process()
         {
+            if (_disposing)
+            {
+                return;
+            }
+
             while (_publishing)
             {
                 try
@@ -83,15 +92,29 @@ namespace Rafty.Concensus
 
         public void Dispose()
         {
-            _publishing = false;
+            _disposing = true;
+            var disposing = true;
 
-            foreach (var taskAndCancellationToken in _messagesBeingProcessed)
+            while (disposing)
             {
-                taskAndCancellationToken.CancellationTokenSource.Cancel(true);
-            }
+                try
+                {
+                    _publishing = false;
 
-            _taskCancellationTokenSource.Cancel(true);
-            _messagesCancellationTokenSource.Cancel(true);
+                    foreach (var taskAndCancellationToken in _messagesBeingProcessed)
+                    {
+                        taskAndCancellationToken.CancellationTokenSource.Cancel(true);
+                    }
+
+                    _taskCancellationTokenSource.Cancel(true);
+                    _messagesCancellationTokenSource.Cancel(true);
+                    disposing = false;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
         }
     }
 }

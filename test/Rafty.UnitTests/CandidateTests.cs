@@ -7,6 +7,8 @@ using Xunit;
 
 namespace Rafty.UnitTests
 {
+    using Castle.Components.DictionaryAdapter;
+
     public class CandidateTests : IDisposable
     {
         private Node _node;
@@ -42,19 +44,34 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldResetTimeoutWhenElectionStarts()
         {         
-            var testingSendToSelf = new TestingSendToSelf(_sendToSelf); 
+            var testingSendToSelf = new TestingSendToSelf(); 
             _node = new Node(_currentState, testingSendToSelf);
             testingSendToSelf.SetNode(_node);
-            _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new TimeoutBuilder().Build());
-            //this is kinda lame but best way to make sure this works end to end?
-            await Task.Delay(10);
+            var candidate = new Candidate(_currentState, testingSendToSelf);
+            candidate.Handle(new BeginElection());
             testingSendToSelf.Timeouts.Count.ShouldBe(1);
+        }
+
+        [Fact]
+        public async Task ShouldRequestVotesFromAllPeersWhenElectionStarts()
+        {
+            var peers = FakePeer.Build(4);
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0));
+            var testingSendToSelf = new TestingSendToSelf();
+            _node = new Node(_currentState, testingSendToSelf);
+            testingSendToSelf.SetNode(_node);
+            var candidate = new Candidate(_currentState, testingSendToSelf);
+            candidate.Handle(new BeginElection());
+            peers.ForEach(x =>
+            {
+                var peer = (FakePeer) x;
+                peer.RequestVoteResponses.Count.ShouldBe(1);
+            });
         }
 
         public void Dispose()
         {
-            _node.Dispose();
+            _sendToSelf.Dispose();
         }
     }
 }

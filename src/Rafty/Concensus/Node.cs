@@ -23,7 +23,6 @@ namespace Rafty.Concensus
         public void Handle(Message message)
         {
             //todo - could run middleware type functions here?
-
             //todo - these handlers should be in a dictionary
             if(message.GetType() == typeof(BeginElection))
             {
@@ -50,6 +49,8 @@ namespace Rafty.Concensus
         private void Handle(BeginElection beginElection)
         {
             State = State.Handle(beginElection);
+
+            _sendToSelf.Publish(new Timeout(State.CurrentState.Timeout));
         }
 
         private void Handle(Timeout timeout)
@@ -59,7 +60,7 @@ namespace Rafty.Concensus
                 State = State.Handle(timeout);
             }
 
-            if(AppendEntriesReceived())
+            if (AppendEntriesReceived())
             {
                 _appendEntriesAtPreviousHeartbeat = _appendEntriesIdsReceived.Last();
             }
