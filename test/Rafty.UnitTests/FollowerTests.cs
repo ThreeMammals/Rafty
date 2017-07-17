@@ -6,11 +6,12 @@ namespace Rafty.UnitTests
     using Shouldly;
     using Xunit;
 
-/* Followers(§5.2):
-• Respond to RPCs from candidates and leaders
-• If election timeout elapses without receiving AppendEntries
+/* Followers(ï¿½5.2):
+ï¿½ Respond to RPCs from candidates and leaders
+ï¿½ If election timeout elapses without receiving AppendEntries
 RPC from current leader or granting vote to candidate:
-convert to candidate*/
+convert to candidate
+*/
 
     public class FollowerTests : IDisposable
     {
@@ -56,14 +57,6 @@ convert to candidate*/
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
-
-            //todo is this the best way to do messaging at integration level?
-            // using(var timeOutMessenger = new SendToSelf(_node))
-            // {
-            //     timeOutMessenger.Publish(new Concensus.Timeout(Guid.NewGuid(), TimeSpan.FromMilliseconds(0)));
-            //     Thread.Sleep(100);
-            //     _node.State.ShouldBeOfType<Candidate>();
-            // }
         }
 
         [Fact]
@@ -72,14 +65,6 @@ convert to candidate*/
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().Build());
             _node.Handle(new TimeoutBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
-            _node.State.ShouldBeOfType<Candidate>();
-        }
-
-        [Fact]
-        public void ShouldIncrementCurrentTermWhenElectionStarts()
-        {
-            _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new TimeoutBuilder().Build());
             _node.State.ShouldBeOfType<Candidate>();
         }

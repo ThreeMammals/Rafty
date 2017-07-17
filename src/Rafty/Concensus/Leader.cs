@@ -20,5 +20,10 @@ namespace Rafty.Concensus
         {
             throw new NotImplementedException();
         }
+
+        public IState Handle(AppendEntries appendEntries)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

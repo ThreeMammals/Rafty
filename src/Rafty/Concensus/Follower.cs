@@ -1,3 +1,5 @@
+using System;
+
 namespace Rafty.Concensus
 {
     public sealed class Follower : IState
@@ -21,6 +23,11 @@ namespace Rafty.Concensus
         public IState Handle(BeginElection beginElection)
         {
             return this;
+        }
+
+        public IState Handle(AppendEntries appendEntries)
+        {
+            throw new NotImplementedException();
         }
     }
 }

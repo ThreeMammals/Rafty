@@ -1,3 +1,5 @@
+using System;
+
 namespace Rafty.Concensus
 {
     public sealed class Candidate : IState
@@ -49,6 +51,17 @@ namespace Rafty.Concensus
             }
 
             return new Follower(CurrentState, _sendToSelf);
+        }
+
+        public IState Handle(AppendEntries appendEntries)
+        {
+            if(appendEntries.Term > CurrentState.CurrentTerm)
+            {
+                var newState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout);
+                return new Follower(newState, _sendToSelf);
+            }
+
+            return this;
         }
     }
 }
