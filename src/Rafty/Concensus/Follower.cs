@@ -27,7 +27,26 @@ namespace Rafty.Concensus
 
         public IState Handle(AppendEntries appendEntries)
         {
-            throw new NotImplementedException();
+            //todo consolidate with request vote
+            if(appendEntries.Term > CurrentState.CurrentTerm)
+            {
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                return new Follower(nextState, _sendToSelf);
+            }
+            
+            return this;
+        }
+
+        public IState Handle(RequestVote requestVote)
+        {
+            //todo - consolidate with AppendEntries
+            if(requestVote.Term > CurrentState.CurrentTerm)
+            {
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                return new Follower(nextState, _sendToSelf);
+            }
+
+            return this;
         }
     }
 }
