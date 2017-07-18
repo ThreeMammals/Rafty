@@ -3,6 +3,7 @@ namespace Rafty.UnitTests
     using System;
     using System.Collections.Generic;
     using Concensus;
+    using Rafty.Log;
     using Shouldly;
     using Xunit;
 
@@ -18,8 +19,7 @@ convert to candidate
         public FollowerTests()
         {
             _sendToSelf = new SendToSelf();
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid),
-                TimeSpan.FromSeconds(5));
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), new InMemoryLog());
             _node = new Node(_currentState, _sendToSelf);
             _sendToSelf.SetNode(_node);
         }

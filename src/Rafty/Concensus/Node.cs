@@ -48,7 +48,6 @@ namespace Rafty.Concensus
         private void Handle(BeginElection beginElection)
         {
             State = State.Handle(beginElection);
-            _sendToSelf.Publish(new Timeout(State.CurrentState.Timeout));
         }
 
         private void Handle(Timeout timeout)
@@ -56,6 +55,11 @@ namespace Rafty.Concensus
             if (NoHeartbeatSinceLastTimeout())
             {
                 State = State.Handle(timeout);
+
+                if(State is Candidate)
+                {
+                    _sendToSelf.Publish(new BeginElection());
+                }
             }
 
             if (AppendEntriesReceived())

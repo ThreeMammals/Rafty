@@ -17,7 +17,7 @@ namespace Rafty.Concensus
             _votesThisElection++;
             var votedFor = currentState.Id;
             var nextState = new CurrentState(currentState.Id, currentState.Peers, nextTerm, votedFor,
-                currentState.Timeout);
+                currentState.Timeout, currentState.Log);
             CurrentState = nextState;
         }
 
@@ -25,7 +25,7 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
-            return this;
+            return new Candidate(CurrentState, _sendToSelf);
         }
 
         public IState Handle(BeginElection beginElection)
@@ -36,9 +36,9 @@ namespace Rafty.Concensus
             // • Send RequestVote RPCs to all other servers
             CurrentState.Peers.ForEach(peer =>
             {
-                var requestVoteResponse = peer.Request(new RequestVote());
+                var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm));
 
-                if (requestVoteResponse.Grant)
+                if (requestVoteResponse.VoteGranted)
                 {
                     _votesThisElection++;
                 }
@@ -57,7 +57,7 @@ namespace Rafty.Concensus
         {
             if(appendEntries.Term > CurrentState.CurrentTerm)
             {
-                var newState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout);
+                var newState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
                 return new Follower(newState, _sendToSelf);
             }
 

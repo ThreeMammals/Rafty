@@ -3,5 +3,7 @@
     public interface ILog
     {
         void Apply(LogEntry logEntry);
+        long LastLogIndex {get;}
+        long LastLogTerm {get;}
     }
 }

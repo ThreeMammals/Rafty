@@ -18,7 +18,7 @@ namespace Rafty.UnitTests
 
         public RequestVoteResponse Request(RequestVote requestVote)
         {
-            var response = new RequestVoteResponse(_grantVote);
+            var response = new RequestVoteResponse(_grantVote, 1);
             RequestVoteResponses.Add(response);
             return response;
         }

@@ -2,11 +2,15 @@ namespace Rafty.Concensus
 {
     public sealed class RequestVoteResponse
     {
-        public RequestVoteResponse(bool grant)
+        public RequestVoteResponse(bool grant, long term)
         {
-            Grant = grant;
+            VoteGranted = grant;
+            Term = term;
         }
 
-        public bool Grant { get; private set; }
+        //true means candidate received vote
+        public bool VoteGranted { get; private set; }
+        //currentTerm, for candidate to update itself
+        public long Term {get;private set;}
     }
 }
