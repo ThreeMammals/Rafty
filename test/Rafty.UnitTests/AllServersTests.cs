@@ -40,5 +40,31 @@ set currentTerm = T, convert to follower (§5.1)*/
             state.ShouldBeOfType<Follower>();
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
+
+        [Theory]
+        [InlineData(0, 1, 1)]
+        [InlineData(2, 1, 2)]
+        public void ShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntriesResponse(int currentTerm, int rpcTerm, int expectedTerm)
+        {
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
+            var sendToSelf = new TestingSendToSelf();
+            var follower = new Follower(currentState, sendToSelf);
+            var state = follower.Handle(new AppendEntriesResponseBuilder().WithTerm(rpcTerm).Build());
+            state.ShouldBeOfType<Follower>();
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
+
+          [Theory]
+        [InlineData(0, 1, 1)]
+        [InlineData(2, 1, 2)]
+        public void ShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm)
+        {
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
+            var sendToSelf = new TestingSendToSelf();
+            var follower = new Follower(currentState, sendToSelf);
+            var state = follower.Handle(new RequestVoteResponseBuilder().WithTerm(rpcTerm).Build());
+            state.ShouldBeOfType<Follower>();
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
     }
 }

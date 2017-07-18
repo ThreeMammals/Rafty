@@ -25,7 +25,7 @@ namespace Rafty.UnitTests
 
         public AppendEntriesResponse Request(AppendEntries appendEntries)
         {
-            var response = new AppendEntriesResponse();
+            var response = new AppendEntriesResponse(1, _grantVote);
             AppendEntriesResponses.Add(response);
             return response;
         }

@@ -42,7 +42,7 @@ namespace Rafty.Concensus
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
-            return new AppendEntriesResponse();
+            return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
         }
 
         private void Handle(BeginElection beginElection)

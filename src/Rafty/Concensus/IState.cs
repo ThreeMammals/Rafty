@@ -6,6 +6,8 @@ namespace Rafty.Concensus
         IState Handle(Timeout timeout);
         IState Handle(BeginElection beginElection);
         IState Handle(AppendEntries appendEntries);
+        IState Handle(AppendEntriesResponse appendEntriesResponse);
         IState Handle(RequestVote requestVote);
+        IState Handle(RequestVoteResponse requestVoteResponse);
     }
 }

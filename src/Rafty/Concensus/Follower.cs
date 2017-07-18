@@ -48,5 +48,29 @@ namespace Rafty.Concensus
 
             return this;
         }
+
+        public IState Handle(AppendEntriesResponse appendEntries)
+        {
+             //todo - consolidate with AppendEntries and RequestVOte
+            if(appendEntries.Term > CurrentState.CurrentTerm)
+            {
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                return new Follower(nextState, _sendToSelf);
+            }
+
+            return this;
+        }
+
+        public IState Handle(RequestVoteResponse requestVoteResponse)
+        {
+             //todo - consolidate with AppendEntries and RequestVOte wtc
+            if(requestVoteResponse.Term > CurrentState.CurrentTerm)
+            {
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                return new Follower(nextState, _sendToSelf);
+            }
+
+            return this;
+        }
     }
 }
