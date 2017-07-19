@@ -47,7 +47,7 @@ namespace Rafty.Concensus
             //If votes received from majority of servers: become leader
             if (_votesThisElection >= (CurrentState.Peers.Count + 1) / 2 + 1)
             {
-                return new Leader(CurrentState);
+                return new Leader(CurrentState, _sendToSelf);
             }
 
             return new Follower(CurrentState, _sendToSelf);

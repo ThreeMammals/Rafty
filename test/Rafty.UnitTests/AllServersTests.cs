@@ -20,7 +20,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 1, 1)]
         [InlineData(2, 1, 2)]
-        public void ShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
+        public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -33,7 +33,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 1, 1)]
         [InlineData(2, 1, 2)]
-        public void ShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
+        public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -46,7 +46,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 1, 1)]
         [InlineData(2, 1, 2)]
-        public void ShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntriesResponse(int currentTerm, int rpcTerm, int expectedTerm)
+        public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntriesResponse(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -59,7 +59,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 1, 1)]
         [InlineData(2, 1, 2)]
-        public void ShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm)
+        public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -73,7 +73,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
         [InlineData(2, 1, 3, typeof(Candidate))]
-        public void ShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -86,7 +86,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
         [InlineData(2, 1, 3, typeof(Candidate))]
-        public void ShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -99,7 +99,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
         [InlineData(2, 1, 3, typeof(Candidate))]
-        public void ShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntriesResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntriesResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
@@ -112,12 +112,65 @@ set currentTerm = T, convert to follower (§5.1)*/
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
         [InlineData(2, 1, 3, typeof(Candidate))]
-        public void ShouldSetTermAsRpcTermAndStateWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        public void CandidateShouldSetTermAsRpcTermAndStateWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
             var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
             var sendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(currentState, sendToSelf);
             var state = candidate.Handle(new RequestVoteResponseBuilder().WithTerm(rpcTerm).Build());
+            state.ShouldBeOfType(expectedType);
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
+
+        //leader
+        [Theory]
+        [InlineData(0, 2, 2, typeof(Follower))]
+        [InlineData(2, 1, 2, typeof(Leader))]
+        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        {
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
+            var sendToSelf = new TestingSendToSelf();
+            var leader = new Leader(currentState, sendToSelf);
+            var state = leader.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
+            state.ShouldBeOfType(expectedType);
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
+
+        [Theory]
+        [InlineData(0, 2, 2, typeof(Follower))]
+        [InlineData(2, 1, 2, typeof(Leader))]
+        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        {
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
+            var sendToSelf = new TestingSendToSelf();
+            var leader = new Leader(currentState, sendToSelf);
+            var state = leader.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
+            state.ShouldBeOfType(expectedType);
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
+
+        [Theory]
+        [InlineData(0, 2, 2, typeof(Follower))]
+        [InlineData(2, 1, 2, typeof(Leader))]
+        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntriesResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        {
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
+            var sendToSelf = new TestingSendToSelf();
+            var leader = new Leader(currentState, sendToSelf);
+            var state = leader.Handle(new AppendEntriesResponseBuilder().WithTerm(rpcTerm).Build());
+            state.ShouldBeOfType(expectedType);
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
+
+        [Theory]
+        [InlineData(0, 2, 2, typeof(Follower))]
+        [InlineData(2, 1, 2, typeof(Leader))]
+        public void LeaderShouldSetTermAsRpcTermAndStateWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        {
+            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog());
+            var sendToSelf = new TestingSendToSelf();
+            var leader = new Leader(currentState, sendToSelf);
+            var state = leader.Handle(new RequestVoteResponseBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType(expectedType);
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
