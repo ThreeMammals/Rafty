@@ -17,7 +17,7 @@ namespace Rafty.Concensus
             _votesThisElection++;
             var votedFor = currentState.Id;
             var nextState = new CurrentState(currentState.Id, currentState.Peers, nextTerm, votedFor,
-                currentState.Timeout, currentState.Log);
+                currentState.Timeout, currentState.Log, currentState.CommitIndex);
             CurrentState = nextState;
         }
 
@@ -58,7 +58,7 @@ namespace Rafty.Concensus
             //todo consolidate with request vote
             if(appendEntries.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
                 return new Follower(nextState, _sendToSelf);
             }
             
@@ -70,7 +70,7 @@ namespace Rafty.Concensus
             //todo - consolidate with AppendEntries
             if(requestVote.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
                 return new Follower(nextState, _sendToSelf);
             }
 
@@ -82,7 +82,7 @@ namespace Rafty.Concensus
              //todo - consolidate with AppendEntries and RequestVOte
             if(appendEntries.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
                 return new Follower(nextState, _sendToSelf);
             }
 
@@ -94,7 +94,7 @@ namespace Rafty.Concensus
              //todo - consolidate with AppendEntries and RequestVOte wtc
             if(requestVoteResponse.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log);
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
                 return new Follower(nextState, _sendToSelf);
             }
 

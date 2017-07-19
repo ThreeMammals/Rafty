@@ -24,7 +24,7 @@ follower
         public CandidateTests()
         {
             _id = Guid.NewGuid();
-            _currentState = new CurrentState(_id, new List<IPeer>(), 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, new List<IPeer>(), 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             _sendToSelf = new TestingSendToSelf();
             _node = new Node(_currentState, _sendToSelf);
             _sendToSelf.SetNode(_node);
@@ -50,7 +50,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             var state = candidate.Handle(new TimeoutBuilder().Build());
@@ -68,7 +68,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             var state = candidate.Handle(new BeginElection());
@@ -86,7 +86,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             var state = candidate.Handle(new BeginElection());
@@ -102,7 +102,7 @@ follower
             {
                 peers.Add(new FakePeer(false));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Follower>();
@@ -118,7 +118,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
@@ -132,7 +132,7 @@ follower
             {
                 peers.Add(new FakePeer(true));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
@@ -155,7 +155,7 @@ follower
             {
                 peers.Add(new FakePeer(true));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog());
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0);
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf);
             candidate.Handle(new BeginElection());

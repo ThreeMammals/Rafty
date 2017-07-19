@@ -6,7 +6,7 @@ namespace Rafty.Concensus
 
     public class CurrentState
     {
-        public CurrentState(Guid id, List<IPeer> peers, long currentTerm, Guid votedFor, TimeSpan timeout, ILog log)
+        public CurrentState(Guid id, List<IPeer> peers, long currentTerm, Guid votedFor, TimeSpan timeout, ILog log, long commitIndex)
         {
             Id = id;
             CurrentTerm = currentTerm;
@@ -14,6 +14,7 @@ namespace Rafty.Concensus
             VotedFor = votedFor;
             Timeout = timeout;
             Log = log;
+            CommitIndex = commitIndex;
         }
 
         public long CurrentTerm { get; private set; }
