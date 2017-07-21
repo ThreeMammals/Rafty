@@ -43,5 +43,22 @@
         {
             _log.Add(logEntry);
         }
+
+        public long TermAtIndex(long index)
+        {
+            if(_log.Count == 0)
+            {
+                return 0;
+            }
+
+            if(index > _log.Count)
+            {
+                return 0;
+            }
+
+            //todo - fix?
+            int i = Convert.ToInt32(index);
+            return _log[i].Term;
+        }
     }
 }

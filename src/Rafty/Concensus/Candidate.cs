@@ -36,8 +36,9 @@ namespace Rafty.Concensus
             // • On conversion to candidate, start election:
             // • Reset election timer
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
+            
             // • Send RequestVote RPCs to all other servers
-            Parallel.ForEach(CurrentState.Peers, p => {
+            Parallel.ForEach(CurrentState.Peers, (p, s) => {
                  
                 var requestVoteResponse = p.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm));
 
@@ -50,6 +51,9 @@ namespace Rafty.Concensus
                         if (_votesThisElection >= (CurrentState.Peers.Count + 1) / 2 + 1)
                         {
                             state = new Leader(CurrentState, _sendToSelf);
+                            //todo - not sure if i need s.Break() for the algo..if it is put in then technically all servers wont receive
+                            //q request vote rpc?
+                            //s.Break();
                         }
                     }
                 }

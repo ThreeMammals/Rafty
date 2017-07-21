@@ -41,6 +41,19 @@ namespace Rafty.Concensus
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
+            //Reply false if term < currentTerm (§5.1)
+            if(appendEntries.Term < State.CurrentState.CurrentTerm)
+            {
+                return new AppendEntriesResponse(State.CurrentState.CurrentTerm, false);
+            }
+
+            // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
+            var termAtPreviousLogIndex = State.CurrentState.Log.TermAtIndex(appendEntries.PreviousLogIndex);
+            if(termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            {
+                return new AppendEntriesResponse(State.CurrentState.CurrentTerm, false);
+            }
+
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
             return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
         }
