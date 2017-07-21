@@ -17,20 +17,6 @@ log[lastApplied] to state machine (§5.3)
 set currentTerm = T, convert to follower (§5.1)*/
 
         //follower
-
-        // [Fact]
-        // public void FollowerShouldIncrementLastAppliedAndApplyLogLastApplied()
-        // {
-        //     var log = new InMemoryLog();
-        //     var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(0), log, 0);
-        //     var sendToSelf = new TestingSendToSelf();
-        //     var follower = new Follower(currentState, sendToSelf);
-        //     var state = follower.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(1).Build());
-        //     state.ShouldBeOfType<Follower>();
-        //     state.CurrentState.CommitIndex.ShouldBe(1);
-        //     log.LastLogIndex.ShouldBe(1);
-        // }
-
         [Theory]
         [InlineData(0, 1, 1)]
         [InlineData(2, 1, 2)]

@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Rafty.Concensus
 {
@@ -6,6 +7,7 @@ namespace Rafty.Concensus
     {
         private readonly ISendToSelf _sendToSelf;
         private int _votesThisElection;
+        private readonly object _lock = new object();
 
         public Candidate(CurrentState currentState, ISendToSelf sendToSelf)
         {
@@ -30,27 +32,30 @@ namespace Rafty.Concensus
 
         public IState Handle(BeginElection beginElection)
         {
+            IState state = new Follower(CurrentState, _sendToSelf);
             // • On conversion to candidate, start election:
             // • Reset election timer
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
             // • Send RequestVote RPCs to all other servers
-            CurrentState.Peers.ForEach(peer =>
-            {
-                var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm));
+            Parallel.ForEach(CurrentState.Peers, p => {
+                 
+                var requestVoteResponse = p.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm));
 
                 if (requestVoteResponse.VoteGranted)
                 {
-                    _votesThisElection++;
+                    lock(_lock)
+                    {
+                        _votesThisElection++;
+                        //If votes received from majority of servers: become leader
+                        if (_votesThisElection >= (CurrentState.Peers.Count + 1) / 2 + 1)
+                        {
+                            state = new Leader(CurrentState, _sendToSelf);
+                        }
+                    }
                 }
             });
 
-            //If votes received from majority of servers: become leader
-            if (_votesThisElection >= (CurrentState.Peers.Count + 1) / 2 + 1)
-            {
-                return new Leader(CurrentState, _sendToSelf);
-            }
-
-            return new Follower(CurrentState, _sendToSelf);
+            return state;
         }
 
         public IState Handle(AppendEntries appendEntries)
