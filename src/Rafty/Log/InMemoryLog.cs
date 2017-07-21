@@ -12,6 +12,8 @@
             _log = new List<LogEntry>();
         }
 
+        public List<LogEntry> ExposedForTesting => _log;
+
         public long LastLogIndex
         {
             get
@@ -44,7 +46,7 @@
             _log.Add(logEntry);
         }
 
-        public long TermAtIndex(long index)
+        public long GetTermAtIndex(long index)
         {
             if(_log.Count == 0)
             {
@@ -59,6 +61,21 @@
             //todo - fix?
             int i = Convert.ToInt32(index);
             return _log[i].Term;
+        }
+
+        public void DeleteConflicts(LogEntry logEntry)
+        {
+            var index = logEntry.CurrentCommitIndex;
+
+            for (int i = index; i < _log.Count; i++)
+            {
+                var match = _log[i];
+                if (match.Term != logEntry.Term)
+                {
+                    var toRemove = _log.Count - i;
+                    _log.RemoveRange(i, toRemove);
+                }
+            }
         }
     }
 }

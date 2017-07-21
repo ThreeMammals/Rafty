@@ -36,5 +36,42 @@ namespace Rafty.UnitTests
             log.Apply(new LogEntry("test", typeof(string), 1, 1));
             log.LastLogTerm.ShouldBe(1);
         }
+
+        [Fact]
+        public void ShouldGetTermAtIndex()
+        {
+            var log = new InMemoryLog();
+            log.Apply(new LogEntry("test", typeof(string), 1, 1));
+            log.GetTermAtIndex(0).ShouldBe(1);
+        }
+
+        [Fact]
+        public void ShouldDeleteConflict()
+        {
+            var log = new InMemoryLog();
+            log.Apply(new LogEntry("test", typeof(string), 1, 0));
+            log.DeleteConflicts(new LogEntry("test", typeof(string), 2, 0));
+            log.ExposedForTesting.Count.ShouldBe(0);
+        }
+
+        [Fact]
+        public void ShouldNotDeleteConflict()
+        {
+            var log = new InMemoryLog();
+            log.Apply(new LogEntry("test", typeof(string), 1, 0));
+            log.DeleteConflicts(new LogEntry("test", typeof(string), 1, 0));
+            log.ExposedForTesting.Count.ShouldBe(1);
+        }
+
+        [Fact]
+        public void ShouldDeleteConflictAndSubsequentLogs()
+        {
+            var log = new InMemoryLog();
+            log.Apply(new LogEntry("test", typeof(string), 1, 0));
+            log.Apply(new LogEntry("test", typeof(string), 1, 1));
+            log.Apply(new LogEntry("test", typeof(string), 1, 2));
+            log.DeleteConflicts(new LogEntry("test", typeof(string), 2, 0));
+            log.ExposedForTesting.Count.ShouldBe(0);
+        }
     }
 }

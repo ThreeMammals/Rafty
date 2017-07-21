@@ -48,11 +48,14 @@ namespace Rafty.Concensus
             }
 
             // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
-            var termAtPreviousLogIndex = State.CurrentState.Log.TermAtIndex(appendEntries.PreviousLogIndex);
+            var termAtPreviousLogIndex = State.CurrentState.Log.GetTermAtIndex(appendEntries.PreviousLogIndex);
             if(termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
             {
                 return new AppendEntriesResponse(State.CurrentState.CurrentTerm, false);
             }
+
+            //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
+
 
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
             return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
