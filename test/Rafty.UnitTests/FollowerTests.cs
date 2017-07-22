@@ -30,7 +30,7 @@ convert to candidate
         }
 
         private readonly Node _node;
-        private readonly ISendToSelf _sendToSelf;
+        private ISendToSelf _sendToSelf;
         private readonly CurrentState _currentState;
 
         [Fact]
@@ -99,6 +99,16 @@ convert to candidate
         public void VotedForShouldBeInitialisedToNone()
         {
             _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
+        }
+
+        [Fact]
+        public void ShouldUpdateVotedFor()
+        {
+            _sendToSelf = new TestingSendToSelf();
+            var follower = new Follower(_currentState, _sendToSelf);
+            var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
+            var state = follower.Handle(requestVote);
+            state.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
         }
     }
 }

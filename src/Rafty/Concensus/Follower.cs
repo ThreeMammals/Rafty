@@ -23,7 +23,7 @@ namespace Rafty.Concensus
 
         public IState Handle(BeginElection beginElection)
         {
-            return this;
+            throw new Exception("Follower cannot begin an election?");
         }
 
         public IState Handle(AppendEntries appendEntries)
@@ -50,14 +50,17 @@ namespace Rafty.Concensus
 
         public IState Handle(RequestVote requestVote)
         {
+            var term = CurrentState.CurrentTerm;
+
             //todo - consolidate with AppendEntries
             if(requestVote.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
-                return new Follower(nextState, _sendToSelf);
+                term = requestVote.Term;
             }
 
-            return this;
+            // update voted for....
+            var currentState = new CurrentState(CurrentState.Id, CurrentState.Peers, term, requestVote.CandidateId, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
+            return new Follower(currentState, _sendToSelf);
         }
 
         public IState Handle(AppendEntriesResponse appendEntries)

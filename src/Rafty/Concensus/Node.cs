@@ -73,6 +73,31 @@ namespace Rafty.Concensus
 
             return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
         }
+        public RequestVoteResponse Handle(RequestVote requestVoteRpc)
+        {
+            //Reply false if term<currentTerm
+            if (requestVoteRpc.Term < State.CurrentState.CurrentTerm)
+            {
+                return new RequestVoteResponse(false, State.CurrentState.CurrentTerm);
+            }
+
+            //Reply false if voted for is not candidateId
+            //Reply false if voted for is not default
+            if (requestVoteRpc.CandidateId != State.CurrentState.VotedFor || State.CurrentState.VotedFor != default(Guid))
+            {
+                return new RequestVoteResponse(false, State.CurrentState.CurrentTerm);
+            }
+
+            if (requestVoteRpc.LastLogIndex == State.CurrentState.Log.LastLogIndex &&
+                requestVoteRpc.LastLogTerm == State.CurrentState.Log.LastLogTerm)
+            {
+                //added this prematurely?
+                State = State.Handle(requestVoteRpc);
+                return new RequestVoteResponse(true, State.CurrentState.CurrentTerm);
+            }
+
+            return new RequestVoteResponse(false, State.CurrentState.CurrentTerm);
+        }
 
         private void Handle(BeginElection beginElection)
         {
@@ -113,5 +138,6 @@ namespace Rafty.Concensus
 
             return _appendEntriesIdsReceived.Last() == _appendEntriesAtPreviousHeartbeat;
         }
+
     }
 }

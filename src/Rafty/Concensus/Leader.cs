@@ -55,6 +55,7 @@ namespace Rafty.Concensus
                 return new Follower(nextState, _sendToSelf);
             }
 
+            //leader cannot vote for anyone else...
             return this;
         }
 
