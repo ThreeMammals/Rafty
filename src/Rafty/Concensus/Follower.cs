@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace Rafty.Concensus
 {
@@ -30,26 +31,19 @@ namespace Rafty.Concensus
             //todo consolidate with request vote
             if(appendEntries.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
+                //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
+                var commitIndex = CurrentState.CommitIndex;
+                if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
+                {
+                    //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
+                    var indexOfLastNewEntry = appendEntries.PreviousLogIndex + 1;
+                    commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, indexOfLastNewEntry);
+                }
+
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
+                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, commitIndex);
                 return new Follower(nextState, _sendToSelf);
             }
-
-            //todo - ive commented this out its mean to be for all servers tests but its never going to work :) before rpc tests are done
-            //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-            // if(appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-            // {
-            //     var commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, appendEntries.Entries.Count);
-            //     var lastApplied = CurrentState.LastApplied;
-            //     if(commitIndex > lastApplied)
-            //     {
-            //         lastApplied++;
-            //         currentState.Log.Apply()
-            //     }
-                
-            //     var currentState = new CurrentState(CurrentState.Id, CurrentState.Peers, CurrentState.CurrentTerm, CurrentState.VotedFor, 
-            //         CurrentState.Timeout, CurrentState.Log, commitIndex, lastApplied);
-            //     return new Follower(currentState, _sendToSelf);
-            // }
 
             return this;
         }

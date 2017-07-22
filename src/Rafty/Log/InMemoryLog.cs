@@ -63,7 +63,7 @@
             return _log[i].Term;
         }
 
-        public void DeleteConflicts(LogEntry logEntry)
+        public void DeleteConflictsFromThisLog(LogEntry logEntry)
         {
             var index = logEntry.CurrentCommitIndex;
 
@@ -74,6 +74,7 @@
                 {
                     var toRemove = _log.Count - i;
                     _log.RemoveRange(i, toRemove);
+                    break;
                 }
             }
         }

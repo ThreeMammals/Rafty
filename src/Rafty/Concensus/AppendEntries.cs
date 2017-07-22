@@ -14,7 +14,7 @@ namespace Rafty.Concensus
             LeaderId = leaderId;
             PreviousLogIndex = previousLogIndex;
             PreviousLogTerm = previousLogTerm;
-            Entries = entries;
+            Entries = entries ?? new List<LogEntry>();
             LeaderCommitIndex = leaderCommitIndex;
         }
 

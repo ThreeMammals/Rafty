@@ -55,9 +55,22 @@ namespace Rafty.Concensus
             }
 
             //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
+            foreach (var log in appendEntries.Entries)
+            {
+                State.CurrentState.Log.DeleteConflictsFromThisLog(log);
+            }
 
+            //Append any new entries not already in the log
+            foreach (var log in appendEntries.Entries)
+            {
+                State.CurrentState.Log.Apply(log);
+            }
+
+            //todo - not sure if this should be first thing we do or its in correct place now.
+            State = State.Handle(appendEntries);
 
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
+
             return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
         }
 
@@ -70,6 +83,8 @@ namespace Rafty.Concensus
         {
             if (NoHeartbeatSinceLastTimeout())
             {
+                _sendToSelf.Publish(new BeginElection());
+
                 State = State.Handle(timeout);
 
                 if(State is Candidate)

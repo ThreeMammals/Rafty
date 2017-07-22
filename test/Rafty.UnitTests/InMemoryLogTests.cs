@@ -4,7 +4,7 @@ namespace Rafty.UnitTests
     using Shouldly;
     using Xunit;
 
-    public class LogTests
+    public class InMemoryLogTests
     {
         [Fact]
         public void ShouldInitialiseCorrectly()
@@ -50,7 +50,7 @@ namespace Rafty.UnitTests
         {
             var log = new InMemoryLog();
             log.Apply(new LogEntry("test", typeof(string), 1, 0));
-            log.DeleteConflicts(new LogEntry("test", typeof(string), 2, 0));
+            log.DeleteConflictsFromThisLog(new LogEntry("test", typeof(string), 2, 0));
             log.ExposedForTesting.Count.ShouldBe(0);
         }
 
@@ -59,7 +59,7 @@ namespace Rafty.UnitTests
         {
             var log = new InMemoryLog();
             log.Apply(new LogEntry("test", typeof(string), 1, 0));
-            log.DeleteConflicts(new LogEntry("test", typeof(string), 1, 0));
+            log.DeleteConflictsFromThisLog(new LogEntry("test", typeof(string), 1, 0));
             log.ExposedForTesting.Count.ShouldBe(1);
         }
 
@@ -70,8 +70,27 @@ namespace Rafty.UnitTests
             log.Apply(new LogEntry("test", typeof(string), 1, 0));
             log.Apply(new LogEntry("test", typeof(string), 1, 1));
             log.Apply(new LogEntry("test", typeof(string), 1, 2));
-            log.DeleteConflicts(new LogEntry("test", typeof(string), 2, 0));
+            log.DeleteConflictsFromThisLog(new LogEntry("test", typeof(string), 2, 0));
             log.ExposedForTesting.Count.ShouldBe(0);
+        }
+
+        [Fact]
+        public void ShouldDeleteConflictAndSubsequentLogsFromMidPoint()
+        {
+            var log = new InMemoryLog();
+            log.Apply(new LogEntry("test", typeof(string), 1, 0));
+            log.Apply(new LogEntry("test", typeof(string), 1, 1));
+            log.Apply(new LogEntry("test", typeof(string), 1, 2));
+            log.Apply(new LogEntry("test", typeof(string), 1, 3));
+            log.Apply(new LogEntry("test", typeof(string), 1, 4));
+            log.DeleteConflictsFromThisLog(new LogEntry("test", typeof(string), 2, 3));
+            log.ExposedForTesting.Count.ShouldBe(3);
+            log.ExposedForTesting[0].Term.ShouldBe(1);
+            log.ExposedForTesting[0].CurrentCommitIndex.ShouldBe(0);
+            log.ExposedForTesting[1].Term.ShouldBe(1);
+            log.ExposedForTesting[1].CurrentCommitIndex.ShouldBe(1);
+            log.ExposedForTesting[2].Term.ShouldBe(1);
+            log.ExposedForTesting[2].CurrentCommitIndex.ShouldBe(2);
         }
     }
 }

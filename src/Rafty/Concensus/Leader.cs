@@ -28,10 +28,21 @@ namespace Rafty.Concensus
             //todo consolidate with request vote
             if(appendEntries.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex);
+                //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
+                long commitIndex = CurrentState.CommitIndex;
+
+                if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
+                {
+                    //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
+                    var indexOfLastNewEntry = appendEntries.PreviousLogIndex + 1;
+                    commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, indexOfLastNewEntry);
+                }
+
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
+                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, commitIndex);
                 return new Follower(nextState, _sendToSelf);
             }
-            
+   
             return this;
         }
 
