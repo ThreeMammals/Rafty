@@ -138,6 +138,5 @@ namespace Rafty.Concensus
 
             return _appendEntriesIdsReceived.Last() == _appendEntriesAtPreviousHeartbeat;
         }
-
     }
 }

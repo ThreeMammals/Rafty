@@ -22,7 +22,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         public RequestVoteTests()
         {
             _sendToSelf = new TestingSendToSelf();
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), new InMemoryLog(), 0);
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), 
+                new InMemoryLog(), 0, 0);
             _node = new Node(_currentState, _sendToSelf);
             _sendToSelf.SetNode(_node);
         }
@@ -35,7 +36,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - 1. Reply false if term<currentTerm (§5.1)")]
         public void ShouldReplyFalseIfTermIsLessThanCurrentTerm()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), new InMemoryLog(), 1);
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), 
+                new InMemoryLog(), 1, 0);
             _node = new Node(_currentState, _sendToSelf);
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
             var response = _node.Handle(requestVoteRpc);
@@ -44,9 +46,10 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         }
 
         [Fact(DisplayName = "RequestVote - 2. Reply false if voted for is not default")]
-        public void ShouldReplyFalseIfVotedForIsNotDefault()
+    public void ShouldReplyFalseIfVotedForIsNotDefault()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, Guid.NewGuid(), TimeSpan.FromSeconds(5), new InMemoryLog(), 1);
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, Guid.NewGuid(), TimeSpan.FromSeconds(5), 
+                new InMemoryLog(), 1, 0);
             _node = new Node(_currentState, _sendToSelf);
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
             var response = _node.Handle(requestVoteRpc);
@@ -57,7 +60,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - 2. Reply false if voted for is not candidateId")]
         public void ShouldReplyFalseIfVotedForIsNotCandidateId()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, Guid.NewGuid(), TimeSpan.FromSeconds(5), new InMemoryLog(), 1);
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, Guid.NewGuid(), TimeSpan.FromSeconds(5), 
+                new InMemoryLog(), 1, 0);
             _node = new Node(_currentState, _sendToSelf);
             var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).WithTerm(0).Build();
             var response = _node.Handle(requestVoteRpc);
@@ -68,7 +72,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - 2. If votedFor is null or candidateId, and candidate’s log is atleast as up - to - date as receiver’s log, grant vote(§5.2, §5.4)")]
         public void ShouldGrantVote()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), new InMemoryLog(), 1);
+            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), 
+                new InMemoryLog(), 1, 0);
             _node = new Node(_currentState, _sendToSelf);
             var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(0).WithLastLogTerm(0).WithTerm(1).Build();
             var response = _node.Handle(requestVoteRpc);
