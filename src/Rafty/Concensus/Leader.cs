@@ -43,6 +43,17 @@ namespace Rafty.Concensus
                     commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
                 }
 
+                //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
+                //todo - not sure if this should be an if or a while
+                while(commitIndex > lastApplied)
+                {
+                    lastApplied++;
+                    var log = nextState.Log.Get(lastApplied);
+                    //todo - json deserialise into type? Also command might need to have type as a string not Type as this
+                    //will get passed over teh wire? Not sure atm ;)
+                    _fsm.Handle(log.CommandData);
+                }
+
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, nextState.CurrentTerm, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, commitIndex, lastApplied);
             }

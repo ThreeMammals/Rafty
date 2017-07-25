@@ -69,6 +69,8 @@ namespace Rafty.Concensus
         {
             CurrentState nextState = CurrentState;
 
+            //todo - not sure about this should a candidate apply logs from a leader on the same term when it is in candidate mode
+            //for that term? Does this need to just fall into the greater than?
             if(appendEntries.Term >= CurrentState.CurrentTerm)
             {
                 //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
@@ -79,6 +81,17 @@ namespace Rafty.Concensus
                     //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
                     var lastNewEntry = CurrentState.Log.LastLogIndex;
                     commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+                }
+
+                //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
+                //todo - not sure if this should be an if or a while
+                while(commitIndex > lastApplied)
+                {
+                    lastApplied++;
+                    var log = nextState.Log.Get(lastApplied);
+                    //todo - json deserialise into type? Also command might need to have type as a string not Type as this
+                    //will get passed over teh wire? Not sure atm ;)
+                    _fsm.Handle(log.CommandData);
                 }
 
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, nextState.CurrentTerm, 

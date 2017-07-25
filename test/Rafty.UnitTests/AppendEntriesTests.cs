@@ -154,8 +154,11 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), -1, -1);
+            //assume log applied by node?
+            var log = new LogEntry("term 1 commit index 0", typeof(string), 1, 0);
+            _currentState.Log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
-               .WithEntry(new LogEntry("term 1 commit index 0", typeof(string), 1, 0))
+               .WithEntry(log)
                .WithTerm(1)
                .WithPreviousLogIndex(-1)
                .WithPreviousLogTerm(0)
@@ -172,8 +175,11 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), -1, -1);
+            //assume log applied by node?
+            var log = new LogEntry("term 1 commit index 0", typeof(string), 1, 0);
+            _currentState.Log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
-               .WithEntry(new LogEntry("term 1 commit index 0", typeof(string), 1, 0))
+               .WithEntry(log)
                .WithTerm(1)
                .WithPreviousLogIndex(-1)
                .WithPreviousLogTerm(0)
