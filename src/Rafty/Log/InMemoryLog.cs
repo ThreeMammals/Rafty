@@ -78,5 +78,17 @@
                 }
             }
         }
+
+        public LogEntry Get(long index)
+        {
+            if(_log.Count >= (index + 1))
+            {
+                //todo - sort this out
+                var i = Convert.ToInt32(index);
+                return _log[i];
+            }
+
+            throw new Exception("Nothing in log..");
+        }
     }
 }

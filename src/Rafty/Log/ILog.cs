@@ -2,7 +2,8 @@
 {
     public interface ILog
     {
-        void Apply(LogEntry logEntry);
+        void Apply(LogEntry log);
+        LogEntry Get(long index);
         long LastLogIndex {get;}
         long LastLogTerm {get;}
         long GetTermAtIndex(long index);

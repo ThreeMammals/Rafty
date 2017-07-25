@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
 using Rafty.Log;
 using Shouldly;
 using Xunit;
@@ -21,16 +22,18 @@ follow it (§5.3)
 min(leaderCommit, index of last new entry)
 */
 
+        private IFiniteStateMachine _fsm;
         private Node _node;
         private ISendToSelf _sendToSelf;
         private CurrentState _currentState;
         
         public AppendEntriesTests()
         {
+            _fsm = new InMemoryStateMachine();
             _sendToSelf = new TestingSendToSelf();
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), 0, 0);
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             _sendToSelf.SetNode(_node);
         }
         
@@ -45,7 +48,7 @@ min(leaderCommit, index of last new entry)
         public void ShouldReplyFalseIfRpcTermLessThanCurrentTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), new InMemoryLog(), 0, 0);
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(0).Build();
             var response = _node.Handle(appendEntriesRpc);
             response.Success.ShouldBe(false);
@@ -58,7 +61,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 2, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), 0, 0);
             _currentState.Log.Apply(new LogEntry("", typeof(string), 2, 0));
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(0).WithPreviousLogTerm(1).Build();
             var response = _node.Handle(appendEntriesRpc);
             response.Success.ShouldBe(false);
@@ -73,7 +76,7 @@ min(leaderCommit, index of last new entry)
             _currentState.Log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             _currentState.Log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1, 1));
             _currentState.Log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1, 2));
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 2 commit index 2", typeof(string),2,2))
                 .WithTerm(2)
@@ -93,7 +96,7 @@ min(leaderCommit, index of last new entry)
             _currentState.Log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             _currentState.Log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1, 1));
             _currentState.Log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1, 2));
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 2 commit index 2", typeof(string), 2, 2))
                 .WithTerm(2)
@@ -112,7 +115,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), 0, 0);
             _currentState.Log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 1 commit index 1", typeof(string), 1, 1))
                 .WithTerm(1)
@@ -130,15 +133,18 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), -1, -1);
+            var log = new LogEntry("term 1 commit index 0", typeof(string), 1, 0);
             var appendEntriesRpc = new AppendEntriesBuilder()
-               .WithEntry(new LogEntry("term 1 commit index 0", typeof(string), 1, 0))
+               .WithEntry(log)
                .WithTerm(1)
                .WithPreviousLogIndex(-1)
                .WithPreviousLogTerm(0)
                .WithLeaderCommitIndex(0)
                .Build();
+            //assume node has applied log..
+            _currentState.Log.Apply(log);
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(_currentState, _sendToSelf);
+            var follower = new Follower(_currentState, _sendToSelf, _fsm);
             var state = follower.Handle(appendEntriesRpc);
             state.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -156,7 +162,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(0)
                .Build();
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Candidate(_currentState, _sendToSelf);
+            var follower = new Candidate(_currentState, _sendToSelf, _fsm);
             var state = follower.Handle(appendEntriesRpc);
             state.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -174,7 +180,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(0)
                .Build();
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Leader(_currentState, _sendToSelf);
+            var follower = new Leader(_currentState, _sendToSelf, _fsm);
             var state = follower.Handle(appendEntriesRpc);
             state.CurrentState.CommitIndex.ShouldBe(0);
         }

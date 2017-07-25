@@ -3,6 +3,7 @@ namespace Rafty.Concensus
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using Rafty.FiniteStateMachine;
 
     public class Node : IDisposable, INode
     {
@@ -10,11 +11,11 @@ namespace Rafty.Concensus
         private readonly ISendToSelf _sendToSelf;
         private Guid _appendEntriesAtPreviousHeartbeat;
 
-        public Node(CurrentState initialState, ISendToSelf sendToSelf)
+        public Node(CurrentState initialState, ISendToSelf sendToSelf, IFiniteStateMachine fsm)
         {
             _appendEntriesIdsReceived = new List<Guid>();
             _sendToSelf = sendToSelf;
-            State = new Follower(initialState, _sendToSelf);
+            State = new Follower(initialState, _sendToSelf, fsm);
         }
 
         public void Dispose()

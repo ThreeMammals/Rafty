@@ -4,6 +4,7 @@ namespace Rafty.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using Concensus;
+    using Rafty.FiniteStateMachine;
     using Rafty.Log;
     using Shouldly;
     using Xunit;
@@ -21,12 +22,15 @@ follower
 
     public class CandidateTests : IDisposable
     {
+        private IFiniteStateMachine _fsm;
+        
         public CandidateTests()
         {
+            _fsm = new InMemoryStateMachine();
             _id = Guid.NewGuid();
             _currentState = new CurrentState(_id, new List<IPeer>(), 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             _sendToSelf = new TestingSendToSelf();
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             _sendToSelf.SetNode(_node);
         }
 
@@ -52,7 +56,7 @@ follower
             };
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(2);
@@ -70,7 +74,7 @@ follower
             };
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             var state = candidate.Handle(new BeginElection());
             state = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
             state.ShouldBeOfType<Follower>();
@@ -88,7 +92,7 @@ follower
             };
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             var state = candidate.Handle(new BeginElection());
             state = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
             state.ShouldBeOfType<Candidate>();
@@ -104,7 +108,7 @@ follower
             }
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Follower>();
         }
 
@@ -120,7 +124,7 @@ follower
             };
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
         }
 
@@ -134,14 +138,14 @@ follower
             }
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
         }
 
         [Fact]
         public void ShouldIncrementCurrentTermWhenElectionStarts()
         {
-            var candidate = new Follower(_currentState, _sendToSelf);
+            var candidate = new Follower(_currentState, _sendToSelf, _fsm);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(1);
@@ -157,7 +161,7 @@ follower
             }
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             candidate.Handle(new BeginElection());
             peers.ForEach(x =>
             {
@@ -170,7 +174,7 @@ follower
         public void ShouldResetTimeoutWhenElectionStarts()
         {
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             candidate.Handle(new BeginElection());
             testingSendToSelf.Timeouts.Count.ShouldBe(1);
         }
@@ -178,7 +182,7 @@ follower
         [Fact]
         public void ShouldVoteForSelfWhenElectionStarts()
         {
-            var candidate = new Candidate(_currentState, _sendToSelf);
+            var candidate = new Candidate(_currentState, _sendToSelf, _fsm);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.CurrentState.VotedFor.ShouldBe(_id);
         }

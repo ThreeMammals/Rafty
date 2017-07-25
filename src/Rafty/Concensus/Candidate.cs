@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Rafty.FiniteStateMachine;
 
 namespace Rafty.Concensus
 {
@@ -8,9 +9,11 @@ namespace Rafty.Concensus
         private readonly ISendToSelf _sendToSelf;
         private int _votesThisElection;
         private readonly object _lock = new object();
+        private IFiniteStateMachine _fsm;
 
-        public Candidate(CurrentState currentState, ISendToSelf sendToSelf)
+        public Candidate(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm)
         {
+            _fsm = fsm;
             _sendToSelf = sendToSelf;
             // • On conversion to candidate, start election:
             // • Increment currentTerm
@@ -27,12 +30,12 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
-            return new Candidate(CurrentState, _sendToSelf);
+            return new Candidate(CurrentState, _sendToSelf, _fsm);
         }
 
         public IState Handle(BeginElection beginElection)
         {
-            IState state = new Follower(CurrentState, _sendToSelf);
+            IState state = new Follower(CurrentState, _sendToSelf, _fsm);
             // • On conversion to candidate, start election:
             // • Reset election timer
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
@@ -50,7 +53,7 @@ namespace Rafty.Concensus
                         //If votes received from majority of servers: become leader
                         if (_votesThisElection >= (CurrentState.Peers.Count + 1) / 2 + 1)
                         {
-                            state = new Leader(CurrentState, _sendToSelf);
+                            state = new Leader(CurrentState, _sendToSelf, _fsm);
                             //todo - not sure if i need s.Break() for the algo..if it is put in then technically all servers wont receive
                             //q request vote rpc?
                             //s.Break();
@@ -87,7 +90,7 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
             //todo - hacky :(
             CurrentState = nextState;
@@ -101,7 +104,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             //candidate cannot vote for anyone else...
@@ -115,7 +118,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             return this;
@@ -128,7 +131,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             return this;

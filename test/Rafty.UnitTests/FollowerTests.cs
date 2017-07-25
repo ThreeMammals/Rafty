@@ -3,6 +3,7 @@ namespace Rafty.UnitTests
     using System;
     using System.Collections.Generic;
     using Concensus;
+    using Rafty.FiniteStateMachine;
     using Rafty.Log;
     using Shouldly;
     using Xunit;
@@ -16,12 +17,15 @@ convert to candidate
 
     public class FollowerTests : IDisposable
     {
+        private IFiniteStateMachine _fsm;
+        
         public FollowerTests()
         {
+            _fsm = new InMemoryStateMachine();
             _sendToSelf = new SendToSelf();
             _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), 
                 new InMemoryLog(), 0, 0);
-            _node = new Node(_currentState, _sendToSelf);
+            _node = new Node(_currentState, _sendToSelf, _fsm);
             _sendToSelf.SetNode(_node);
         }
 
@@ -106,7 +110,7 @@ convert to candidate
         public void ShouldUpdateVotedFor()
         {
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(_currentState, _sendToSelf);
+            var follower = new Follower(_currentState, _sendToSelf, _fsm);
             var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
             var state = follower.Handle(requestVote);
             state.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);

@@ -1,12 +1,15 @@
 namespace Rafty.Concensus
 {
     using System;
+    using Rafty.FiniteStateMachine;
 
     public sealed class Leader : IState
     {
         private ISendToSelf _sendToSelf;
-        public Leader(CurrentState currentState, ISendToSelf sendToSelf)
+        private IFiniteStateMachine _fsm;
+        public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm)
         {
+            _fsm = fsm;
             CurrentState = currentState;
             _sendToSelf = sendToSelf;
         }
@@ -49,10 +52,10 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
-            return new Leader(nextState, _sendToSelf);
+            return new Leader(nextState, _sendToSelf, _fsm);
         }
 
         public IState Handle(RequestVote requestVote)
@@ -62,7 +65,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             //leader cannot vote for anyone else...
@@ -76,7 +79,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             return this;
@@ -89,7 +92,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf);
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             return this;
