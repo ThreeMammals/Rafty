@@ -1,6 +1,8 @@
 namespace Rafty.Concensus
 {
     using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
     using Rafty.FiniteStateMachine;
 
     public sealed class Leader : IState
@@ -12,6 +14,11 @@ namespace Rafty.Concensus
             _fsm = fsm;
             CurrentState = currentState;
             _sendToSelf = sendToSelf;
+
+            //Upon election: send initial empty AppendEntries RPCs(heartbeat) to each server
+            Parallel.ForEach(CurrentState.Peers, p => {
+                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
+            });
         }
 
         public CurrentState CurrentState { get; }

@@ -109,8 +109,6 @@ namespace Rafty.Concensus
         {
             if (NoHeartbeatSinceLastTimeout())
             {
-                _sendToSelf.Publish(new BeginElection());
-
                 State = State.Handle(timeout);
 
                 if(State is Candidate)
