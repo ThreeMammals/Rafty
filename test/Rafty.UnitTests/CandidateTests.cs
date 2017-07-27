@@ -76,8 +76,8 @@ follower
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             var state = candidate.Handle(new BeginElection());
-            var stateAndResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
-            stateAndResponse.State.ShouldBeOfType<Follower>();
+            state = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
+            state.ShouldBeOfType<Follower>();
         }
 
         [Fact]
@@ -94,8 +94,8 @@ follower
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
             var state = candidate.Handle(new BeginElection());
-            var stateAndResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
-            stateAndResponse.State.ShouldBeOfType<Candidate>();
+            state = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
+            state.ShouldBeOfType<Candidate>();
         }
 
         [Fact]

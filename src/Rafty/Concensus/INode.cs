@@ -6,5 +6,6 @@
         void Dispose();
         AppendEntriesResponse Handle(AppendEntries appendEntries);
         void Handle(Message message);
+        Response<T> Accept<T>(T command);
     }
 }

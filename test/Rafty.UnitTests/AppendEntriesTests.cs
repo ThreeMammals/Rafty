@@ -146,7 +146,7 @@ min(leaderCommit, index of last new entry)
             _sendToSelf = new TestingSendToSelf();
             var follower = new Follower(_currentState, _sendToSelf, _fsm);
             var state = follower.Handle(appendEntriesRpc);
-            state.State.CurrentState.CommitIndex.ShouldBe(0);
+            state.CurrentState.CommitIndex.ShouldBe(0);
         }
 
         [Fact(DisplayName = "AppendEntries - Candidate - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
@@ -167,7 +167,7 @@ min(leaderCommit, index of last new entry)
             _sendToSelf = new TestingSendToSelf();
             var follower = new Candidate(_currentState, _sendToSelf, _fsm);
             var state = follower.Handle(appendEntriesRpc);
-            state.State.CurrentState.CommitIndex.ShouldBe(0);
+            state.CurrentState.CommitIndex.ShouldBe(0);
         }
 
         [Fact(DisplayName = "AppendEntries - Leader - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
@@ -188,7 +188,7 @@ min(leaderCommit, index of last new entry)
             _sendToSelf = new TestingSendToSelf();
             var follower = new Leader(_currentState, _sendToSelf, _fsm);
             var state = follower.Handle(appendEntriesRpc);
-            state.State.CurrentState.CommitIndex.ShouldBe(0);
+            state.CurrentState.CommitIndex.ShouldBe(0);
         }
     }
 }

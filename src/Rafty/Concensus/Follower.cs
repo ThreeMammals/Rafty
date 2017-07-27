@@ -30,7 +30,7 @@ namespace Rafty.Concensus
             throw new Exception("Follower cannot begin an election?");
         }
 
-        public StateAndResponse Handle(AppendEntries appendEntries)
+        public IState Handle(AppendEntries appendEntries)
         {
             CurrentState nextState = CurrentState;
             //todo consolidate with request vote
@@ -64,7 +64,7 @@ namespace Rafty.Concensus
             nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, nextState.CurrentTerm, 
                 CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, commitIndex, lastApplied);
 
-            return new StateAndResponse(new Follower(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CurrentTerm, true));
+            return new Follower(nextState, _sendToSelf, _fsm);
         }
 
         public IState Handle(RequestVote requestVote)
@@ -111,7 +111,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public Response<T> Handle<T>(T command)
+        public Response<T> Accept<T>(T command)
         {
             throw new NotImplementedException();
         }

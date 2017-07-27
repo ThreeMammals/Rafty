@@ -104,7 +104,7 @@ namespace Rafty.UnitTests
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), log, 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
             var leader = new Leader(_currentState, testingSendToSelf, _fsm);
-            leader.Handle<FakeCommand>(new FakeCommand());
+            leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
         }
 
@@ -120,7 +120,7 @@ namespace Rafty.UnitTests
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), log, 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
             var leader = new Leader(_currentState, testingSendToSelf, _fsm);
-            var response = leader.Handle<FakeCommand>(new FakeCommand());
+            var response = leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);   
             peers.ForEach(x =>
             {

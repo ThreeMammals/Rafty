@@ -29,9 +29,9 @@ namespace Rafty.UnitTests
             //assume node has added the log..
             currentState.Log.Apply(log);
             var state = follower.Handle(appendEntries);
-            state.State.ShouldBeOfType<Follower>();
-            state.State.CurrentState.CurrentTerm.ShouldBe(1);
-            state.State.CurrentState.LastApplied.ShouldBe(0);
+            state.ShouldBeOfType<Follower>();
+            state.CurrentState.CurrentTerm.ShouldBe(1);
+            state.CurrentState.LastApplied.ShouldBe(0);
             fsm.ExposedForTesting.ShouldBe(1);
         }
 
@@ -50,9 +50,9 @@ namespace Rafty.UnitTests
             //assume node has added the log..
             currentState.Log.Apply(log);
             var state = follower.Handle(appendEntries);
-            state.State.ShouldBeOfType<Candidate>();
-            state.State.CurrentState.CurrentTerm.ShouldBe(1);
-            state.State.CurrentState.LastApplied.ShouldBe(0);
+            state.ShouldBeOfType<Candidate>();
+            state.CurrentState.CurrentTerm.ShouldBe(1);
+            state.CurrentState.LastApplied.ShouldBe(0);
             fsm.ExposedForTesting.ShouldBe(1);
         }
 
@@ -72,9 +72,9 @@ namespace Rafty.UnitTests
             //assume node has added the log..
             currentState.Log.Apply(log);
             var state = follower.Handle(appendEntries);
-            state.State.ShouldBeOfType<Leader>();
-            state.State.CurrentState.CurrentTerm.ShouldBe(1);
-            state.State.CurrentState.LastApplied.ShouldBe(0);
+            state.ShouldBeOfType<Leader>();
+            state.CurrentState.CurrentTerm.ShouldBe(1);
+            state.CurrentState.LastApplied.ShouldBe(0);
             fsm.ExposedForTesting.ShouldBe(1);
         }
     }

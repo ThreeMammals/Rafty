@@ -66,7 +66,7 @@ namespace Rafty.Concensus
             return state;
         }
 
-        public StateAndResponse Handle(AppendEntries appendEntries)
+        public IState Handle(AppendEntries appendEntries)
         {
             CurrentState nextState = CurrentState;
 
@@ -104,12 +104,12 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new StateAndResponse(new Follower(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CurrentTerm, true));
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
             //todo - hacky :(
             CurrentState = nextState;
-            return new StateAndResponse(this, new AppendEntriesResponse(CurrentState.CurrentTerm, true));
+            return this;
         }
 
         public IState Handle(RequestVote requestVote)
@@ -152,7 +152,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public Response<T> Handle<T>(T command)
+        public Response<T> Accept<T>(T command)
         {
             throw new NotImplementedException();
         }

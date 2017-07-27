@@ -29,5 +29,10 @@ namespace Rafty.UnitTests
         {
             Messages.Add(message);
         }
+
+        public Response<T> Accept<T>(T command)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

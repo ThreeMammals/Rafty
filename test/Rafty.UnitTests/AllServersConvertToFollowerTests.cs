@@ -35,8 +35,8 @@ set currentTerm = T, convert to follower (§5.1)*/
             var sendToSelf = new TestingSendToSelf();
             var follower = new Follower(currentState, sendToSelf, _fsm);
             var state = follower.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
-            state.State.ShouldBeOfType<Follower>();
-            state.State.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            state.ShouldBeOfType<Follower>();
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
 
         [Theory]
@@ -92,8 +92,8 @@ set currentTerm = T, convert to follower (§5.1)*/
             var sendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(currentState, sendToSelf, _fsm);
             var state = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
-            state.State.ShouldBeOfType(expectedType);
-            state.State.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            state.ShouldBeOfType(expectedType);
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
 
         [Theory]
@@ -149,8 +149,8 @@ set currentTerm = T, convert to follower (§5.1)*/
             var sendToSelf = new TestingSendToSelf();
             var leader = new Leader(currentState, sendToSelf, _fsm);
             var state = leader.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
-            state.State.ShouldBeOfType(expectedType);
-            state.State.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            state.ShouldBeOfType(expectedType);
+            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
 
         [Theory]

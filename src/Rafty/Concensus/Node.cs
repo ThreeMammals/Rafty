@@ -31,13 +31,19 @@ namespace Rafty.Concensus
             //todo - these handlers should be in a dictionary
             if (message.GetType() == typeof(BeginElection))
             {
-                Handle((BeginElection) message);
+                Handle((BeginElection)message);
             }
 
             if (message.GetType() == typeof(Timeout))
             {
-                Handle((Timeout) message);
+                Handle((Timeout)message);
             }
+        }
+
+        //todo - needs test coverage
+        public Response<T> Accept<T>(T command)
+        {
+            return State.Accept(command);
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
@@ -68,13 +74,13 @@ namespace Rafty.Concensus
             }
 
             //todo - not sure if this should be first thing we do or its in correct place now.
-            var stateAndResponse = State.Handle(appendEntries);
-            State = stateAndResponse.State;
+            State = State.Handle(appendEntries);
 
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
 
-            return stateAndResponse.Response;
+            return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
         }
+
         public RequestVoteResponse Handle(RequestVote requestVoteRpc)
         {
             //Reply false if term<currentTerm

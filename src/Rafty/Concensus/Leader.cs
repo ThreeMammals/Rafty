@@ -48,7 +48,7 @@ namespace Rafty.Concensus
             throw new NotImplementedException();
         }
 
-        public StateAndResponse Handle(AppendEntries appendEntries)
+        public IState Handle(AppendEntries appendEntries)
         {
             
             CurrentState nextState = CurrentState;
@@ -85,10 +85,10 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new StateAndResponse(new Follower(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CurrentTerm, true));
+                return new Follower(nextState, _sendToSelf, _fsm);
             }
 
-            return new StateAndResponse(new Leader(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CommitIndex, false));
+            return new Leader(nextState, _sendToSelf, _fsm);
         }
 
         public IState Handle(RequestVote requestVote)
@@ -131,7 +131,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public Response<T> Handle<T>(T command)
+        public Response<T> Accept<T>(T command)
         {
             //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
