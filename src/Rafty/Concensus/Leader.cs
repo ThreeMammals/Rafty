@@ -34,8 +34,10 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
-            Parallel.ForEach(CurrentState.Peers, p => {
-                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
+            Parallel.ForEach(CurrentState.Peers, p =>
+            {
+                var logs = GetLogsForPeer(p);
+                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, logs, CurrentState.CommitIndex));
             });
 
             //todo - is this timeout correct? does it need to be less than the followers?
@@ -140,11 +142,12 @@ namespace Rafty.Concensus
             //hack to make sure we dont handle a command twice? Must be a nicer way?
             _handled = false;
             //send append entries to each server...
-            Parallel.ForEach(CurrentState.Peers, (p, s) => {
-                
+            Parallel.ForEach(CurrentState.Peers, (p, s) =>
+            {
+                var logs = GetLogsForPeer(p);
                 //todo - this should not just be latest log?
                 var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex,
-                    CurrentState.Log.LastLogTerm, new List<LogEntry>{log}, CurrentState.CommitIndex);
+                    CurrentState.Log.LastLogTerm, logs, CurrentState.CommitIndex);
 
                 var appendEntriesResponse = p.Request(appendEntries);
                 
@@ -165,6 +168,19 @@ namespace Rafty.Concensus
             });
 
             return new Response<T>(_handled, command);
+        }
+
+        private List<LogEntry> GetLogsForPeer(IPeer peer)
+        {
+            if (CurrentState.Log.Count > 0)
+            {
+                return new List<LogEntry>
+                {
+                    CurrentState.Log.Get(CurrentState.LastApplied)
+                };
+            }
+
+            return new List<LogEntry>();
         }
     }
 }

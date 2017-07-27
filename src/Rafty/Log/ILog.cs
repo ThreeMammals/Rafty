@@ -8,5 +8,6 @@
         long LastLogTerm {get;}
         long GetTermAtIndex(long index);
         void DeleteConflictsFromThisLog(LogEntry logEntry);
+        int Count { get; }
     }
 }

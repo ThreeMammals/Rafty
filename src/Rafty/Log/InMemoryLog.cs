@@ -80,6 +80,8 @@
             }
         }
 
+        public int Count => _log.Count;
+
         public LogEntry Get(long index)
         {
             if(_log.Count >= (index + 1))
