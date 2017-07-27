@@ -111,7 +111,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public void Handle<T>(T command)
+        public Response<T> Handle<T>(T command)
         {
             throw new NotImplementedException();
         }

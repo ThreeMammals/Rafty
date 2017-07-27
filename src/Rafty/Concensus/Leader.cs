@@ -131,7 +131,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public void Handle<T>(T command)
+        public Response<T> Handle<T>(T command)
         {
             //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
@@ -163,6 +163,8 @@ namespace Rafty.Concensus
                     }
                 }
             });
+
+            return new Response<T>(_handled, command);
         }
     }
 }

@@ -9,9 +9,20 @@ namespace Rafty.Concensus
         IState Handle(AppendEntriesResponse appendEntriesResponse);
         IState Handle(RequestVote requestVote);
         IState Handle(RequestVoteResponse requestVoteResponse);
-        void Handle<T>(T command);
+        Response<T> Handle<T>(T command);
     }
 
+    public class Response<T>
+    {
+        public Response(bool success, T command)
+        {
+            Success = success;
+            Command = command;
+        }
+
+        public bool Success {get;private set;}
+        public T Command {get;private set;}
+    }
     public class StateAndResponse
     {
         public StateAndResponse(IState state, AppendEntriesResponse response)
