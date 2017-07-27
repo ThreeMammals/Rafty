@@ -65,7 +65,8 @@
 
         public void DeleteConflictsFromThisLog(LogEntry logEntry)
         {
-            var index = logEntry.CurrentCommitIndex;
+            //todo - fix?
+            var index = Convert.ToInt32(logEntry.CurrentCommitIndex);
 
             for (int i = index; i < _log.Count; i++)
             {

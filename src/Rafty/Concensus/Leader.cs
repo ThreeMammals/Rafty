@@ -3,12 +3,18 @@ namespace Rafty.Concensus
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using Newtonsoft.Json;
     using Rafty.FiniteStateMachine;
+    using Rafty.Log;
 
     public sealed class Leader : IState
     {
         private ISendToSelf _sendToSelf;
         private IFiniteStateMachine _fsm;
+        private int _updated;
+        private readonly object _lock = new object();
+        private bool _handled;
+
         public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm)
         {
             _fsm = fsm;
@@ -19,13 +25,22 @@ namespace Rafty.Concensus
             Parallel.ForEach(CurrentState.Peers, p => {
                 p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
             });
+
+            //todo - is this timeout correct? does it need to be less than the followers?
+            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
         }
 
         public CurrentState CurrentState { get; }
 
         public IState Handle(Timeout timeout)
         {
-            throw new NotImplementedException();
+            Parallel.ForEach(CurrentState.Peers, p => {
+                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
+            });
+
+            //todo - is this timeout correct? does it need to be less than the followers?
+            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
+            return this;
         }
 
         public IState Handle(BeginElection beginElection)
@@ -33,7 +48,7 @@ namespace Rafty.Concensus
             throw new NotImplementedException();
         }
 
-        public IState Handle(AppendEntries appendEntries)
+        public StateAndResponse Handle(AppendEntries appendEntries)
         {
             
             CurrentState nextState = CurrentState;
@@ -70,10 +85,10 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
+                return new StateAndResponse(new Follower(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CurrentTerm, true));
             }
 
-            return new Leader(nextState, _sendToSelf, _fsm);
+            return new StateAndResponse(new Leader(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CommitIndex, false));
         }
 
         public IState Handle(RequestVote requestVote)
@@ -114,6 +129,40 @@ namespace Rafty.Concensus
             }
 
             return this;
+        }
+
+        public void Handle<T>(T command)
+        {
+            //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
+            var json = JsonConvert.SerializeObject(command);
+            var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm, CurrentState.CommitIndex);
+            CurrentState.Log.Apply(log);
+            //hack to make sure we dont handle a command twice? Must be a nicer way?
+            _handled = false;
+            //send append entries to each server...
+            Parallel.ForEach(CurrentState.Peers, (p, s) => {
+                
+                //todo - this should not just be latest log?
+                var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex,
+                    CurrentState.Log.LastLogTerm, new List<LogEntry>{log}, CurrentState.CommitIndex);
+
+                var appendEntriesResponse = p.Request(appendEntries);
+                
+                //lock to make sure we dont do this more than once
+                lock(_lock)
+                {
+                    if (appendEntriesResponse.Success && !_handled)
+                    {
+                        _updated++;
+                        //If replicated to majority of servers: apply to state machine
+                        if (_updated >= (CurrentState.Peers.Count + 1) / 2 + 1)
+                        {
+                            _fsm.Handle(command);
+                            _handled = true;
+                        }
+                    }
+                }
+            });
         }
     }
 }

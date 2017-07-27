@@ -41,6 +41,7 @@ namespace Rafty.Concensus
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
             
             // • Send RequestVote RPCs to all other servers
+            //todo - this might not be the right type of loop, it should be parralell but not sure about framework version
             Parallel.ForEach(CurrentState.Peers, (p, s) => {
                  
                 var requestVoteResponse = p.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm));
@@ -65,7 +66,7 @@ namespace Rafty.Concensus
             return state;
         }
 
-        public IState Handle(AppendEntries appendEntries)
+        public StateAndResponse Handle(AppendEntries appendEntries)
         {
             CurrentState nextState = CurrentState;
 
@@ -103,11 +104,12 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
+                return new StateAndResponse(new Follower(nextState, _sendToSelf, _fsm), new AppendEntriesResponse(nextState.CurrentTerm, true));
             }
+
             //todo - hacky :(
             CurrentState = nextState;
-            return this;
+            return new StateAndResponse(this, new AppendEntriesResponse(CurrentState.CurrentTerm, true));
         }
 
         public IState Handle(RequestVote requestVote)
@@ -148,6 +150,11 @@ namespace Rafty.Concensus
             }
 
             return this;
+        }
+
+        public void Handle<T>(T command)
+        {
+            throw new NotImplementedException();
         }
     }
 }

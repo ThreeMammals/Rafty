@@ -68,11 +68,12 @@ namespace Rafty.Concensus
             }
 
             //todo - not sure if this should be first thing we do or its in correct place now.
-            State = State.Handle(appendEntries);
+            var stateAndResponse = State.Handle(appendEntries);
+            State = stateAndResponse.State;
 
             _appendEntriesIdsReceived.Add(appendEntries.MessageId);
 
-            return new AppendEntriesResponse(State.CurrentState.CurrentTerm, true);
+            return stateAndResponse.Response;
         }
         public RequestVoteResponse Handle(RequestVote requestVoteRpc)
         {
