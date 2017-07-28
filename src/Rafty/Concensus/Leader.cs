@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Linq;
 
 namespace Rafty.Concensus
@@ -56,11 +57,13 @@ namespace Rafty.Concensus
 
             IState nextState = this;
 
+            var responses = new ConcurrentBag<AppendEntriesResponse>();
+
             Parallel.ForEach(PeerStates, p =>
             {
                 var logsToSend = GetLogsForPeer(p.NextIndex);
                 var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, logsToSend, CurrentState.CommitIndex));
-                
+                responses.Add(appendEntriesResponse);
                 //handle response and update state accordingly?
                 lock (_lock)
                 {
@@ -74,10 +77,36 @@ namespace Rafty.Concensus
                     {
                         p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer - 1);
                     }
-
-                    nextState = Handle(appendEntriesResponse);
                 }
             });
+
+            //this code is pretty shit...sigh
+            foreach (var appendEntriesResponse in responses)
+            {
+                nextState = Handle(appendEntriesResponse);
+                if (nextState is Follower)
+                {
+                    return nextState;
+                }
+            }
+
+            /* Mark log entries committed if stored on a majority of
+             servers and at least one entry from current term is stored on
+             a majority of servers
+             If there exists an N such that N > commitIndex, a majority
+             of matchIndex[i] ≥ N, and log[N].term == currentTerm:
+             set commitIndex = N (§5.3, §5.4).*/
+            var n = CurrentState.CommitIndex + 1;
+            var statesIndexOfHighestKnownReplicatedLogs = PeerStates.Select(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog).ToList();
+            var greaterOrEqualToN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x >= n).ToList();
+            var lessThanN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x < n).ToList();
+            if (greaterOrEqualToN.Count > lessThanN.Count)
+            {
+                if (CurrentState.Log.GetTermAtIndex(n) == CurrentState.CurrentTerm)
+                {
+                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.Peers, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, n, CurrentState.LastApplied);
+                }
+            }
 
             return nextState;
         }

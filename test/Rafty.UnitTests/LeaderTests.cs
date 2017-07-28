@@ -114,7 +114,7 @@ namespace Rafty.UnitTests
             var peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(true, true));
+                peers.Add(new FakePeer(true, true, true));
             }
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), log, 0, 0);
@@ -199,7 +199,7 @@ namespace Rafty.UnitTests
             var peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(true, true));
+                peers.Add(new FakePeer(true, true, true));
             }
             //add 3 logs
             var log = new InMemoryLog();
@@ -269,16 +269,16 @@ namespace Rafty.UnitTests
         }
 
         [Fact(DisplayName = "If there exists an N such that N > commitIndex, a majority of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N(§5.3, §5.4)")]
-        public void MadMathsAndTing()
+        public void ShouldSetCommitIndex()
         {
             var peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(true, true));
+                peers.Add(new FakePeer(true, true, true, true));
             }
             //add 3 logs
             var log = new InMemoryLog();
-            _currentState = new CurrentState(_id, peers, 1, default(Guid), TimeSpan.FromMilliseconds(0), log, 0, 0);
+            _currentState = new CurrentState(_id, peers, 1, default(Guid), TimeSpan.FromMilliseconds(0), log, 1, 0);
             var testingSendToSelf = new TestingSendToSelf();
             var leader = new Leader(_currentState, testingSendToSelf, _fsm);
             var logOne = new LogEntry("1", typeof(string), 1, 0);
