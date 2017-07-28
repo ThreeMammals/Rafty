@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Rafty.Concensus
 {
     using System;
@@ -9,8 +11,8 @@ namespace Rafty.Concensus
 
     public sealed class Leader : IState
     {
-        private ISendToSelf _sendToSelf;
-        private IFiniteStateMachine _fsm;
+        private readonly ISendToSelf _sendToSelf;
+        private readonly IFiniteStateMachine _fsm;
         private int _updated;
         private readonly object _lock = new object();
         private bool _handled;
@@ -21,6 +23,7 @@ namespace Rafty.Concensus
             CurrentState = currentState;
             _sendToSelf = sendToSelf;
 
+            InitialisePeerStates();
             //Upon election: send initial empty AppendEntries RPCs(heartbeat) to each server
             Parallel.ForEach(CurrentState.Peers, p => {
                 p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
@@ -30,19 +33,53 @@ namespace Rafty.Concensus
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
         }
 
-        public CurrentState CurrentState { get; }
+        private void InitialisePeerStates()
+        {
+            PeerStates = new List<PeerState>();
+            foreach (var peer in CurrentState.Peers)
+            {
+                var matchIndex = new MatchIndex(peer, 0);
+                //todo apparently you plus one to this but because i started everthing at -1 i dont think i need to?
+                var nextIndex = new NextIndex(peer, CurrentState.Log.LastLogIndex);
+                PeerStates.Add(new PeerState(peer, matchIndex, nextIndex));
+            }
+        }
+
+        public List<PeerState> PeerStates { get; private set; }
+
+        public CurrentState CurrentState { get; private set; }
 
         public IState Handle(Timeout timeout)
         {
-            Parallel.ForEach(CurrentState.Peers, p =>
-            {
-                var logs = GetLogsForPeer(p);
-                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, logs, CurrentState.CommitIndex));
-            });
-
             //todo - is this timeout correct? does it need to be less than the followers?
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
-            return this;
+
+            IState nextState = this;
+
+            Parallel.ForEach(PeerStates, p =>
+            {
+                var logsToSend = GetLogsForPeer(p.NextIndex);
+                var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, logsToSend, CurrentState.CommitIndex));
+                
+                //handle response and update state accordingly?
+                lock (_lock)
+                {
+                    if (appendEntriesResponse.Success)
+                    {
+                        p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer + logsToSend.Count);
+                        p.UpdateMatchIndex(p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex));
+                    }
+
+                    if (!appendEntriesResponse.Success)
+                    {
+                        p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer - 1);
+                    }
+
+                    nextState = Handle(appendEntriesResponse);
+                }
+            });
+
+            return nextState;
         }
 
         public IState Handle(BeginElection beginElection)
@@ -52,7 +89,6 @@ namespace Rafty.Concensus
 
         public IState Handle(AppendEntries appendEntries)
         {
-            
             CurrentState nextState = CurrentState;
 
             if(appendEntries.Term >= CurrentState.CurrentTerm)
@@ -90,7 +126,8 @@ namespace Rafty.Concensus
                 return new Follower(nextState, _sendToSelf, _fsm);
             }
 
-            return new Leader(nextState, _sendToSelf, _fsm);
+            CurrentState = nextState;
+            return this;
         }
 
         public IState Handle(RequestVote requestVote)
@@ -107,12 +144,12 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public IState Handle(AppendEntriesResponse appendEntries)
+        public IState Handle(AppendEntriesResponse appendEntriesResponse)
         {
              //todo - consolidate with AppendEntries and RequestVOte
-            if(appendEntries.Term > CurrentState.CurrentTerm)
+            if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, 
+                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntriesResponse.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
                 return new Follower(nextState, _sendToSelf, _fsm);
             }
@@ -142,14 +179,14 @@ namespace Rafty.Concensus
             //hack to make sure we dont handle a command twice? Must be a nicer way?
             _handled = false;
             //send append entries to each server...
-            Parallel.ForEach(CurrentState.Peers, (p, s) =>
+            Parallel.ForEach(PeerStates, (p, s) =>
             {
-                var logs = GetLogsForPeer(p);
+                var logs = GetLogsForPeer(p.NextIndex);
                 //todo - this should not just be latest log?
                 var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex,
                     CurrentState.Log.LastLogTerm, logs, CurrentState.CommitIndex);
 
-                var appendEntriesResponse = p.Request(appendEntries);
+                var appendEntriesResponse = p.Peer.Request(appendEntries);
                 
                 //lock to make sure we dont do this more than once
                 lock(_lock)
@@ -170,14 +207,20 @@ namespace Rafty.Concensus
             return new Response<T>(_handled, command);
         }
 
-        private List<LogEntry> GetLogsForPeer(IPeer peer)
+        /// <summary>
+        /// This is only public so I could test it....i feel bad will work towards not having it public
+        /// </summary>
+        /// <param name="nextIndex"></param>
+        /// <returns></returns>
+        public List<LogEntry> GetLogsForPeer(NextIndex nextIndex)
         {
             if (CurrentState.Log.Count > 0)
             {
-                return new List<LogEntry>
+                if (CurrentState.Log.LastLogIndex >= nextIndex.NextLogIndexToSendToPeer)
                 {
-                    CurrentState.Log.Get(CurrentState.LastApplied)
-                };
+                    var logs = CurrentState.Log.GetFrom(nextIndex.NextLogIndexToSendToPeer);
+                    return logs;
+                }
             }
 
             return new List<LogEntry>();

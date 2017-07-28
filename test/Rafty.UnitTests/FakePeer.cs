@@ -7,6 +7,8 @@ namespace Rafty.UnitTests
     {
         private readonly bool _grantVote;
         private readonly bool _appendEntry;
+        private readonly bool _appendEntryTwo;
+        private bool _appendEntryThree;
 
         public FakePeer(bool grantVote)
         {
@@ -17,6 +19,21 @@ namespace Rafty.UnitTests
         {
             _grantVote = grantVote;
             _appendEntry = appendEntry;
+        }
+
+        public FakePeer(bool grantVote, bool appendEntry, bool appendEntryTwo)
+        {
+            _grantVote = grantVote;
+            _appendEntry = appendEntry;
+            _appendEntryTwo = appendEntryTwo;
+        }
+
+        public FakePeer(bool grantVote, bool appendEntry, bool appendEntryTwo, bool appendEntryThree)
+        {
+            _grantVote = grantVote;
+            _appendEntry = appendEntry;
+            _appendEntryTwo = appendEntryTwo;
+            _appendEntryThree = appendEntryThree;
         }
 
         public List<RequestVoteResponse> RequestVoteResponses { get; } = new List<RequestVoteResponse>();
@@ -32,7 +49,22 @@ namespace Rafty.UnitTests
 
         public AppendEntriesResponse Request(AppendEntries appendEntries)
         {
-            var response = new AppendEntriesResponse(1, _appendEntry);
+            AppendEntriesResponse response;
+            if (AppendEntriesResponses.Count == 1)
+            {
+                response = new AppendEntriesResponse(1, _appendEntryTwo);
+                AppendEntriesResponses.Add(response);
+                return response;
+            }
+
+            if (AppendEntriesResponses.Count == 2)
+            {
+                response = new AppendEntriesResponse(1, _appendEntryThree);
+                AppendEntriesResponses.Add(response);
+                return response;
+            }
+
+            response = new AppendEntriesResponse(1, _appendEntry);
             AppendEntriesResponses.Add(response);
             return response;
         }

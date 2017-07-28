@@ -1,4 +1,6 @@
-﻿namespace Rafty.Log
+﻿using System.Linq;
+
+namespace Rafty.Log
 {
     using System;
     using System.Collections.Generic;
@@ -14,7 +16,14 @@
 
         public List<LogEntry> ExposedForTesting => _log;
 
-        public long LastLogIndex
+        public List<LogEntry> GetFrom(int index)
+        {
+            var take = _log.Count - index;
+            var logs = _log.GetRange(index, take);
+            return logs;
+        }
+
+        public int LastLogIndex
         {
             get
             {
@@ -46,7 +55,7 @@
             _log.Add(logEntry);
         }
 
-        public long GetTermAtIndex(long index)
+        public long GetTermAtIndex(int index)
         {
             if(_log.Count == 0)
             {
@@ -58,15 +67,12 @@
                 return 0;
             }
 
-            //todo - fix?
-            int i = Convert.ToInt32(index);
-            return _log[i].Term;
+            return _log[index].Term;
         }
 
         public void DeleteConflictsFromThisLog(LogEntry logEntry)
         {
-            //todo - fix?
-            var index = Convert.ToInt32(logEntry.CurrentCommitIndex);
+            var index = logEntry.CurrentCommitIndex;
 
             for (int i = index; i < _log.Count; i++)
             {
@@ -82,13 +88,11 @@
 
         public int Count => _log.Count;
 
-        public LogEntry Get(long index)
+        public LogEntry Get(int index)
         {
             if(_log.Count >= (index + 1))
             {
-                //todo - sort this out
-                var i = Convert.ToInt32(index);
-                return _log[i];
+                return _log[index];
             }
 
             throw new Exception("Nothing in log..");
