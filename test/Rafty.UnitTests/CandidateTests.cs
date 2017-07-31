@@ -81,6 +81,23 @@ follower
         }
 
         [Fact]
+        public void ShouldBecomeFollowerIfRequestVoteResponseTermGreaterThanCurrentTerm()
+        {
+            var peers = new List<IPeer>
+            {
+                new FakePeer(10),
+                new FakePeer(true),
+                new FakePeer(true),
+                new FakePeer(true)
+            };
+            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            var testingSendToSelf = new TestingSendToSelf();
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var state = candidate.Handle(new BeginElection());
+            state.ShouldBeOfType<Follower>();
+        }
+
+        [Fact]
         public void ShouldNotBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermLessThanCurrentTerm()
         {
             var peers = new List<IPeer>

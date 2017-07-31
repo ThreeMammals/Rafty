@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Rafty.FiniteStateMachine;
 
@@ -40,11 +41,15 @@ namespace Rafty.Concensus
             // • Reset election timer
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
             
+            var responses = new ConcurrentBag<RequestVoteResponse>();
+
             // • Send RequestVote RPCs to all other servers
             //todo - this might not be the right type of loop, it should be parralell but not sure about framework version
             Parallel.ForEach(CurrentState.Peers, (p, s) => {
                  
                 var requestVoteResponse = p.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm));
+
+                responses.Add(requestVoteResponse);
 
                 if (requestVoteResponse.VoteGranted)
                 {
@@ -62,6 +67,18 @@ namespace Rafty.Concensus
                     }
                 }
             });
+
+             //this code is pretty shit...sigh
+            foreach (var requestVoteResponse in responses)
+            {
+                 //todo - consolidate with AppendEntries and RequestVOte wtc
+                if(requestVoteResponse.Term > CurrentState.CurrentTerm)
+                {
+                    var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, 
+                        CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
+                    return new Follower(nextState, _sendToSelf, _fsm);
+                }
+            }
 
             return state;
         }
@@ -123,19 +140,6 @@ namespace Rafty.Concensus
             }
 
             //candidate cannot vote for anyone else...
-            return this;
-        }
-
-        public IState Handle(RequestVoteResponse requestVoteResponse)
-        {
-             //todo - consolidate with AppendEntries and RequestVOte wtc
-            if(requestVoteResponse.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
-            }
-
             return this;
         }
 

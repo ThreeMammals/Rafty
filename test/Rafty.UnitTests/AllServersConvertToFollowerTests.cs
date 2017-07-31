@@ -82,20 +82,6 @@ set currentTerm = T, convert to follower (§5.1)*/
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
 
-        [Theory]
-        [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 1, 3, typeof(Candidate))]
-        public void CandidateShouldSetTermAsRpcTermAndStateWhenReceivesRequestVoteResponse(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
-        {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), currentTerm, default(Guid), TimeSpan.FromSeconds(0), 
-                new InMemoryLog(), 0, 0);
-            var sendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(currentState, sendToSelf, _fsm);
-            var state = candidate.Handle(new RequestVoteResponseBuilder().WithTerm(rpcTerm).Build());
-            state.ShouldBeOfType(expectedType);
-            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
-        }
-
         //leader
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]

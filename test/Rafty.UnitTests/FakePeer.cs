@@ -9,6 +9,12 @@ namespace Rafty.UnitTests
         private readonly bool _appendEntry;
         private readonly bool _appendEntryTwo;
         private bool _appendEntryThree;
+        private int _term = 1;
+
+        public FakePeer(int term)
+        {
+            _term = term;
+        }
 
         public FakePeer(bool grantVote)
         {
@@ -42,7 +48,7 @@ namespace Rafty.UnitTests
 
         public RequestVoteResponse Request(RequestVote requestVote)
         {
-            var response = new RequestVoteResponse(_grantVote, 1);
+            var response = new RequestVoteResponse(_grantVote, _term);
             RequestVoteResponses.Add(response);
             return response;
         }
@@ -52,19 +58,19 @@ namespace Rafty.UnitTests
             AppendEntriesResponse response;
             if (AppendEntriesResponses.Count == 1)
             {
-                response = new AppendEntriesResponse(1, _appendEntryTwo);
+                response = new AppendEntriesResponse(_term, _appendEntryTwo);
                 AppendEntriesResponses.Add(response);
                 return response;
             }
 
             if (AppendEntriesResponses.Count == 2)
             {
-                response = new AppendEntriesResponse(1, _appendEntryThree);
+                response = new AppendEntriesResponse(_term, _appendEntryThree);
                 AppendEntriesResponses.Add(response);
                 return response;
             }
 
-            response = new AppendEntriesResponse(1, _appendEntry);
+            response = new AppendEntriesResponse(_term, _appendEntry);
             AppendEntriesResponses.Add(response);
             return response;
         }
