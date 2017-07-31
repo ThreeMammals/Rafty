@@ -192,8 +192,11 @@ follower
         {
             var testingSendToSelf = new TestingSendToSelf();
             var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
-            candidate.Handle(new BeginElection());
-            testingSendToSelf.Timeouts.Count.ShouldBe(1);
+            var state = candidate.Handle(new BeginElection());
+            //should be two because we set one when we begin the election and another because it results
+            //in being a follower..
+            testingSendToSelf.Timeouts.Count.ShouldBe(2);
+            state.ShouldBeOfType<Follower>();
         }
 
         [Fact]

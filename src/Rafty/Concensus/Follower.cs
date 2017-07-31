@@ -15,13 +15,13 @@ namespace Rafty.Concensus
             _fsm = stateMachine;
             CurrentState = state;
             _sendToSelf = sendToSelf;
+            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
         }
 
         public CurrentState CurrentState { get; }
 
         public IState Handle(Timeout timeout)
         {
-            _sendToSelf.Publish(new BeginElection());
             return new Candidate(CurrentState, _sendToSelf, _fsm);
         }
 

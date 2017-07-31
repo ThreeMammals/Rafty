@@ -82,18 +82,19 @@ namespace Rafty.UnitTests
             var peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(true));
+                peers.Add(new FakePeer(true, true));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, peers, 2, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
             var leader = new Leader(_currentState, testingSendToSelf, _fsm);
-            leader.Handle(new TimeoutBuilder().Build());
+            var state = leader.Handle(new TimeoutBuilder().Build());
             peers.ForEach(x =>
             {
                 var peer = (FakePeer) x;
                 peer.AppendEntriesResponses.Count.ShouldBe(2);
             });
             testingSendToSelf.Timeouts.Count.ShouldBe(2);
+            state.ShouldBeOfType<Leader>();
         }
 
         [Fact(DisplayName = "If command received from client: append entry to local log")]
