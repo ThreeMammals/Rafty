@@ -83,10 +83,12 @@ namespace Rafty.Concensus
             //this code is pretty shit...sigh
             foreach (var appendEntriesResponse in responses)
             {
-                nextState = Handle(appendEntriesResponse);
-                if (nextState is Follower)
+                //todo - consolidate with AppendEntries and RequestVOte
+                if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
                 {
-                    return nextState;
+                    var currentState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntriesResponse.Term, CurrentState.VotedFor, 
+                        CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
+                    return new Follower(currentState, _sendToSelf, _fsm);
                 }
             }
 
@@ -170,32 +172,6 @@ namespace Rafty.Concensus
             }
 
             //leader cannot vote for anyone else...
-            return this;
-        }
-
-        public IState Handle(AppendEntriesResponse appendEntriesResponse)
-        {
-             //todo - consolidate with AppendEntries and RequestVOte
-            if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntriesResponse.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
-            }
-
-            return this;
-        }
-
-        public IState Handle(RequestVoteResponse requestVoteResponse)
-        {
-             //todo - consolidate with AppendEntries and RequestVOte wtc
-            if(requestVoteResponse.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
-            }
-
             return this;
         }
 
