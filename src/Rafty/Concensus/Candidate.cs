@@ -126,19 +126,6 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public IState Handle(AppendEntriesResponse appendEntries)
-        {
-             //todo - consolidate with AppendEntries and RequestVOte
-            if(appendEntries.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
-            }
-
-            return this;
-        }
-
         public IState Handle(RequestVoteResponse requestVoteResponse)
         {
              //todo - consolidate with AppendEntries and RequestVOte wtc
