@@ -80,35 +80,8 @@ namespace Rafty.Concensus
             // update voted for....
             var currentState = new CurrentState(CurrentState.Id, CurrentState.Peers, term, requestVote.CandidateId, CurrentState.Timeout, 
                 CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
+                
             return new Follower(currentState, _sendToSelf, _fsm);
-        }
-
-        public IState Handle(AppendEntriesResponse appendEntries)
-        {
-             //todo - consolidate with AppendEntries and RequestVOte
-            if(appendEntries.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
-            }
-
-            //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)
-
-            return this;
-        }
-
-        public IState Handle(RequestVoteResponse requestVoteResponse)
-        {
-             //todo - consolidate with AppendEntries and RequestVOte wtc
-            if(requestVoteResponse.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVoteResponse.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
-            }
-
-            return this;
         }
 
         public Response<T> Accept<T>(T command)
