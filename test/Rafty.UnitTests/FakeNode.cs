@@ -15,6 +15,8 @@ namespace Rafty.UnitTests
 
         public IState State { get; }
 
+        public Guid Id => throw new NotImplementedException();
+
         public void Dispose()
         {
             throw new NotImplementedException();
@@ -31,6 +33,16 @@ namespace Rafty.UnitTests
         }
 
         public Response<T> Accept<T>(T command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Start()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Start(List<IPeer> peers, TimeSpan timeout)
         {
             throw new NotImplementedException();
         }

@@ -13,7 +13,10 @@ namespace Rafty.Concensus
         public Message(Guid messageId, TimeSpan delay)
         {
             MessageId = messageId;
-            Delay = delay;
+            var random = new Random();
+            var currentMs = Convert.ToInt32(delay.TotalMilliseconds);
+            var randomMs = random.Next(100, currentMs + currentMs);
+            Delay = TimeSpan.FromMilliseconds(randomMs);
         }
 
         public Guid MessageId { get; private set; }

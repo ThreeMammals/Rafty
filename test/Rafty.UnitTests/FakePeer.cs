@@ -1,5 +1,6 @@
 namespace Rafty.UnitTests
 {
+    using System;
     using System.Collections.Generic;
     using Concensus;
 
@@ -45,6 +46,8 @@ namespace Rafty.UnitTests
         public List<RequestVoteResponse> RequestVoteResponses { get; } = new List<RequestVoteResponse>();
 
         public List<AppendEntriesResponse> AppendEntriesResponses { get; } = new List<AppendEntriesResponse>();
+
+        public Guid Id => throw new NotImplementedException();
 
         public RequestVoteResponse Request(RequestVote requestVote)
         {

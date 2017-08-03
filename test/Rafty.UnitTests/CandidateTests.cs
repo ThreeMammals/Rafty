@@ -23,14 +23,19 @@ follower
     public class CandidateTests : IDisposable
     {
         private IFiniteStateMachine _fsm;
-        
+        private ILog _log;
+        private List<IPeer> _peers;
+
         public CandidateTests()
         {
+            _log = new InMemoryLog();
+            _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
             _id = Guid.NewGuid();
-            _currentState = new CurrentState(_id, new List<IPeer>(), 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), 
+                TimeSpan.FromMilliseconds(0), 0, 0);
             _sendToSelf = new TestingSendToSelf();
-            _node = new Node(_currentState, _sendToSelf, _fsm);
+            _node = new Node(_sendToSelf, _fsm, _log);
             _sendToSelf.SetNode(_node);
         }
 
@@ -54,9 +59,10 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), 
+                TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(2);
@@ -65,16 +71,16 @@ follower
         [Fact]
         public void ShouldBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermGreaterThanCurrentTerm()
         {
-            var peers = new List<IPeer>
+            _peers = new List<IPeer>
             {
                 new FakePeer(false),
                 new FakePeer(false),
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new BeginElection());
             state = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
             state.ShouldBeOfType<Follower>();
@@ -83,16 +89,16 @@ follower
         [Fact]
         public void ShouldBecomeFollowerIfRequestVoteResponseTermGreaterThanCurrentTerm()
         {
-            var peers = new List<IPeer>
+            _peers = new List<IPeer>
             {
                 new FakePeer(10),
                 new FakePeer(true),
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new BeginElection());
             state.ShouldBeOfType<Follower>();
         }
@@ -100,16 +106,17 @@ follower
         [Fact]
         public void ShouldNotBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermLessThanCurrentTerm()
         {
-            var peers = new List<IPeer>
+            _peers = new List<IPeer>
             {
                 new FakePeer(false),
                 new FakePeer(false),
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), 
+            TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new BeginElection());
             state = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
             state.ShouldBeOfType<Candidate>();
@@ -118,51 +125,51 @@ follower
         [Fact]
         public void ShouldBecomeFollowerIfDoesntReceiveAnyVotes()
         {
-            var peers = new List<IPeer>();
+            _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(false));
+                _peers.Add(new FakePeer(false));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Follower>();
         }
 
         [Fact]
         public void ShouldBecomeFollowerIfDoesntReceiveMajorityOfVotes()
         {
-            var peers = new List<IPeer>
+            _peers = new List<IPeer>
             {
                 new FakePeer(false),
                 new FakePeer(false),
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
         }
 
         [Fact]
         public void ShouldBecomeLeaderIfReceivesMajorityOfVotes()
         {
-            var peers = new List<IPeer>();
+            _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(true));
+                _peers.Add(new FakePeer(true));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
         }
 
         [Fact]
         public void ShouldIncrementCurrentTermWhenElectionStarts()
         {
-            var candidate = new Follower(_currentState, _sendToSelf, _fsm);
+            var candidate = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(1);
@@ -171,16 +178,16 @@ follower
         [Fact]
         public void ShouldRequestVotesFromAllPeersWhenElectionStarts()
         {
-            var peers = new List<IPeer>();
+            _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
             {
-                peers.Add(new FakePeer(true));
+                _peers.Add(new FakePeer(true));
             }
-            _currentState = new CurrentState(_id, peers, 0, default(Guid), TimeSpan.FromMilliseconds(0), new InMemoryLog(), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             candidate.Handle(new BeginElection());
-            peers.ForEach(x =>
+            _peers.ForEach(x =>
             {
                 var peer = (FakePeer) x;
                 peer.RequestVoteResponses.Count.ShouldBe(1);
@@ -191,7 +198,7 @@ follower
         public void ShouldResetTimeoutWhenElectionStarts()
         {
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new BeginElection());
             //should be two because we set one when we begin the election and another because it results
             //in being a follower..
@@ -202,7 +209,7 @@ follower
         [Fact]
         public void ShouldVoteForSelfWhenElectionStarts()
         {
-            var candidate = new Candidate(_currentState, _sendToSelf, _fsm);
+            var candidate = new Candidate(_currentState, _sendToSelf, _fsm, _peers, _log);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.CurrentState.VotedFor.ShouldBe(_id);
         }

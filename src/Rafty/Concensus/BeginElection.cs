@@ -8,5 +8,10 @@ namespace Rafty.Concensus
             : base(Guid.NewGuid())
         {
         }
+
+         public BeginElection(TimeSpan timeSpan)
+            : base(Guid.NewGuid(), timeSpan)
+        {
+        }
     }
 }

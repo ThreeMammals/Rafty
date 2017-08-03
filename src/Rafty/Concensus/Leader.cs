@@ -17,17 +17,21 @@ namespace Rafty.Concensus
         private int _updated;
         private readonly object _lock = new object();
         private bool _handled;
+        private List<IPeer> _peers;
+        private ILog _log;
 
-        public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm)
+        public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log)
         {
+            _log = log;
+            _peers = peers;
             _fsm = fsm;
             CurrentState = currentState;
             _sendToSelf = sendToSelf;
 
             InitialisePeerStates();
             //Upon election: send initial empty AppendEntries RPCs(heartbeat) to each server
-            Parallel.ForEach(CurrentState.Peers, p => {
-                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
+            Parallel.ForEach(_peers, p => {
+                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
             });
 
             //todo - is this timeout correct? does it need to be less than the followers?
@@ -37,11 +41,11 @@ namespace Rafty.Concensus
         private void InitialisePeerStates()
         {
             PeerStates = new List<PeerState>();
-            foreach (var peer in CurrentState.Peers)
+            foreach (var peer in _peers)
             {
                 var matchIndex = new MatchIndex(peer, 0);
                 //todo apparently you plus one to this but because i started everthing at -1 i dont think i need to?
-                var nextIndex = new NextIndex(peer, CurrentState.Log.LastLogIndex);
+                var nextIndex = new NextIndex(peer, _log.LastLogIndex);
                 PeerStates.Add(new PeerState(peer, matchIndex, nextIndex));
             }
         }
@@ -62,7 +66,7 @@ namespace Rafty.Concensus
             Parallel.ForEach(PeerStates, p =>
             {
                 var logsToSend = GetLogsForPeer(p.NextIndex);
-                var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex, CurrentState.Log.LastLogTerm, logsToSend, CurrentState.CommitIndex));
+                var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend, CurrentState.CommitIndex));
                 responses.Add(appendEntriesResponse);
                 //handle response and update state accordingly?
                 lock (_lock)
@@ -86,9 +90,9 @@ namespace Rafty.Concensus
                 //todo - consolidate with AppendEntries and RequestVOte
                 if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
                 {
-                    var currentState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntriesResponse.Term, CurrentState.VotedFor, 
-                        CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                    return new Follower(currentState, _sendToSelf, _fsm);
+                    var currentState = new CurrentState(CurrentState.Id, appendEntriesResponse.Term, CurrentState.VotedFor, 
+                        CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
+                    return new Follower(currentState, _sendToSelf, _fsm, _peers, _log);
                 }
             }
 
@@ -104,9 +108,9 @@ namespace Rafty.Concensus
             var lessThanN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x < n).ToList();
             if (greaterOrEqualToN.Count > lessThanN.Count)
             {
-                if (CurrentState.Log.GetTermAtIndex(n) == CurrentState.CurrentTerm)
+                if (_log.GetTermAtIndex(n) == CurrentState.CurrentTerm)
                 {
-                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.Peers, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, n, CurrentState.LastApplied);
+                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.Timeout,  n, CurrentState.LastApplied);
                 }
             }
 
@@ -115,7 +119,7 @@ namespace Rafty.Concensus
 
         public IState Handle(BeginElection beginElection)
         {
-            throw new NotImplementedException();
+            return this;
         }
 
         public IState Handle(AppendEntries appendEntries)
@@ -130,7 +134,7 @@ namespace Rafty.Concensus
                 if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
                 {
                     //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
-                    var lastNewEntry = CurrentState.Log.LastLogIndex;
+                    var lastNewEntry = _log.LastLogIndex;
                     commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
                 }
 
@@ -139,22 +143,22 @@ namespace Rafty.Concensus
                 while(commitIndex > lastApplied)
                 {
                     lastApplied++;
-                    var log = nextState.Log.Get(lastApplied);
+                    var log = _log.Get(lastApplied);
                     //todo - json deserialise into type? Also command might need to have type as a string not Type as this
                     //will get passed over teh wire? Not sure atm ;)
                     _fsm.Handle(log.CommandData);
                 }
 
-                nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, nextState.CurrentTerm, 
-                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, commitIndex, lastApplied);
+                nextState = new CurrentState(CurrentState.Id, nextState.CurrentTerm, 
+                    CurrentState.VotedFor, CurrentState.Timeout, commitIndex, lastApplied);
             }
 
             //todo consolidate with request vote
             if(appendEntries.Term > CurrentState.CurrentTerm)
             {
-                nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, appendEntries.Term, 
-                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
+                nextState = new CurrentState(CurrentState.Id, appendEntries.Term, 
+                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
+                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
             }
 
             CurrentState = nextState;
@@ -166,9 +170,9 @@ namespace Rafty.Concensus
             //todo - consolidate with AppendEntries
             if(requestVote.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, CurrentState.Peers, requestVote.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.Log, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm);
+                var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
+                    CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
+                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
             }
 
             //leader cannot vote for anyone else...
@@ -180,7 +184,7 @@ namespace Rafty.Concensus
             //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
             var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm, CurrentState.CommitIndex);
-            CurrentState.Log.Apply(log);
+            _log.Apply(log);
             //hack to make sure we dont handle a command twice? Must be a nicer way?
             _handled = false;
             //send append entries to each server...
@@ -188,8 +192,8 @@ namespace Rafty.Concensus
             {
                 var logs = GetLogsForPeer(p.NextIndex);
                 //todo - this should not just be latest log?
-                var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, CurrentState.Log.LastLogIndex,
-                    CurrentState.Log.LastLogTerm, logs, CurrentState.CommitIndex);
+                var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex,
+                    _log.LastLogTerm, logs, CurrentState.CommitIndex);
 
                 var appendEntriesResponse = p.Peer.Request(appendEntries);
                 
@@ -200,7 +204,7 @@ namespace Rafty.Concensus
                     {
                         _updated++;
                         //If replicated to majority of servers: apply to state machine
-                        if (_updated >= (CurrentState.Peers.Count + 1) / 2 + 1)
+                        if (_updated >= (_peers.Count + 1) / 2 + 1)
                         {
                             _fsm.Handle(command);
                             _handled = true;
@@ -219,11 +223,11 @@ namespace Rafty.Concensus
         /// <returns></returns>
         public List<LogEntry> GetLogsForPeer(NextIndex nextIndex)
         {
-            if (CurrentState.Log.Count > 0)
+            if (_log.Count > 0)
             {
-                if (CurrentState.Log.LastLogIndex >= nextIndex.NextLogIndexToSendToPeer)
+                if (_log.LastLogIndex >= nextIndex.NextLogIndexToSendToPeer)
                 {
-                    var logs = CurrentState.Log.GetFrom(nextIndex.NextLogIndexToSendToPeer);
+                    var logs = _log.GetFrom(nextIndex.NextLogIndexToSendToPeer);
                     return logs;
                 }
             }

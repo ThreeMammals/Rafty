@@ -4,26 +4,44 @@ namespace Rafty.Concensus
     using System.Collections.Generic;
     using System.Linq;
     using Rafty.FiniteStateMachine;
+    using Rafty.Log;
 
-    public class Node : IDisposable, INode
+    public class Node : IDisposable, INode 
     {
         private readonly List<Guid> _appendEntriesIdsReceived;
         private readonly ISendToSelf _sendToSelf;
         private Guid _appendEntriesAtPreviousHeartbeat;
+        private IFiniteStateMachine _fsm;
+        private ILog _log;
 
-        public Node(CurrentState initialState, ISendToSelf sendToSelf, IFiniteStateMachine fsm)
+        public Node(ISendToSelf sendToSelf, IFiniteStateMachine fsm, ILog log)
         {
             _appendEntriesIdsReceived = new List<Guid>();
             _sendToSelf = sendToSelf;
-            State = new Follower(initialState, _sendToSelf, fsm);
+            _fsm = fsm;
+            _log = log;
+            Id = Guid.NewGuid();
+        }
+
+        public void Start(List<IPeer> peers, TimeSpan timeout)
+        {
+            var initialState = new CurrentState(Id, 0, default(Guid), timeout, -1, -1);
+            State = new Follower(initialState, _sendToSelf, _fsm, peers, _log);
+            _sendToSelf.Publish(new Timeout(initialState.Timeout));
         }
 
         public void Dispose()
         {
             _sendToSelf.Dispose();
         }
+        public Node(IState state)
+        {
+            this.State = state;
 
+        }
         public IState State { get; private set; }
+
+        public Guid Id {get;private set;}
 
         public void Handle(Message message)
         {
@@ -49,14 +67,14 @@ namespace Rafty.Concensus
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
             //Reply false if term < currentTerm (§5.1)
-            if(appendEntries.Term < State.CurrentState.CurrentTerm)
+            if (appendEntries.Term < State.CurrentState.CurrentTerm)
             {
                 return new AppendEntriesResponse(State.CurrentState.CurrentTerm, false);
             }
 
             // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
-            var termAtPreviousLogIndex = State.CurrentState.Log.GetTermAtIndex(appendEntries.PreviousLogIndex);
-            if(termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
+            if (termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
             {
                 return new AppendEntriesResponse(State.CurrentState.CurrentTerm, false);
             }
@@ -64,13 +82,13 @@ namespace Rafty.Concensus
             //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
             foreach (var log in appendEntries.Entries)
             {
-                State.CurrentState.Log.DeleteConflictsFromThisLog(log);
+                _log.DeleteConflictsFromThisLog(log);
             }
 
             //Append any new entries not already in the log
             foreach (var log in appendEntries.Entries)
             {
-                State.CurrentState.Log.Apply(log);
+                _log.Apply(log);
             }
 
             //todo - not sure if this should be first thing we do or its in correct place now.
@@ -91,13 +109,13 @@ namespace Rafty.Concensus
 
             //Reply false if voted for is not candidateId
             //Reply false if voted for is not default
-            if (requestVoteRpc.CandidateId != State.CurrentState.VotedFor || State.CurrentState.VotedFor != default(Guid))
+            if (State.CurrentState.VotedFor == State.CurrentState.Id || State.CurrentState.VotedFor != default(Guid))
             {
                 return new RequestVoteResponse(false, State.CurrentState.CurrentTerm);
             }
 
-            if (requestVoteRpc.LastLogIndex == State.CurrentState.Log.LastLogIndex &&
-                requestVoteRpc.LastLogTerm == State.CurrentState.Log.LastLogTerm)
+            if (requestVoteRpc.LastLogIndex == _log.LastLogIndex &&
+                requestVoteRpc.LastLogTerm == _log.LastLogTerm)
             {
                 //added this prematurely?
                 State = State.Handle(requestVoteRpc);
@@ -118,9 +136,9 @@ namespace Rafty.Concensus
             {
                 State = State.Handle(timeout);
 
-                if(State is Candidate)
+                if (State is Candidate)
                 {
-                    _sendToSelf.Publish(new BeginElection());
+                    _sendToSelf.Publish(new BeginElection(State.CurrentState.Timeout));
                 }
             }
 

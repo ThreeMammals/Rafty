@@ -13,21 +13,30 @@ namespace Rafty.UnitTests
 /*
 • If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
 */
+        private List<IPeer> _peers;
+        private ILog _log;
+
+        public AllServersApplyToStateMachineTests()
+        {
+            _peers = new List<IPeer>();
+            _log = new InMemoryLog();
+        }
 
         [Fact] 
         public void FollowerShouldApplyLogsToFsm()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog(), -1, -1);
+            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 
+                TimeSpan.FromSeconds(0), -1, -1);
             var sendToSelf = new TestingSendToSelf();
             var fsm = new InMemoryStateMachine();
-            var follower = new Follower(currentState, sendToSelf, fsm);
+            var follower = new Follower(currentState, sendToSelf, fsm, _peers, _log);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
                 .WithEntry(log)
                 .Build();
             //assume node has added the log..
-            currentState.Log.Apply(log);
+            _log.Apply(log);
             var state = follower.Handle(appendEntries);
             state.ShouldBeOfType<Follower>();
             state.CurrentState.CurrentTerm.ShouldBe(1);
@@ -38,17 +47,17 @@ namespace Rafty.UnitTests
          [Fact] 
         public void CandidateShouldApplyLogsToFsm()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog(), -1, -1);
+            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), TimeSpan.FromSeconds(0), -1, -1);
             var sendToSelf = new TestingSendToSelf();
             var fsm = new InMemoryStateMachine();
-            var follower = new Candidate(currentState, sendToSelf, fsm);
+            var follower = new Candidate(currentState, sendToSelf, fsm, _peers, _log);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
                 .WithEntry(log)
                 .Build();
             //assume node has added the log..
-            currentState.Log.Apply(log);
+            _log.Apply(log);
             var state = follower.Handle(appendEntries);
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(1);
@@ -60,17 +69,17 @@ namespace Rafty.UnitTests
          [Fact] 
         public void LeaderShouldApplyLogsToFsm()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 1, default(Guid), TimeSpan.FromSeconds(0), new InMemoryLog(), -1, -1);
+            var currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), TimeSpan.FromSeconds(0), -1, -1);
             var sendToSelf = new TestingSendToSelf();
             var fsm = new InMemoryStateMachine();
-            var follower = new Leader(currentState, sendToSelf, fsm);
+            var follower = new Leader(currentState, sendToSelf, fsm, _peers, _log);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
                 .WithEntry(log)
                 .Build();
             //assume node has added the log..
-            currentState.Log.Apply(log);
+            _log.Apply(log);
             var state = follower.Handle(appendEntries);
             state.ShouldBeOfType<Leader>();
             state.CurrentState.CurrentTerm.ShouldBe(1);

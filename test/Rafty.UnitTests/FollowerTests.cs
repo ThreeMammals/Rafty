@@ -18,14 +18,18 @@ convert to candidate
     public class FollowerTests : IDisposable
     {
         private IFiniteStateMachine _fsm;
-        
+        private List<IPeer> _peers;
+        private ILog _log;
+
         public FollowerTests()
         {
+            _log = new InMemoryLog();
+            _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
             _sendToSelf = new SendToSelf();
-            _currentState = new CurrentState(Guid.NewGuid(), new List<IPeer>(), 0, default(Guid), TimeSpan.FromSeconds(5), 
-                new InMemoryLog(), 0, 0);
-            _node = new Node(_currentState, _sendToSelf, _fsm);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 
+                TimeSpan.FromSeconds(5), 0, 0);
+            _node = new Node(_sendToSelf, _fsm, _log);
             _sendToSelf.SetNode(_node);
         }
 
@@ -110,7 +114,7 @@ convert to candidate
         public void ShouldUpdateVotedFor()
         {
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(_currentState, _sendToSelf, _fsm);
+            var follower = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log);
             var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
             var state = follower.Handle(requestVote);
             state.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);

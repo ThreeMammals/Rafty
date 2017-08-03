@@ -4,6 +4,8 @@ namespace Rafty.Concensus
 
     public class Peer : IPeer
     {
+        public Guid Id => throw new NotImplementedException();
+
         public RequestVoteResponse Request(RequestVote requestVote)
         {
             throw new NotImplementedException();
