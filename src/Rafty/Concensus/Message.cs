@@ -32,11 +32,11 @@ namespace Rafty.Concensus
         public Message(Guid messageId, TimeSpan delay)
         {
             MessageId = messageId;
-            var random = new Random(Guid.NewGuid().GetHashCode());
+            /*var random = new Random(Guid.NewGuid().GetHashCode());
             var currentMs = Convert.ToInt32(delay.TotalMilliseconds);
             //todo get from config
-            var randomMs = random.Next(100, currentMs + currentMs);
-            Delay = TimeSpan.FromMilliseconds(randomMs);
+            var randomMs = random.Next(100, currentMs + currentMs);*/
+            Delay = delay;
         }
 
         public Guid MessageId { get; private set; }

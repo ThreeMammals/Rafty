@@ -292,7 +292,26 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void SomeShitErrorCosOfNoLogs()
+        public void ShouldBeAbleToHandleWhenLeaderHasNoLogsAndCandidatesReturnSuccess()
+        {
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true, true));
+            }
+            _currentState = new CurrentState(_id, 1, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
+            var testingSendToSelf = new TestingSendToSelf();
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
+            leader.Handle(new TimeoutBuilder().Build());
+            leader.PeerStates.ForEach(pS =>
+            {
+                pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(-1);
+                pS.NextIndex.NextLogIndexToSendToPeer.ShouldBe(0);
+            });
+        }
+
+        [Fact]
+        public void ShouldBeAbleToHandleWhenLeaderHasNoLogsAndCandidatesReturnFail()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)

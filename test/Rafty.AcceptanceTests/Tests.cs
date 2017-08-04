@@ -11,6 +11,7 @@ namespace Rafty.AcceptanceTests
     using System.Collections.Concurrent;
     using System.Linq;
     using System.Diagnostics;
+    using Xunit.Abstractions;
 
     public class Server
     {
@@ -55,9 +56,12 @@ namespace Rafty.AcceptanceTests
         private Thread[] _threads;
         private List<IPeer> _peers;
         private int _numberOfServers;
+        private readonly ITestOutputHelper _output;
 
-        public Tests()
+
+        public Tests(ITestOutputHelper output)
         {
+            _output = output;
             _numberOfServers = 5;
             _servers = new ConcurrentDictionary<int, Server>();
             _threads = new Thread[_numberOfServers];
@@ -82,18 +86,18 @@ namespace Rafty.AcceptanceTests
                 _threads[localIndex] = thread;
             }
 
-            //wait for threads to start..
+            _output.WriteLine("wait for threads to start..");
             Thread.Sleep(2000);
 
-            //set the node for each peer
+            _output.WriteLine("set the node for each peer");
             for (int i = 0; i < _numberOfServers; i++)
             {
                 var peer = (NodePeer)_peers[i];
                 var server = _servers[i];
                 peer.SetNode(server.Node);
-            }     
+            }
 
-            //start each node
+            _output.WriteLine("start each node");
             for (int i = 0; i < _numberOfServers; i++)
             {
                 var server = _servers[i];
@@ -105,13 +109,16 @@ namespace Rafty.AcceptanceTests
 
             while(stopwatch.Elapsed.TotalSeconds < 50)
             {
-                //let the cpu do stuff
+                _output.WriteLine("let the cpu do stuff");
                 Thread.Sleep(1000);
                 //assert
                 var leader = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
+                _output.WriteLine($"Leaders {leader.Count}");
                 var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
+                _output.WriteLine($"Candidate {candidate.Count}");
                 var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-                if(leader.Count > 0)
+                _output.WriteLine($"Followers {followers.Count}");
+                if (leader.Count > 0)
                 {
                     leader.Count.ShouldBe(1);
                     followers.Count.ShouldBe(4);

@@ -89,7 +89,7 @@ namespace Rafty.Concensus
                     if (appendEntriesResponse.Success)
                     {
                         p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer + logsToSend.Count);
-                        p.UpdateMatchIndex(p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex));
+                        p.UpdateMatchIndex(logsToSend.Count > 0 ? p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex) : -1);
                     }
 
                     if (!appendEntriesResponse.Success)
