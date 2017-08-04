@@ -106,7 +106,7 @@ namespace Rafty.AcceptanceTests
             }       
 
             var stopwatch = Stopwatch.StartNew();
-
+            var passed = false;
             while(stopwatch.Elapsed.TotalSeconds < 50)
             {
                 _output.WriteLine("let the cpu do stuff");
@@ -122,10 +122,15 @@ namespace Rafty.AcceptanceTests
                 {
                     leader.Count.ShouldBe(1);
                     followers.Count.ShouldBe(4);
+                    passed = true;
+                    break;
                 }
             }
 
-            throw new Exception("A leader was not elected in 50 seconds");
+            if (!passed)
+            {
+                throw new Exception("A leader was not elected in 50 seconds");
+            }
         }
 
         public void Dispose()
