@@ -43,9 +43,11 @@ namespace Rafty.UnitTests
         private CurrentState _currentState;
         private List<IPeer> _peers;
         private ILog _log;
+        private IRandomDelay _delay;
         
         public LeaderTests()
         {
+            _delay = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
@@ -53,7 +55,7 @@ namespace Rafty.UnitTests
             _currentState = new CurrentState(_id, 0, default(Guid), 
                 TimeSpan.FromMilliseconds(0), 0, 0);
             _sendToSelf = new TestingSendToSelf();
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _delay);
             _sendToSelf.SetNode(_node);
         }
 
@@ -72,7 +74,7 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             _peers.ForEach(x =>
             {
                 var peer = (FakePeer) x;
@@ -91,7 +93,7 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 2, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             var state = leader.Handle(new TimeoutBuilder().Build());
             _peers.ForEach(x =>
             {
@@ -108,7 +110,7 @@ namespace Rafty.UnitTests
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, log, _delay);
             leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
         }
@@ -124,7 +126,7 @@ namespace Rafty.UnitTests
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             var response = leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);   
             _peers.ForEach(x =>
@@ -147,7 +149,7 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             var expected = _log.LastLogIndex;
             leader.PeerStates.ForEach(pS =>
             {
@@ -165,7 +167,7 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             leader.PeerStates.ForEach(pS =>
             {
                 pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(0);
@@ -190,7 +192,7 @@ namespace Rafty.UnitTests
             _log.Apply(logThree);
             _currentState = new CurrentState(_id, 1, default(Guid), TimeSpan.FromMilliseconds(0), 2, 2);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             var logs = leader.GetLogsForPeer(new NextIndex(new FakePeer(true, true), 0));
             logs.Count.ShouldBe(3);
         }
@@ -206,7 +208,7 @@ namespace Rafty.UnitTests
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             var logOne = new LogEntry("1", typeof(string), 1, 0);
             _log.Apply(logOne);
             var logTwo = new LogEntry("2", typeof(string), 1, 1);
@@ -236,7 +238,7 @@ namespace Rafty.UnitTests
             _log.Apply(logOne);
             _currentState = new CurrentState(_id, 1, default(Guid), TimeSpan.FromMilliseconds(0), 1, 1);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             //initial we know that we replicated log 0?
             leader.PeerStates.ForEach(pS =>
             {
@@ -273,7 +275,7 @@ namespace Rafty.UnitTests
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(Guid), TimeSpan.FromMilliseconds(0), 1, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             var logOne = new LogEntry("1", typeof(string), 1, 0);
             _log.Apply(logOne);
             var logTwo = new LogEntry("2", typeof(string), 1, 1);
@@ -299,7 +301,7 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 1, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(_currentState, testingSendToSelf, _fsm, _peers, _log, _delay);
             leader.Handle(new TimeoutBuilder().Build());
             leader.PeerStates.ForEach(pS =>
             {

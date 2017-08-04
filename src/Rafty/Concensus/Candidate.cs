@@ -16,6 +16,7 @@ namespace Rafty.Concensus
         private List<IPeer> _peers;
         private ILog _log;
         private IRandomDelay _random;
+        private bool _becomeLeader;
 
         public Candidate(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
         {
@@ -52,34 +53,33 @@ namespace Rafty.Concensus
             _sendToSelf.Publish(new Timeout(delay));
             
             var responses = new ConcurrentBag<RequestVoteResponse>();
-
+            var states = new BlockingCollection<bool>();
             // • Send RequestVote RPCs to all other servers
-            //todo - this might not be the right type of loop, it should be parralell but not sure about framework version
-            Parallel.ForEach(_peers, (p, s) => {
-                 
-                var requestVoteResponse = p.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
 
-                responses.Add(requestVoteResponse);
+            //so the idea here is that we start adding election results onto a queue and pick them off 
+            //if we get a leader back then we stop looking as we dont become a leader more than once...
+            //request votes...
+            var tasks = new List<Task>();
+            foreach (var peer in _peers)
+            {
+                var task = GetVote(peer, responses, states);
+                tasks.Add(task);
+            }
 
-                if (requestVoteResponse.VoteGranted)
+            //check if we are the leader...
+            foreach (var nextState in states.GetConsumingEnumerable())
+            {
+                if (nextState)
                 {
-                    lock(_lock)
-                    {
-                        _votesThisElection++;
-                        //If votes received from majority of servers: become leader
-                        if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
-                        {
-                            //todo this gets called three times when you get elected..
-                            state = new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-                            //todo - not sure if i need s.Break() for the algo..if it is put in then technically all servers wont receive
-                            //q request vote rpc?
-                            //s.Break();
-                        }
-                    }
+                    _becomeLeader = nextState;
+                    break;
                 }
-            });
+            }
 
-             //this code is pretty shit...sigh
+            //wait for the tasks to finish..
+            Task.WaitAll(tasks.ToArray());
+            
+            //check if we really are the leader???
             foreach (var requestVoteResponse in responses)
             {
                  //todo - consolidate with AppendEntries and RequestVOte wtc
@@ -90,8 +90,36 @@ namespace Rafty.Concensus
                     return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
                 }
             }
+
+            if (_becomeLeader)
+            {
+                return new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
+            }
             
             return state;
+        }
+
+        private async Task GetVote(IPeer peer, ConcurrentBag<RequestVoteResponse> responses, BlockingCollection<bool> states) 
+        {
+            var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
+
+            responses.Add(requestVoteResponse);
+
+            if (requestVoteResponse.VoteGranted)
+            {
+                lock (_lock)
+                {
+                    _votesThisElection++;
+
+                    //If votes received from majority of servers: become leader
+                    if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
+                    {
+                        //add the state to the queue to be 
+                        //var state = new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
+                        states.Add(true);
+                    }
+                }
+            }
         }
 
         public IState Handle(AppendEntries appendEntries)
