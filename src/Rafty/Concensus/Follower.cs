@@ -29,7 +29,7 @@ namespace Rafty.Concensus
         public IState Handle(Timeout timeout)
         {
              //this should be a random timeout which will help get the elections going at different times..todo not hardcode 1000?
-            var delay = _random.Get(1000, Convert.ToInt32(CurrentState.Timeout.TotalMilliseconds));
+            var delay = _random.Get(100, Convert.ToInt32(CurrentState.Timeout.TotalMilliseconds));
             _sendToSelf.Publish(new Timeout(delay));
             return new Candidate(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
         }

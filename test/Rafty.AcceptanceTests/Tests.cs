@@ -1,54 +1,19 @@
+using Xunit;
+using Shouldly;
+using Rafty.Concensus;
+using System;
+using System.Collections.Generic;
+using Rafty.Log;
+using System.Threading;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Diagnostics;
+using Xunit.Abstractions;
+
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 namespace Rafty.AcceptanceTests
 {
-    using TestStack.BDDfy;
-    using Shouldly;
-    using Xunit;
-    using Rafty.Concensus;
-    using System;
-    using System.Collections.Generic;
-    using Rafty.Log;
-    using System.Threading;
-    using System.Collections.Concurrent;
-    using System.Linq;
-    using System.Diagnostics;
-    using Xunit.Abstractions;
 
-    public class Server
-    {
-        public Server(InMemoryLog log, SendToSelf sendToSelf, InMemoryStateMachine fsm, Node node)
-        {
-            this.Log = log;
-            this.SendToSelf = sendToSelf;
-            this.Fsm = fsm;
-            this.Node = node;
-        }
-        public InMemoryLog Log { get; private set; }
-        public SendToSelf SendToSelf { get; private set; }
-        public InMemoryStateMachine Fsm { get; private set; }
-        public Node Node { get; private set; }
-    }
-
-    public class NodePeer : IPeer
-    {
-        private Node _node;
-
-        public Guid Id => _node.Id;
-
-        public void SetNode (Node node)
-        {
-            _node = node;
-        }
-
-        public RequestVoteResponse Request(RequestVote requestVote)
-        {
-            return _node.Handle(requestVote);
-        }
-
-        public AppendEntriesResponse Request(AppendEntries appendEntries)
-        {
-            return _node.Handle(appendEntries);
-        }
-    }
 
     public class Tests : IDisposable
     {
