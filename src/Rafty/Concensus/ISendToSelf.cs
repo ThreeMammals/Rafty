@@ -9,5 +9,6 @@ namespace Rafty.Concensus
         void Publish(BeginElection beginElection);
         //needs to be disposed as has some long running processes
         void Dispose();
+        void Restart();
     }
 }

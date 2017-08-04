@@ -49,20 +49,18 @@ namespace Rafty.Concensus
         public void Dispose()
         {
             _disposing = true;
-            var disposing = true;
-
-            while (disposing)
+            while (_disposing)
             {
                 try
                 {
                     _publishing = false;
-
                     foreach (var taskAndCancellationToken in _messagesBeingProcessed)
+                    {
                         taskAndCancellationToken.CancellationTokenSource.Cancel(true);
-
+                    }
                     _taskCancellationTokenSource.Cancel(true);
                     _messagesCancellationTokenSource.Cancel(true);
-                    disposing = false;
+                    _disposing = false;
                 }
                 catch (Exception e)
                 {
@@ -106,6 +104,11 @@ namespace Rafty.Concensus
                     //blocking cancelled ignore for now...
                 }
             }
+        }
+
+        public void Restart()
+        {
+            _publishing = true;
         }
 
         private async Task Process(Message message)

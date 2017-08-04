@@ -39,6 +39,7 @@ namespace Rafty.Concensus
         {
             _sendToSelf.Dispose();
         }
+        
         public Node(IState state)
         {
             this.State = state;

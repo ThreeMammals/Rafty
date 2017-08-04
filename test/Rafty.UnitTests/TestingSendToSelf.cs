@@ -1,5 +1,6 @@
 namespace Rafty.UnitTests
 {
+    using System;
     using System.Collections.Generic;
     using Concensus;
 
@@ -20,6 +21,11 @@ namespace Rafty.UnitTests
         {
         }
 
+        public void Pause()
+        {
+            throw new NotImplementedException();
+        }
+
         public void Publish(Timeout timeout)
         {
             Timeouts.Add(timeout);
@@ -28,6 +34,11 @@ namespace Rafty.UnitTests
         public void Publish(BeginElection beginElection)
         {
             BeginElections.Add(beginElection);
+        }
+
+        public void Restart()
+        {
+            throw new NotImplementedException();
         }
 
         public void SetNode(INode node)
