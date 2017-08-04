@@ -13,9 +13,10 @@ namespace Rafty.Concensus
         private readonly IFiniteStateMachine _fsm;
         private List<IPeer> _peers;
         private ILog _log;
-
-        public Follower(CurrentState state, ISendToSelf sendToSelf, IFiniteStateMachine stateMachine, List<IPeer> peers, ILog log)
+        private IRandomDelay _random;
+        public Follower(CurrentState state, ISendToSelf sendToSelf, IFiniteStateMachine stateMachine, List<IPeer> peers, ILog log, IRandomDelay random)
         {
+            _random = random;
             _peers = peers;
             _fsm = stateMachine;
             CurrentState = state;
@@ -27,12 +28,14 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
-            return new Candidate(CurrentState, _sendToSelf, _fsm, _peers, _log);
+            return new Candidate(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
         }
 
         public IState Handle(BeginElection beginElection)
         {
-            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
+             //this should be a random timeout which will help get the elections going at different times..
+            var delay = _random.Get(100, Convert.ToInt32(CurrentState.Timeout.TotalMilliseconds));
+            _sendToSelf.Publish(new Timeout(delay));
             return this;
         }
 
@@ -70,7 +73,7 @@ namespace Rafty.Concensus
             nextState = new CurrentState(CurrentState.Id, nextState.CurrentTerm, 
                 CurrentState.VotedFor, CurrentState.Timeout, commitIndex, lastApplied);
 
-            return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
+            return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
         }
 
         public IState Handle(RequestVote requestVote)
@@ -87,7 +90,7 @@ namespace Rafty.Concensus
             var currentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId, CurrentState.Timeout, 
                 CurrentState.CommitIndex, CurrentState.LastApplied);
                 
-            return new Follower(currentState, _sendToSelf, _fsm, _peers, _log);
+            return new Follower(currentState, _sendToSelf, _fsm, _peers, _log, _random);
         }
 
         public Response<T> Accept<T>(T command)

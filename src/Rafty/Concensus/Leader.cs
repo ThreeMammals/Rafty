@@ -19,9 +19,10 @@ namespace Rafty.Concensus
         private bool _handled;
         private List<IPeer> _peers;
         private ILog _log;
-
-        public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log)
+        private IRandomDelay _random;
+        public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
         {
+            _random = random;
             _log = log;
             _peers = peers;
             _fsm = fsm;
@@ -30,11 +31,19 @@ namespace Rafty.Concensus
 
             InitialisePeerStates();
             //Upon election: send initial empty AppendEntries RPCs(heartbeat) to each server
-            Parallel.ForEach(_peers, p => {
-                p.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, new List<Log.LogEntry>(), CurrentState.CommitIndex));
-            });
+            //do this straight away with no timeout and dont call
+            //send to self...
+            //todo - this will error at the moment cos of log crap
+            Handle(new Timeout());
 
-            //todo - is this timeout correct? does it need to be less than the followers?
+            //todo - is this timeout correct? does it need to be less than the followers? Feel like this should tick
+            //quite quickly if you are the leader to keep the nodes alive..
+            var smallestLeaderTimeout = 500;
+            if(CurrentState.Timeout.TotalMilliseconds < smallestLeaderTimeout)
+            {
+                _sendToSelf.Publish(new Timeout(TimeSpan.FromMilliseconds(smallestLeaderTimeout)));
+            }
+                
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
         }
 
@@ -56,7 +65,13 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
-            //todo - is this timeout correct? does it need to be less than the followers?
+            //todo - is this timeout correct? does it need to be less than the followers?var smallestLeaderTimeout = 500;
+            var smallestLeaderTimeout = 500;
+            if(CurrentState.Timeout.TotalMilliseconds < smallestLeaderTimeout)
+            {
+                _sendToSelf.Publish(new Timeout(TimeSpan.FromMilliseconds(smallestLeaderTimeout)));
+            }
+                
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
 
             IState nextState = this;
@@ -92,7 +107,7 @@ namespace Rafty.Concensus
                 {
                     var currentState = new CurrentState(CurrentState.Id, appendEntriesResponse.Term, CurrentState.VotedFor, 
                         CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                    return new Follower(currentState, _sendToSelf, _fsm, _peers, _log);
+                    return new Follower(currentState, _sendToSelf, _fsm, _peers, _log, _random);
                 }
             }
 
@@ -158,7 +173,7 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
+                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
             }
 
             CurrentState = nextState;
@@ -172,7 +187,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
+                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
             }
 
             //leader cannot vote for anyone else...

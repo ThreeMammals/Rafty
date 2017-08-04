@@ -15,9 +15,11 @@ namespace Rafty.UnitTests
 */
         private List<IPeer> _peers;
         private ILog _log;
+        private IRandomDelay _random;
 
         public AllServersApplyToStateMachineTests()
         {
+            _random = new RandomDelay();
             _peers = new List<IPeer>();
             _log = new InMemoryLog();
         }
@@ -29,7 +31,7 @@ namespace Rafty.UnitTests
                 TimeSpan.FromSeconds(0), -1, -1);
             var sendToSelf = new TestingSendToSelf();
             var fsm = new InMemoryStateMachine();
-            var follower = new Follower(currentState, sendToSelf, fsm, _peers, _log);
+            var follower = new Follower(currentState, sendToSelf, fsm, _peers, _log, _random);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
@@ -50,7 +52,7 @@ namespace Rafty.UnitTests
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), TimeSpan.FromSeconds(0), -1, -1);
             var sendToSelf = new TestingSendToSelf();
             var fsm = new InMemoryStateMachine();
-            var follower = new Candidate(currentState, sendToSelf, fsm, _peers, _log);
+            var follower = new Candidate(currentState, sendToSelf, fsm, _peers, _log, _random);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
@@ -72,7 +74,7 @@ namespace Rafty.UnitTests
             var currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), TimeSpan.FromSeconds(0), -1, -1);
             var sendToSelf = new TestingSendToSelf();
             var fsm = new InMemoryStateMachine();
-            var follower = new Leader(currentState, sendToSelf, fsm, _peers, _log);
+            var follower = new Leader(currentState, sendToSelf, fsm, _peers, _log, _random);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)

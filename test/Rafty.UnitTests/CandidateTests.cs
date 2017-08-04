@@ -25,9 +25,10 @@ follower
         private IFiniteStateMachine _fsm;
         private ILog _log;
         private List<IPeer> _peers;
-
+        private IRandomDelay _random;
         public CandidateTests()
         {
+            _random = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
@@ -35,7 +36,7 @@ follower
             _currentState = new CurrentState(_id, 0, default(Guid), 
                 TimeSpan.FromMilliseconds(0), 0, 0);
             _sendToSelf = new TestingSendToSelf();
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             _sendToSelf.SetNode(_node);
         }
 
@@ -62,7 +63,7 @@ follower
             _currentState = new CurrentState(_id, 0, default(Guid), 
                 TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(2);
@@ -80,7 +81,7 @@ follower
             };
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new BeginElection());
             state = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
             state.ShouldBeOfType<Follower>();
@@ -98,7 +99,7 @@ follower
             };
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new BeginElection());
             state.ShouldBeOfType<Follower>();
         }
@@ -116,7 +117,7 @@ follower
             _currentState = new CurrentState(_id, 0, default(Guid), 
             TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new BeginElection());
             state = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
             state.ShouldBeOfType<Candidate>();
@@ -132,7 +133,7 @@ follower
             }
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Follower>();
         }
 
@@ -148,7 +149,7 @@ follower
             };
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
         }
 
@@ -162,14 +163,14 @@ follower
             }
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             candidate.Handle(new BeginElection()).ShouldBeOfType<Leader>();
         }
 
         [Fact]
         public void ShouldIncrementCurrentTermWhenElectionStarts()
         {
-            var candidate = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log);
+            var candidate = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.ShouldBeOfType<Candidate>();
             state.CurrentState.CurrentTerm.ShouldBe(1);
@@ -185,7 +186,7 @@ follower
             }
             _currentState = new CurrentState(_id, 0, default(Guid), TimeSpan.FromMilliseconds(0), 0, 0);
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             candidate.Handle(new BeginElection());
             _peers.ForEach(x =>
             {
@@ -198,7 +199,7 @@ follower
         public void ShouldResetTimeoutWhenElectionStarts()
         {
             var testingSendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, testingSendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new BeginElection());
             //should be two because we set one when we begin the election and another because it results
             //in being a follower..
@@ -209,7 +210,7 @@ follower
         [Fact]
         public void ShouldVoteForSelfWhenElectionStarts()
         {
-            var candidate = new Candidate(_currentState, _sendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(_currentState, _sendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new TimeoutBuilder().Build());
             state.CurrentState.VotedFor.ShouldBe(_id);
         }

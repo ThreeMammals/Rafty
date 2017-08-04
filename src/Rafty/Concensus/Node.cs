@@ -14,8 +14,11 @@ namespace Rafty.Concensus
         private IFiniteStateMachine _fsm;
         private ILog _log;
 
-        public Node(ISendToSelf sendToSelf, IFiniteStateMachine fsm, ILog log)
+        private IRandomDelay _random;
+
+        public Node(ISendToSelf sendToSelf, IFiniteStateMachine fsm, ILog log, IRandomDelay random)
         {
+            _random = random;
             _appendEntriesIdsReceived = new List<Guid>();
             _sendToSelf = sendToSelf;
             _fsm = fsm;
@@ -26,8 +29,10 @@ namespace Rafty.Concensus
         public void Start(List<IPeer> peers, TimeSpan timeout)
         {
             var initialState = new CurrentState(Id, 0, default(Guid), timeout, -1, -1);
-            State = new Follower(initialState, _sendToSelf, _fsm, peers, _log);
-            _sendToSelf.Publish(new Timeout(initialState.Timeout));
+            State = new Follower(initialState, _sendToSelf, _fsm, peers, _log, _random);
+            //this should be a random timeout which will help get the elections going at different times..
+            var delay = _random.Get(100, Convert.ToInt32(initialState.Timeout.TotalMilliseconds));
+            _sendToSelf.Publish(new Timeout(delay));
         }
 
         public void Dispose()
@@ -138,7 +143,10 @@ namespace Rafty.Concensus
 
                 if (State is Candidate)
                 {
-                    _sendToSelf.Publish(new BeginElection(State.CurrentState.Timeout));
+                    //generate a random delay so that not all elections start at once
+                    //this helps get a result..
+                    var delay = _random.Get(100, Convert.ToInt32(State.CurrentState.Timeout.TotalMilliseconds));
+                    _sendToSelf.Publish(new BeginElection(delay));
                 }
             }
 

@@ -15,9 +15,11 @@ namespace Rafty.Concensus
         private IFiniteStateMachine _fsm;
         private List<IPeer> _peers;
         private ILog _log;
+        private IRandomDelay _random;
 
-        public Candidate(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log)
+        public Candidate(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
         {
+            _random = random;
             _log = log;
             _peers = peers;
             _fsm = fsm;
@@ -29,7 +31,7 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {          
-            return new Candidate(CurrentState, _sendToSelf, _fsm, _peers, _log);
+            return new Candidate(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
         }
 
         public IState Handle(BeginElection beginElection)
@@ -42,10 +44,12 @@ namespace Rafty.Concensus
             var votedFor = CurrentState.Id;
             CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor,
                 CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-            IState state = new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log);
+            IState state = new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
             // • On conversion to candidate, start election:
             // • Reset election timer
-            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
+             //this should be a random timeout which will help get the elections going at different times..
+            var delay = _random.Get(100, Convert.ToInt32(CurrentState.Timeout.TotalMilliseconds));
+            _sendToSelf.Publish(new Timeout(delay));
             
             var responses = new ConcurrentBag<RequestVoteResponse>();
 
@@ -66,7 +70,7 @@ namespace Rafty.Concensus
                         if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
                         {
                             //todo this gets called three times when you get elected..
-                            state = new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log);
+                            state = new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
                             //todo - not sure if i need s.Break() for the algo..if it is put in then technically all servers wont receive
                             //q request vote rpc?
                             //s.Break();
@@ -83,7 +87,7 @@ namespace Rafty.Concensus
                 {
                     var nextState = new CurrentState(CurrentState.Id, requestVoteResponse.Term, CurrentState.VotedFor, 
                         CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                    return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
+                    return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
                 }
             }
             
@@ -128,7 +132,7 @@ namespace Rafty.Concensus
             {
                 nextState = new CurrentState(CurrentState.Id, appendEntries.Term, 
                     CurrentState.VotedFor, CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
+                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
             }
 
             //todo - hacky :(
@@ -143,7 +147,7 @@ namespace Rafty.Concensus
             {
                 var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log);
+                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
             }
 
             //candidate cannot vote for anyone else...

@@ -134,7 +134,8 @@ namespace Rafty.AcceptanceTests
             var log = new InMemoryLog();
             var sendToSelf = new SendToSelf();
             var fsm = new InMemoryStateMachine();
-            var node = new Node(sendToSelf, fsm, log);
+            var random = new RandomDelay();
+            var node = new Node(sendToSelf, fsm, log, random);
             sendToSelf.SetNode(node);
             var server = new Server(log, sendToSelf, fsm, node);
             _servers.TryAdd(index, server);

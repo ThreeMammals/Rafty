@@ -20,9 +20,11 @@ set currentTerm = T, convert to follower (§5.1)*/
         private IFiniteStateMachine _fsm;
         private ILog _log;
         private List<IPeer> _peers;
+        private IRandomDelay _random;
         
         public AllServersConvertToFollowerTests()
         {
+            _random = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
@@ -37,7 +39,7 @@ set currentTerm = T, convert to follower (§5.1)*/
             var currentState = new CurrentState(Guid.NewGuid(),currentTerm, default(Guid), 
                 TimeSpan.FromSeconds(0), 0, 0);
             var sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(currentState, sendToSelf, _fsm, _peers, _log);
+            var follower = new Follower(currentState, sendToSelf, _fsm, _peers, _log, _random);
             var state = follower.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType<Follower>();
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
@@ -51,7 +53,7 @@ set currentTerm = T, convert to follower (§5.1)*/
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
                 TimeSpan.FromSeconds(0), 0, 0);
             var sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(currentState, sendToSelf, _fsm, _peers, _log);
+            var follower = new Follower(currentState, sendToSelf, _fsm, _peers, _log, _random);
             var state = follower.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType<Follower>();
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
@@ -66,7 +68,7 @@ set currentTerm = T, convert to follower (§5.1)*/
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
                 TimeSpan.FromSeconds(0), 0, 0);
             var sendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(currentState, sendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(currentState, sendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType(expectedType);
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
@@ -80,7 +82,7 @@ set currentTerm = T, convert to follower (§5.1)*/
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
                 TimeSpan.FromSeconds(0), 0, 0);
             var sendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(currentState, sendToSelf, _fsm, _peers, _log);
+            var candidate = new Candidate(currentState, sendToSelf, _fsm, _peers, _log, _random);
             var state = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType(expectedType);
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
@@ -95,7 +97,7 @@ set currentTerm = T, convert to follower (§5.1)*/
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
                 TimeSpan.FromSeconds(0), 0, 0);
             var sendToSelf = new TestingSendToSelf();
-            var leader = new Leader(currentState, sendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(currentState, sendToSelf, _fsm, _peers, _log, _random);
             var state = leader.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType(expectedType);
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
@@ -109,7 +111,7 @@ set currentTerm = T, convert to follower (§5.1)*/
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
                 TimeSpan.FromSeconds(0), 0, 0);
             var sendToSelf = new TestingSendToSelf();
-            var leader = new Leader(currentState, sendToSelf, _fsm, _peers, _log);
+            var leader = new Leader(currentState, sendToSelf, _fsm, _peers, _log, _random);
             var state = leader.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
             state.ShouldBeOfType(expectedType);
             state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);

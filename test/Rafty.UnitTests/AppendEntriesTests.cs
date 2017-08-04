@@ -28,16 +28,18 @@ min(leaderCommit, index of last new entry)
         private CurrentState _currentState;
         private ILog _log;
         private List<IPeer> _peers;
+        private IRandomDelay _random;
 
         public AppendEntriesTests()
         {
+            _random = new RandomDelay();
              _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
             _sendToSelf = new TestingSendToSelf();
             _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 
                 TimeSpan.FromSeconds(5), 0, 0);
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             _sendToSelf.SetNode(_node);
         }
         
@@ -52,7 +54,7 @@ min(leaderCommit, index of last new entry)
         public void ShouldReplyFalseIfRpcTermLessThanCurrentTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), TimeSpan.FromSeconds(5), 0, 0);
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(0).Build();
             var response = _node.Handle(appendEntriesRpc);
             response.Success.ShouldBe(false);
@@ -65,7 +67,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid(), 2, default(Guid), 
                 TimeSpan.FromSeconds(5), 0, 0);
             _log.Apply(new LogEntry("", typeof(string), 2, 0));
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(0).WithPreviousLogTerm(1).Build();
             var response = _node.Handle(appendEntriesRpc);
             response.Success.ShouldBe(false);
@@ -80,7 +82,7 @@ min(leaderCommit, index of last new entry)
             _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1, 1));
             _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1, 2));
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 2 commit index 2", typeof(string),2,2))
                 .WithTerm(2)
@@ -100,7 +102,7 @@ min(leaderCommit, index of last new entry)
             _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1, 1));
             _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1, 2));
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 2 commit index 2", typeof(string), 2, 2))
                 .WithTerm(2)
@@ -119,7 +121,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 
                 TimeSpan.FromSeconds(5), 0, 0);
             _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
-            _node = new Node(_sendToSelf, _fsm, _log);
+            _node = new Node(_sendToSelf, _fsm, _log, _random);
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 1 commit index 1", typeof(string), 1, 1))
                 .WithTerm(1)
@@ -148,7 +150,7 @@ min(leaderCommit, index of last new entry)
             //assume node has applied log..
             _log.Apply(log);
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log);
+            var follower = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log, _random);
             var state = follower.Handle(appendEntriesRpc);
             state.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -169,7 +171,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(0)
                .Build();
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Candidate(_currentState, _sendToSelf, _fsm, _peers, _log);
+            var follower = new Candidate(_currentState, _sendToSelf, _fsm, _peers, _log, _random);
             var state = follower.Handle(appendEntriesRpc);
             state.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -190,7 +192,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(0)
                .Build();
             _sendToSelf = new TestingSendToSelf();
-            var follower = new Leader(_currentState, _sendToSelf, _fsm, _peers, _log);
+            var follower = new Leader(_currentState, _sendToSelf, _fsm, _peers, _log, _random);
             var state = follower.Handle(appendEntriesRpc);
             state.CurrentState.CommitIndex.ShouldBe(0);
         }

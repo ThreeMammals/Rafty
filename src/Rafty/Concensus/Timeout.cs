@@ -4,6 +4,11 @@ namespace Rafty.Concensus
 
     public class Timeout : Message
     {
+        public Timeout()
+            : base(Guid.NewGuid())
+        {
+        }
+
         public Timeout(TimeSpan delay)
             : base(Guid.NewGuid(), delay)
         {
