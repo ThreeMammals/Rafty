@@ -1,4 +1,4 @@
-namespace Rafty.Concensus
+/*namespace Rafty.Concensus
 {
     using System;
     using System.Collections.Generic;
@@ -45,7 +45,7 @@ namespace Rafty.Concensus
             this.State = state;
 
         }
-        public IState State { get; private set; }
+/*        public IState State { get; private set; }
 
         public Guid Id {get;private set;}
 
@@ -146,15 +146,22 @@ namespace Rafty.Concensus
                 {
                     //generate a random delay so that not all elections start at once
                     //this helps get a result..
-                    var delay = _random.Get(100, Convert.ToInt32(State.CurrentState.Timeout.TotalMilliseconds));
-                    _sendToSelf.Publish(new BeginElection(delay));
+                    var beginElectionDelay = _random.Get(100,
+                        Convert.ToInt32(State.CurrentState.Timeout.TotalMilliseconds));
+                    _sendToSelf.Publish(new BeginElection(beginElectionDelay));
                 }
+            }
+            else
+            {
+                //var timeoutDelay = _random.Get(300, Convert.ToInt32(State.CurrentState.Timeout.TotalMilliseconds));
+                //_sendToSelf.Publish(new Timeout(timeoutDelay));
             }
 
             if (AppendEntriesReceived())
             {
                 _appendEntriesAtPreviousHeartbeat = _appendEntriesIdsReceived.Last();
             }
+
         }
 
         private bool AppendEntriesReceived()
@@ -170,6 +177,74 @@ namespace Rafty.Concensus
             }
 
             return _appendEntriesIdsReceived.Last() == _appendEntriesAtPreviousHeartbeat;
+        }#1#
+    }
+}*/
+
+using System;
+using System.Collections.Generic;
+using Rafty.FiniteStateMachine;
+using Rafty.Log;
+
+namespace Rafty.Concensus
+{
+    public interface INode
+    {
+        IState State { get; }
+        void BecomeCandidate(CurrentState state);
+        AppendEntriesResponse Handle(AppendEntries appendEntries);
+        RequestVoteResponse Handle(RequestVote requestVote);
+        
+    }
+
+    public class Settings
+    {
+        public Settings(int minTimeout, int maxTimeout)
+        {
+            MinTimeout = minTimeout;
+            MaxTimeout = maxTimeout;
+        }
+
+        public int MinTimeout { get; private set; }
+        public int MaxTimeout { get; private set; }
+    }
+
+    public class Node : INode
+    {
+        private IFiniteStateMachine _fsm;
+        private ILog _log;
+        private List<IPeer> _peers;
+        private IRandomDelay _random;
+
+        public Node(IFiniteStateMachine fsm, ILog log, List<IPeer> peers, IRandomDelay random, Settings settings)
+        {
+            _fsm = fsm;
+            _log = log;
+            _peers = peers;
+            _random = random;
+            BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1, settings.MinTimeout, settings.MaxTimeout));
+        }
+
+        public IState State { get; private set; }
+
+        public void BecomeCandidate(CurrentState state)
+        {
+            State = new Candidate(state, _fsm, _peers, _log, _random);
+        }
+
+        public void BecomeFollower(CurrentState state)
+        {
+            State = new Follower(state, _fsm, _log, _random, this);
+        }
+
+        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        {
+            return State.Handle(appendEntries);
+        }
+
+        public RequestVoteResponse Handle(RequestVote requestVote)
+        {
+            return State.Handle(requestVote);
         }
     }
 }

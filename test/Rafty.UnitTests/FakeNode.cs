@@ -1,4 +1,4 @@
-namespace Rafty.UnitTests
+/*namespace Rafty.UnitTests
 {
     using System;
     using System.Collections.Generic;
@@ -47,4 +47,4 @@ namespace Rafty.UnitTests
             throw new NotImplementedException();
         }
     }
-}
+}*/

@@ -1,4 +1,4 @@
-using Rafty.Concensus;
+/*using Rafty.Concensus;
 using Rafty.Log;
 
 namespace Rafty.AcceptanceTests
@@ -17,4 +17,4 @@ namespace Rafty.AcceptanceTests
         public InMemoryStateMachine Fsm { get; private set; }
         public Node Node { get; private set; }
     }
-}
+}*/

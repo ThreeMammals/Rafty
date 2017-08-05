@@ -1,4 +1,4 @@
-namespace Rafty.Concensus
+/*namespace Rafty.Concensus
 {
     using System;
     using System.Collections.Concurrent;
@@ -117,4 +117,4 @@ namespace Rafty.Concensus
             _node.Handle(message);
         }
     }
-}
+}*/

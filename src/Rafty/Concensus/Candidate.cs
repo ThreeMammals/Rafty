@@ -9,7 +9,6 @@ namespace Rafty.Concensus
 {
     public sealed class Candidate : IState
     {
-        private readonly ISendToSelf _sendToSelf;
         private int _votesThisElection;
         private readonly object _lock = new object();
         private IFiniteStateMachine _fsm;
@@ -17,27 +16,24 @@ namespace Rafty.Concensus
         private ILog _log;
         private IRandomDelay _random;
         private bool _becomeLeader;
+        private bool _electioneering;
 
-        public Candidate(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
+        public Candidate(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
         {
             _random = random;
             _log = log;
             _peers = peers;
             _fsm = fsm;
-            _sendToSelf = sendToSelf;
             CurrentState = currentState;
+            BeginElection();
         }
 
         public CurrentState CurrentState { get; private set;}
 
-        public IState Handle(Timeout timeout)
-        {          
-            return new Candidate(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-        }
-
-        public IState Handle(BeginElection beginElection)
+        public void BeginElection()
         {
-             // • On conversion to candidate, start election:
+           /* _electioneering = true;
+            // • On conversion to candidate, start election:
             // • Increment currentTerm
             var nextTerm = CurrentState.CurrentTerm + 1;
             // • Vote for self
@@ -91,12 +87,15 @@ namespace Rafty.Concensus
                 }
             }
 
+
             if (_becomeLeader)
             {
+                _electioneering = false;
                 return new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
             }
-            
-            return state;
+
+            _electioneering = false;
+            return state;*/
         }
 
         private async Task GetVote(IPeer peer, ConcurrentBag<RequestVoteResponse> responses, BlockingCollection<bool> states) 
@@ -122,9 +121,10 @@ namespace Rafty.Concensus
             }
         }
 
-        public IState Handle(AppendEntries appendEntries)
+        public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            CurrentState nextState = CurrentState;
+            throw new NotImplementedException();
+            /*CurrentState nextState = CurrentState;
 
             //todo - not sure about this should a candidate apply logs from a leader on the same term when it is in candidate mode
             //for that term? Does this need to just fall into the greater than?
@@ -165,12 +165,13 @@ namespace Rafty.Concensus
 
             //todo - hacky :(
             CurrentState = nextState;
-            return this;
+            return this;*/
         }
 
-        public IState Handle(RequestVote requestVote)
+        public RequestVoteResponse Handle(RequestVote requestVote)
         {
-            //todo - consolidate with AppendEntries
+            throw new NotImplementedException();
+           /* //todo - consolidate with AppendEntries
             if(requestVote.Term > CurrentState.CurrentTerm)
             {
                 var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
@@ -179,7 +180,7 @@ namespace Rafty.Concensus
             }
 
             //candidate cannot vote for anyone else...
-            return this;
+            return this;*/
         }
 
         public Response<T> Accept<T>(T command)

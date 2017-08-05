@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace Rafty.UnitTests
 {
     using System;
@@ -15,12 +17,14 @@ RPC from current leader or granting vote to candidate:
 convert to candidate
 */
 
-    public class FollowerTests : IDisposable
+    public class FollowerTests 
     {
-        private IFiniteStateMachine _fsm;
-        private List<IPeer> _peers;
-        private ILog _log;
-        private IRandomDelay _random;
+        private readonly IFiniteStateMachine _fsm;
+        private readonly List<IPeer> _peers;
+        private readonly ILog _log;
+        private readonly IRandomDelay _random;
+        private INode _node;
+        private CurrentState _currentState;
 
         public FollowerTests()
         {
@@ -28,98 +32,112 @@ convert to candidate
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
-            _sendToSelf = new SendToSelf();
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 
-                TimeSpan.FromSeconds(5), 0, 0);
-            _node = new Node(_sendToSelf, _fsm, _log, _random);
-            _sendToSelf.SetNode(_node);
         }
-
-        public void Dispose()
-        {
-            _node.Dispose();
-        }
-
-        private readonly Node _node;
-        private ISendToSelf _sendToSelf;
-        private readonly CurrentState _currentState;
 
         [Fact]
-        public void CommitIndexShouldBeInitialisedToZero()
+        public void CommitIndexShouldBeInitialisedToMinusOne()
         {
-            _node.State.CurrentState.CommitIndex.ShouldBe(0);
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node.State.CurrentState.CommitIndex.ShouldBe(-1);
         }
 
         [Fact]
         public void CurrentTermShouldBeInitialisedToZero()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.CurrentState.CurrentTerm.ShouldBe(0);
         }
 
         [Fact]
-        public void LastAppliedShouldBeInitialisedToZero()
+        public void LastAppliedShouldBeInitialisedToMinusOne()
         {
-            _node.State.CurrentState.LastApplied.ShouldBe(0);
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node.State.CurrentState.LastApplied.ShouldBe(-1);
         }
 
         [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeader()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new TimeoutBuilder().Build());
+            Thread.Sleep(500);
             _node.State.ShouldBeOfType<Candidate>();
         }
 
         [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntriesBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
+            _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
+            _node.State.ShouldBeOfType<Follower>();
+            Thread.Sleep(500);
             _node.State.ShouldBeOfType<Candidate>();
         }
 
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntriesBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
+            _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
         }
 
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.ShouldBeOfType<Follower>();
-            _node.Handle(new AppendEntriesBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
-            _node.Handle(new AppendEntriesBuilder().Build());
-            _node.Handle(new TimeoutBuilder().Build());
+            _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
+            _node.State.ShouldBeOfType<Follower>();
+            _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
         }
 
         [Fact]
         public void ShouldStartAsFollower()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.ShouldBeOfType<Follower>();
         }
 
         [Fact]
         public void VotedForShouldBeInitialisedToNone()
         {
+            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
             _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
         }
 
         [Fact]
         public void ShouldUpdateVotedFor()
         {
-            _sendToSelf = new TestingSendToSelf();
-            var follower = new Follower(_currentState, _sendToSelf, _fsm, _peers, _log, _random);
+            _node = new NothingNode();
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1, 100, 350);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
             var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
-            var state = follower.Handle(requestVote);
-            state.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+            var requestVoteResponse = follower.Handle(requestVote);
+            follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+        }
+    }
+
+    public class NothingNode : INode
+    {
+        public IState State { get; }
+
+        public void BecomeCandidate(CurrentState state)
+        {
+            
+        }
+
+        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        {
+            return new AppendEntriesResponseBuilder().Build();
+        }
+
+        public RequestVoteResponse Handle(RequestVote requestVote)
+        {
+            return new RequestVoteResponseBuilder().Build();
         }
     }
 }

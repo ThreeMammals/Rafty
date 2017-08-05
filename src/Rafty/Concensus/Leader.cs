@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+/*using System.Collections.Concurrent;
 using System.Linq;
 
 namespace Rafty.Concensus
@@ -17,9 +17,11 @@ namespace Rafty.Concensus
         private int _updated;
         private readonly object _lock = new object();
         private bool _handled;
-        private List<IPeer> _peers;
-        private ILog _log;
-        private IRandomDelay _random;
+        private readonly List<IPeer> _peers;
+        private readonly ILog _log;
+        private readonly IRandomDelay _random;
+        private bool _stopped;
+
         public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
         {
             _random = random;
@@ -47,6 +49,16 @@ namespace Rafty.Concensus
             _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
         }
 
+        public void Stop()
+        {
+            _stopped = true;
+        }
+
+        public void Start()
+        {
+            _stopped = false;
+        }
+
         private void InitialisePeerStates()
         {
             PeerStates = new List<PeerState>();
@@ -65,6 +77,11 @@ namespace Rafty.Concensus
 
         public IState Handle(Timeout timeout)
         {
+            if (_stopped)
+            {
+                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
+            }
+
             //todo - is this timeout correct? does it need to be less than the followers?var smallestLeaderTimeout = 500;
             var smallestLeaderTimeout = 500;
             if(CurrentState.Timeout.TotalMilliseconds < smallestLeaderTimeout)
@@ -116,7 +133,7 @@ namespace Rafty.Concensus
              a majority of servers
              If there exists an N such that N > commitIndex, a majority
              of matchIndex[i] ≥ N, and log[N].term == currentTerm:
-             set commitIndex = N (§5.3, §5.4).*/
+             set commitIndex = N (§5.3, §5.4).#1#
             var n = CurrentState.CommitIndex + 1;
             var statesIndexOfHighestKnownReplicatedLogs = PeerStates.Select(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog).ToList();
             var greaterOrEqualToN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x >= n).ToList();
@@ -134,11 +151,19 @@ namespace Rafty.Concensus
 
         public IState Handle(BeginElection beginElection)
         {
+            if (_stopped)
+            {
+                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
+            }
             return this;
         }
 
         public IState Handle(AppendEntries appendEntries)
         {
+            if (_stopped)
+            {
+                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
+            }
             CurrentState nextState = CurrentState;
 
             if(appendEntries.Term >= CurrentState.CurrentTerm)
@@ -182,8 +207,12 @@ namespace Rafty.Concensus
 
         public IState Handle(RequestVote requestVote)
         {
+            if (_stopped)
+            {
+                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
+            }
             //todo - consolidate with AppendEntries
-            if(requestVote.Term > CurrentState.CurrentTerm)
+            if (requestVote.Term > CurrentState.CurrentTerm)
             {
                 var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
                     CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
@@ -196,6 +225,11 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
+            if (_stopped)
+            {
+                return new Response<T>(false, command);
+            }
+
             //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
             var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm, CurrentState.CommitIndex);
@@ -250,4 +284,4 @@ namespace Rafty.Concensus
             return new List<LogEntry>();
         }
     }
-}
+}*/

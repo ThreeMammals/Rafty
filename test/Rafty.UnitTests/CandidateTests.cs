@@ -1,4 +1,4 @@
-namespace Rafty.UnitTests
+/*namespace Rafty.UnitTests
 {
     using System;
     using System.Collections.Generic;
@@ -18,7 +18,7 @@ namespace Rafty.UnitTests
 � If votes received from majority of servers: become leader
 � If AppendEntries RPC received from new leader: convert to
 follower
-� If election timeout elapses: start new election*/
+� If election timeout elapses: start new election#1#
 
     public class CandidateTests : IDisposable
     {
@@ -215,4 +215,4 @@ follower
             state.CurrentState.VotedFor.ShouldBe(_id);
         }
     }
-}
+}*/

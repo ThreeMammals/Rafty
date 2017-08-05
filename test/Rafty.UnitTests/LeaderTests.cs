@@ -1,4 +1,4 @@
-using System;
+/*using System;
 using System.Collections.Generic;
 using Rafty.Concensus;
 using Rafty.FiniteStateMachine;
@@ -32,7 +32,7 @@ namespace Rafty.UnitTests
     • If there exists an N such that N > commitIndex, a majority
     of matchIndex[i] ≥ N, and log[N].term == currentTerm:
     set commitIndex = N (§5.3, §5.4).
-    */
+    #1#
 
     public class LeaderTests
     {
@@ -329,4 +329,4 @@ namespace Rafty.UnitTests
             });
         }
     }
-}
+}*/

@@ -67,6 +67,11 @@ namespace Rafty.Log
                 return 0;
             }
 
+            if (index < 0)
+            {
+                return 0;
+            }
+
             return _log[index].Term;
         }
 

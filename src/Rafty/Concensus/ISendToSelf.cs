@@ -1,4 +1,4 @@
-namespace Rafty.Concensus
+/*namespace Rafty.Concensus
 {
     //This class lets the injected node send messages to itself
     public interface ISendToSelf
@@ -11,4 +11,4 @@ namespace Rafty.Concensus
         void Dispose();
         void Restart();
     }
-}
+}*/

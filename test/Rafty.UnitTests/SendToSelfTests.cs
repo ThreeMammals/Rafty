@@ -1,4 +1,4 @@
-﻿namespace Rafty.UnitTests
+﻿/*namespace Rafty.UnitTests
 {
     using System;
     using System.Threading.Tasks;
@@ -37,4 +37,4 @@
             _node.Messages[1].MessageId.ShouldBe(oneSecond.MessageId);
         }
     }
-}
+}*/

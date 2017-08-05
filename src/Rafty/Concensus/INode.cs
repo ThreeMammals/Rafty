@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 
 namespace Rafty.Concensus
@@ -12,5 +12,6 @@ namespace Rafty.Concensus
         void Handle(Message message);
         Response<T> Accept<T>(T command);
         void Start(List<IPeer> peers, TimeSpan timeout);
+        void BecomeCandidate(CurrentState state);
     }
-}
+}*/

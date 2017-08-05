@@ -1,4 +1,4 @@
-using System;
+/*using System;
 using Rafty.Concensus;
 
 namespace Rafty.AcceptanceTests
@@ -24,4 +24,4 @@ namespace Rafty.AcceptanceTests
             return _node.Handle(appendEntries);
         }
     }
-}
+}*/
