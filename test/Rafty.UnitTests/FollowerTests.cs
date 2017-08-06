@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Threading;
 using Castle.Components.DictionaryAdapter;
+using static Rafty.UnitTests.Wait;
 
 namespace Rafty.UnitTests
 {
@@ -18,6 +20,44 @@ RPC from current leader or granting vote to candidate:
 convert to candidate
 */
 
+    public class TestingNode : INode
+    {
+        
+        public IState State { get; private set; }
+
+        public int BecomeCandidateCount { get; private set; }
+
+        public void SetState(IState state)
+        {
+            State = state;
+        }
+
+        public void BecomeLeader(CurrentState state)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void BecomeFollower(CurrentState state)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void BecomeCandidate(CurrentState state)
+        {
+            BecomeCandidateCount++;
+        }
+
+        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        {
+            return State.Handle(appendEntries);
+        }
+
+        public RequestVoteResponse Handle(RequestVote requestVote)
+        {
+            return State.Handle(requestVote);
+        }
+    }
+
     public class FollowerTests 
     {
         private readonly IFiniteStateMachine _fsm;
@@ -33,6 +73,7 @@ convert to candidate
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
         }
 
         [Fact]
@@ -56,27 +97,28 @@ convert to candidate
             _node.State.CurrentState.LastApplied.ShouldBe(-1);
         }
 
-        [Fact(Skip = "cant implement this now")]
+        [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeader()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
-            _node.State.ShouldBeOfType<Follower>();
-            Thread.Sleep(500);
-            _node.State.ShouldBeOfType<Candidate>();
+            _node = new TestingNode();
+            var node = (TestingNode)_node;
+            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new SettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build()));
+            var result = WaitFor(1000).Until(() => node.BecomeCandidateCount > 0);
+            result.ShouldBeTrue();
         }
 
-        [Fact(Skip = "cant implement this at the moment")]
+        [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
-            _node.State.ShouldBeOfType<Follower>();
+            _node = new TestingNode();
+            var node = (TestingNode)_node;
+            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new SettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build()));
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
-            _node.State.ShouldBeOfType<Follower>();
-            Thread.Sleep(500);
-            _node.State.ShouldBeOfType<Candidate>();
+            var result = WaitFor(1000).Until(() => node.BecomeCandidateCount > 0);
+            result.ShouldBeTrue();
         }
 
-        [Fact(Skip = "This test is failing at the moment because it doesnt get to reset the election timer and become candidate")]
+        [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
             _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
@@ -110,7 +152,7 @@ convert to candidate
             _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
         }
 
-        [Fact(Skip = "cant implement this at the moment")]
+        [Fact]
         public void ShouldUpdateVotedFor()
         {
             _node = new NothingNode();
@@ -119,40 +161,6 @@ convert to candidate
             var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
             var requestVoteResponse = follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
-        }
-    }
-
-    public class NothingNode : INode
-    {
-        public IState State { get; }
-
-        public int BecomeLeaderCount { get; private set; } 
-        public int BecomeFollowerCount { get; private set; } 
-        public int BecomeCandidateCount { get; private set; }
-
-        public void BecomeLeader(CurrentState state)
-        {
-            BecomeLeaderCount++;
-        }
-
-        public void BecomeFollower(CurrentState state)
-        {
-            BecomeFollowerCount++;
-        }
-
-        public void BecomeCandidate(CurrentState state)
-        {
-            BecomeCandidateCount++;
-        }
-
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
-        {
-            return new AppendEntriesResponseBuilder().Build();
-        }
-
-        public RequestVoteResponse Handle(RequestVote requestVote)
-        {
-            return new RequestVoteResponseBuilder().Build();
         }
     }
 }

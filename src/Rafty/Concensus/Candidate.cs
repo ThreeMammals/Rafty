@@ -23,7 +23,13 @@ namespace Rafty.Concensus
         private bool _requestVoteResponseWithGreaterTerm;
         private ISettings _settings;
 
-        public Candidate(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random, INode node, ISettings settings)
+        public Candidate(CurrentState currentState, 
+            IFiniteStateMachine fsm, 
+            List<IPeer> peers, 
+            ILog log, 
+            IRandomDelay random, 
+            INode node, 
+            ISettings settings)
         {
             _random = random;
             _node = node;
@@ -63,23 +69,32 @@ namespace Rafty.Concensus
 
         public void BeginElection()
         {
-            // • On conversion to candidate, start election:
-            // • Reset election timer
-            // • On conversion to candidate, start election:
-            // • Increment currentTerm
-            // • Vote for self
-            // • Send RequestVote RPCs to all other servers
+            // On conversion to candidate, start election:
+            // Reset election timer
+            // Increment currentTerm
+            // Vote for self
+            // Send RequestVote RPCs to all other servers
+            // If receives majority of votes become leader
+            // If there are no peers become the leader
+            // If doesnt receive majority of votes become follower
 
             var nextTerm = CurrentState.CurrentTerm + 1;
 
-            _votesThisElection++;
-
             var votedFor = CurrentState.Id;
+
+            _votesThisElection++;
 
             CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
                 CurrentState.CommitIndex, CurrentState.LastApplied);
 
             var responses = new BlockingCollection<RequestVoteResponse>();
+            
+            if (_peers.Count == 0)
+            {
+                _electioneering = false;
+                _node.BecomeLeader(CurrentState);
+                return;
+            }
 
             var votes = GetVotes(responses);
 
@@ -94,11 +109,10 @@ namespace Rafty.Concensus
             if (_becomeLeader && !_requestVoteResponseWithGreaterTerm)
             {
                 _node.BecomeLeader(CurrentState);
+                return;
             }
-            else
-            {
-                _node.BecomeFollower(CurrentState);
-            }
+
+            _node.BecomeFollower(CurrentState);
         }
 
         private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> responses)

@@ -139,7 +139,7 @@ follower
             node.BecomeFollowerCount.ShouldBe(1);
         }
 
-        [Fact(Skip = "cant implement this now")]
+        [Fact]
         public void ShouldBecomeLeaderIfReceivesMajorityOfVotes()
         {
             _peers = new List<IPeer>();
@@ -183,7 +183,7 @@ follower
             });
         }
 
-        [Fact(Skip = "Not sure this is relavent anymore..")]
+        [Fact]
         public void ShouldResetTimeoutWhenElectionStarts()
         {
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
