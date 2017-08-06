@@ -58,7 +58,7 @@ namespace Rafty.Concensus
             PeerStates = new List<PeerState>();
             foreach (var peer in _peers)
             {
-                var matchIndex = new MatchIndex(peer, 0);
+                var matchIndex = new MatchIndex(peer, -1);
                 //todo apparently you plus one to this but because i started everthing at -1 i dont think i need to?
                 var nextIndex = new NextIndex(peer, _log.LastLogIndex);
                 PeerStates.Add(new PeerState(peer, matchIndex, nextIndex));
@@ -83,9 +83,31 @@ namespace Rafty.Concensus
                 {
                     if (appendEntriesResponse.Success)
                     {
-                        p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer + logsToSend.Count);
+                        var newMatchIndex =
+                            Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog,
+                                logsToSend.Count > 0 ? logsToSend.Max(x => x.CurrentCommitIndex) : 0);
+
+                        var matchIndex = logsToSend.Count > 0
+                            ? p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex)
+                            : p.MatchIndex.IndexOfHighestKnownReplicatedLog;
+
+                        if (newMatchIndex != matchIndex)
+                        {
+                            
+                        }
+
+                        var nextIndex = p.NextIndex.NextLogIndexToSendToPeer + logsToSend.Count;
+
+                        var newNextIndex = newMatchIndex + 1;
+
+                        if (nextIndex != newNextIndex)
+                        {
+
+                        }
+
+                        p.UpdateMatchIndex(newMatchIndex);
+                        p.UpdateNextIndex(newNextIndex);
                         //if no logs then this is heartbeat so dont change it..
-                        p.UpdateMatchIndex(logsToSend.Count > 0 ? p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex) : p.MatchIndex.IndexOfHighestKnownReplicatedLog);
                     }
 
                     if (!appendEntriesResponse.Success)
@@ -136,32 +158,37 @@ namespace Rafty.Concensus
             _log.Apply(log);
             //hack to make sure we dont handle a command twice? Must be a nicer way?
             _handled = false;
-            //send append entries to each server...
-            Parallel.ForEach(PeerStates, (p, s) =>
+            //cannot return to caller until log is commited to majority of servers..
+            while (!_handled)
             {
-                var logs = GetLogsForPeer(p.NextIndex);
-                //todo - this should not just be latest log?
-                var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex,
-                    _log.LastLogTerm, logs, CurrentState.CommitIndex);
-
-                var appendEntriesResponse = p.Peer.Request(appendEntries);
-                
-                //lock to make sure we dont do this more than once
-                lock(_lock)
+                Parallel.ForEach(PeerStates, (p, s) =>
                 {
-                    if (appendEntriesResponse.Success && !_handled)
+                    var logs = GetLogsForPeer(p.NextIndex);
+                    //todo - this should not just be latest log?
+                    var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex,
+                        _log.LastLogTerm, logs, CurrentState.CommitIndex);
+
+                    var appendEntriesResponse = p.Peer.Request(appendEntries);
+
+                    //lock to make sure we dont do this more than once
+                    lock (_lock)
                     {
-                        _updated++;
-                        //If replicated to majority of servers: apply to state machine
-                        if (_updated >= (_peers.Count + 1) / 2 + 1)
+                        if (appendEntriesResponse.Success && !_handled)
                         {
-                            _fsm.Handle(command);
-                            _handled = true;
+                            _updated++;
+                            //If replicated to majority of servers: apply to state machine
+                            if (_updated >= (_peers.Count + 1) / 2 + 1)
+                            {
+                                _fsm.Handle(command);
+                                _handled = true;
+                                SendAppendEntries();
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
 
+            //send append entries to each server...
             return new Response<T>(_handled, command);
         }
 
