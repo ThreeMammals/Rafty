@@ -164,5 +164,11 @@ namespace Rafty.Concensus
         {
             throw new NotImplementedException();
         }
+
+
+        public void Stop()
+        {
+            _electionTimer.Dispose();
+        }
     }
 }

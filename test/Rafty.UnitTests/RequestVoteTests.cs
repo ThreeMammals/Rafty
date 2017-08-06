@@ -36,8 +36,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             //_node.Dispose();
         }
 
-        [Fact(DisplayName = "RequestVote - 1. Reply false if term<currentTerm (§5.1)")]
-        public void ShouldReplyFalseIfTermIsLessThanCurrentTerm()
+        [Fact(DisplayName = "RequestVote - Follower - 1. Reply false if term<currentTerm (§5.1)")]
+        public void FollowerShouldReplyFalseIfTermIsLessThanCurrentTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, 100, 350);
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
@@ -47,8 +47,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             requestVoteResponse.Term.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "RequestVote - 2. Reply false if voted for is not default")]
-        public void ShouldReplyFalseIfVotedForIsNotDefault()
+        [Fact(DisplayName = "RequestVote - Follower - 2. Reply false if voted for is not default")]
+        public void FollowerShouldReplyFalseIfVotedForIsNotDefault()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, 100, 350);
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
@@ -58,8 +58,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             requestVoteResponse.Term.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "RequestVote - 2. Reply false if voted for is not candidateId")]
-        public void ShouldReplyFalseIfVotedForIsNotCandidateId()
+        [Fact(DisplayName = "RequestVote - Follower - 2. Reply false if voted for is not candidateId")]
+        public void FollowerShouldReplyFalseIfVotedForIsNotCandidateId()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, 100, 350);
             var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).WithTerm(0).Build();
@@ -69,8 +69,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             requestVoteResponse.Term.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "RequestVote - 2. If votedFor is null or candidateId, and candidate’s log is atleast as up - to - date as receiver’s log, grant vote(§5.2, §5.4)")]
-        public void ShouldGrantVote()
+        [Fact(DisplayName = "RequestVote - Follower - 2. If votedFor is null or candidateId, and candidate’s log is atleast as up - to - date as receiver’s log, grant vote(§5.2, §5.4)")]
+        public void FollowerShouldGrantVote()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, 100, 350);
             var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(0).WithLastLogTerm(0).WithTerm(1).Build();

@@ -49,29 +49,30 @@ namespace Rafty.UnitTests
             fsm.ExposedForTesting.ShouldBe(1);
         }
 
-  /*       [Fact] 
+         [Fact] 
         public void CandidateShouldApplyLogsToFsm()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), TimeSpan.FromSeconds(0), -1, -1);
-            var sendToSelf = new TestingSendToSelf();
+            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1, 100, 350);
             var fsm = new InMemoryStateMachine();
-            var follower = new Candidate(currentState, sendToSelf, fsm, _peers, _log, _random);
+            var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node);
             var log = new LogEntry("test", typeof(string), 1, 0);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
+                .WithPreviousLogTerm(1)
                 .WithEntry(log)
                 .Build();
             //assume node has added the log..
             _log.Apply(log);
-            var state = follower.Handle(appendEntries);
-            state.ShouldBeOfType<Candidate>();
-            state.CurrentState.CurrentTerm.ShouldBe(1);
-            state.CurrentState.LastApplied.ShouldBe(0);
+            var appendEntriesResponse = candidate.Handle(appendEntries);
+            candidate.CurrentState.CurrentTerm.ShouldBe(1);
+            candidate.CurrentState.LastApplied.ShouldBe(0);
             fsm.ExposedForTesting.ShouldBe(1);
+            var node = (NothingNode) _node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
 
 
-         [Fact] 
+    /*     [Fact] 
         public void LeaderShouldApplyLogsToFsm()
         {
             var currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), TimeSpan.FromSeconds(0), -1, -1);

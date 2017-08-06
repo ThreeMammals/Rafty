@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Rafty.FiniteStateMachine;
 using Rafty.Log;
@@ -11,98 +12,135 @@ namespace Rafty.Concensus
     {
         private int _votesThisElection;
         private readonly object _lock = new object();
-        private IFiniteStateMachine _fsm;
-        private List<IPeer> _peers;
-        private ILog _log;
-        private IRandomDelay _random;
+        private readonly IFiniteStateMachine _fsm;
+        private readonly List<IPeer> _peers;
+        private readonly ILog _log;
+        private readonly IRandomDelay _random;
         private bool _becomeLeader;
         private bool _electioneering;
+        private readonly INode _node;
+        private Timer _electionTimer;
+        private bool _requestVoteResponseWithGreaterTerm;
 
-        public Candidate(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
+        public Candidate(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random, INode node)
         {
             _random = random;
+            _node = node;
             _log = log;
             _peers = peers;
             _fsm = fsm;
             CurrentState = currentState;
-            BeginElection();
+            _electioneering = true;
+            ResetElectionTimer();
+        }
+
+        private void ElectionTimerExpired()
+        {
+            if (!_electioneering)
+            {
+                _node.BecomeCandidate(CurrentState);
+            }
+            else
+            {
+                ResetElectionTimer();
+            }
+        }
+
+        private void ResetElectionTimer()
+        {
+            var timeout = _random.Get(CurrentState.MinTimeout, CurrentState.MaxTimeout);
+            _electionTimer?.Dispose();
+            _electionTimer = _electionTimer = new Timer(x =>
+            {
+                ElectionTimerExpired();
+
+            }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }
 
         public CurrentState CurrentState { get; private set;}
 
         public void BeginElection()
         {
-           /* _electioneering = true;
-            // • On conversion to candidate, start election:
-            // • Increment currentTerm
-            var nextTerm = CurrentState.CurrentTerm + 1;
-            // • Vote for self
-            _votesThisElection++;
-            var votedFor = CurrentState.Id;
-            CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor,
-                CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-            IState state = new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
             // • On conversion to candidate, start election:
             // • Reset election timer
-             //this should be a random timeout which will help get the elections going at different times..
-            var delay = _random.Get(100, Convert.ToInt32(CurrentState.Timeout.TotalMilliseconds));
-            _sendToSelf.Publish(new Timeout(delay));
-            
-            var responses = new ConcurrentBag<RequestVoteResponse>();
-            var states = new BlockingCollection<bool>();
+            // • On conversion to candidate, start election:
+            // • Increment currentTerm
+            // • Vote for self
             // • Send RequestVote RPCs to all other servers
 
-            //so the idea here is that we start adding election results onto a queue and pick them off 
-            //if we get a leader back then we stop looking as we dont become a leader more than once...
-            //request votes...
+            var nextTerm = CurrentState.CurrentTerm + 1;
+
+            _votesThisElection++;
+
+            var votedFor = CurrentState.Id;
+
+            CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
+                CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout, CurrentState.MaxTimeout);
+
+            var responses = new BlockingCollection<RequestVoteResponse>();
+
+            var votes = GetVotes(responses);
+
+            var checkVotes = CountVotes(responses);
+
+            Task.WaitAll(votes.ToArray());
+
+            checkVotes.Wait();
+
+            _electioneering = false;
+
+            if (_becomeLeader && !_requestVoteResponseWithGreaterTerm)
+            {
+                _node.BecomeLeader(CurrentState);
+            }
+            else
+            {
+                _node.BecomeFollower(CurrentState);
+            }
+        }
+
+        private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> responses)
+        {
             var tasks = new List<Task>();
+
             foreach (var peer in _peers)
             {
-                var task = GetVote(peer, responses, states);
+                var task = GetVote(peer, responses);
                 tasks.Add(task);
             }
 
-            //check if we are the leader...
-            foreach (var nextState in states.GetConsumingEnumerable())
+            return tasks;
+        }
+
+        private async Task CountVotes(BlockingCollection<RequestVoteResponse> states)
+        {
+            var receivedResponses = 0;
+            var tasks = new List<Task>();
+            foreach (var requestVoteResponse in states.GetConsumingEnumerable())
             {
-                if (nextState)
+                var task = CountVote(requestVoteResponse);
+                tasks.Add(task);
+                receivedResponses++;
+
+                if (receivedResponses >= _peers.Count)
                 {
-                    _becomeLeader = nextState;
                     break;
                 }
             }
 
-            //wait for the tasks to finish..
             Task.WaitAll(tasks.ToArray());
-            
-            //check if we really are the leader???
-            foreach (var requestVoteResponse in responses)
-            {
-                 //todo - consolidate with AppendEntries and RequestVOte wtc
-                if(requestVoteResponse.Term > CurrentState.CurrentTerm)
-                {
-                    var nextState = new CurrentState(CurrentState.Id, requestVoteResponse.Term, CurrentState.VotedFor, 
-                        CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                    return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
-                }
-            }
-
-
-            if (_becomeLeader)
-            {
-                _electioneering = false;
-                return new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-
-            _electioneering = false;
-            return state;*/
         }
 
-        private async Task GetVote(IPeer peer, ConcurrentBag<RequestVoteResponse> responses, BlockingCollection<bool> states) 
+        private async Task CountVote(RequestVoteResponse requestVoteResponse)
         {
-            var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
+            if (requestVoteResponse.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied,
+                    CurrentState.MinTimeout, CurrentState.MaxTimeout);
 
-            responses.Add(requestVoteResponse);
+                _requestVoteResponseWithGreaterTerm = true;
+            }
 
             if (requestVoteResponse.VoteGranted)
             {
@@ -113,22 +151,49 @@ namespace Rafty.Concensus
                     //If votes received from majority of servers: become leader
                     if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
                     {
-                        //add the state to the queue to be 
-                        //var state = new Leader(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-                        states.Add(true);
+                        _becomeLeader = true;
                     }
                 }
             }
         }
 
+        private async Task GetVote(IPeer peer, BlockingCollection<RequestVoteResponse> responses) 
+        {
+            var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
+
+            responses.Add(requestVoteResponse);
+        }
+
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            throw new NotImplementedException();
-            /*CurrentState nextState = CurrentState;
+            //Reply false if term < currentTerm (§5.1)
+            if (appendEntries.Term < CurrentState.CurrentTerm)
+            {
+                return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
+            }
+
+            // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
+            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
+            if (termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            {
+                return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
+            }
+
+            //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
+            foreach (var log in appendEntries.Entries)
+            {
+                _log.DeleteConflictsFromThisLog(log);
+            }
+
+            //Append any new entries not already in the log
+            foreach (var log in appendEntries.Entries)
+            {
+                _log.Apply(log);
+            }
 
             //todo - not sure about this should a candidate apply logs from a leader on the same term when it is in candidate mode
             //for that term? Does this need to just fall into the greater than?
-            if(appendEntries.Term >= CurrentState.CurrentTerm)
+            if (appendEntries.Term >= CurrentState.CurrentTerm)
             {
                 //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
                 var commitIndex = CurrentState.CommitIndex;
@@ -142,7 +207,7 @@ namespace Rafty.Concensus
 
                 //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
                 //todo - not sure if this should be an if or a while
-                while(commitIndex > lastApplied)
+                while (commitIndex > lastApplied)
                 {
                     lastApplied++;
                     var log = _log.Get(lastApplied);
@@ -151,41 +216,73 @@ namespace Rafty.Concensus
                     _fsm.Handle(log.CommandData);
                 }
 
-                nextState = new CurrentState(CurrentState.Id, nextState.CurrentTerm, 
-                    CurrentState.VotedFor, CurrentState.Timeout, commitIndex, lastApplied);
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
+                    CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.MinTimeout,
+                    CurrentState.MaxTimeout);
             }
 
             //todo consolidate with request vote
-            if(appendEntries.Term > CurrentState.CurrentTerm)
+            if (appendEntries.Term > CurrentState.CurrentTerm)
             {
-                nextState = new CurrentState(CurrentState.Id, appendEntries.Term, 
-                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
+                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
+                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout,
+                    CurrentState.MaxTimeout);
+
+                _node.BecomeFollower(CurrentState);
             }
 
-            //todo - hacky :(
-            CurrentState = nextState;
-            return this;*/
+            return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
+            
         }
 
         public RequestVoteResponse Handle(RequestVote requestVote)
         {
-            throw new NotImplementedException();
-           /* //todo - consolidate with AppendEntries
-            if(requestVote.Term > CurrentState.CurrentTerm)
+            //Reply false if term<currentTerm
+            if (requestVote.Term < CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
+                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
             }
 
-            //candidate cannot vote for anyone else...
-            return this;*/
+            //Reply false if voted for is not candidateId
+            //Reply false if voted for is not default
+            if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
+            {
+                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+            }
+
+            if (requestVote.LastLogIndex == _log.LastLogIndex &&
+                requestVote.LastLogTerm == _log.LastLogTerm)
+            {
+                if (requestVote.Term > CurrentState.CurrentTerm)
+                {
+                    CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor,
+                        CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout,
+                        CurrentState.MaxTimeout);
+
+                    _node.BecomeFollower(CurrentState);
+                }
+
+                var votedFor = requestVote.CandidateId;
+
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
+                    votedFor, CurrentState.CommitIndex, CurrentState.LastApplied, 
+                    CurrentState.MinTimeout, CurrentState.MaxTimeout);
+
+                //candidate cannot vote for anyone else...
+                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
+            }
+
+            return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
         public Response<T> Accept<T>(T command)
         {
             throw new NotImplementedException();
+        }
+
+        public void Stop()
+        {
+            _electionTimer.Dispose();
         }
     }
 }

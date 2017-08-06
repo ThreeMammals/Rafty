@@ -188,33 +188,12 @@ using Rafty.Log;
 
 namespace Rafty.Concensus
 {
-    public interface INode
-    {
-        IState State { get; }
-        void BecomeCandidate(CurrentState state);
-        AppendEntriesResponse Handle(AppendEntries appendEntries);
-        RequestVoteResponse Handle(RequestVote requestVote);
-        
-    }
-
-    public class Settings
-    {
-        public Settings(int minTimeout, int maxTimeout)
-        {
-            MinTimeout = minTimeout;
-            MaxTimeout = maxTimeout;
-        }
-
-        public int MinTimeout { get; private set; }
-        public int MaxTimeout { get; private set; }
-    }
-
     public class Node : INode
     {
-        private IFiniteStateMachine _fsm;
-        private ILog _log;
-        private List<IPeer> _peers;
-        private IRandomDelay _random;
+        private readonly IFiniteStateMachine _fsm;
+        private readonly ILog _log;
+        private readonly List<IPeer> _peers;
+        private readonly IRandomDelay _random;
 
         public Node(IFiniteStateMachine fsm, ILog log, List<IPeer> peers, IRandomDelay random, Settings settings)
         {
@@ -229,11 +208,19 @@ namespace Rafty.Concensus
 
         public void BecomeCandidate(CurrentState state)
         {
-            State = new Candidate(state, _fsm, _peers, _log, _random);
+            State.Stop();
+            var candidate = new Candidate(state, _fsm, _peers, _log, _random, this);
+            State = candidate;
+            candidate.BeginElection();
+        }
+
+        public void BecomeLeader(CurrentState state)
+        {
         }
 
         public void BecomeFollower(CurrentState state)
         {
+            State.Stop();
             State = new Follower(state, _fsm, _log, _random, this);
         }
 

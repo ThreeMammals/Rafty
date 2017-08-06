@@ -55,35 +55,33 @@ set currentTerm = T, convert to follower (§5.1)*/
             follower.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
 
-    /*    //candidate
+        //candidate
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 1, 3, typeof(Candidate))]
+        [InlineData(2, 3, 3, typeof(Candidate))]
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
-                TimeSpan.FromSeconds(0), 0, 0);
-            var sendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(currentState, sendToSelf, _fsm, _peers, _log, _random);
-            var state = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
-            state.ShouldBeOfType(expectedType);
-            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0, 100, 350);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node);
+            var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
+            candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            var node = (NothingNode)_node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
 
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 1, 3, typeof(Candidate))]
+        [InlineData(2, 3, 3, typeof(Candidate))]
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
-                TimeSpan.FromSeconds(0), 0, 0);
-            var sendToSelf = new TestingSendToSelf();
-            var candidate = new Candidate(currentState, sendToSelf, _fsm, _peers, _log, _random);
-            var state = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
-            state.ShouldBeOfType(expectedType);
-            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0, 100, 350);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node);
+            var requestVoteResponse = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
+            candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+            var node = (NothingNode) _node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
-
+/*
         //leader
         [Theory]
         [InlineData(0, 2, 2, typeof(Follower))]
