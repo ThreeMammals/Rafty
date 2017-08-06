@@ -69,7 +69,7 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set; }
 
-        public void SendAppendEntries()
+        private void SendAppendEntries()
         {
             var responses = new ConcurrentBag<AppendEntriesResponse>();
 
@@ -84,12 +84,14 @@ namespace Rafty.Concensus
                     if (appendEntriesResponse.Success)
                     {
                         p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer + logsToSend.Count);
-                        p.UpdateMatchIndex(logsToSend.Count > 0 ? p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex) : -1);
+                        //if no logs then this is heartbeat so dont change it..
+                        p.UpdateMatchIndex(logsToSend.Count > 0 ? p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex) : p.MatchIndex.IndexOfHighestKnownReplicatedLog);
                     }
 
                     if (!appendEntriesResponse.Success)
                     {
-                        p.UpdateNextIndex(p.NextIndex.NextLogIndexToSendToPeer - 1);
+                        var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 0 ? 0 : p.NextIndex.NextLogIndexToSendToPeer - 1;
+                        p.UpdateNextIndex(nextIndex);
                     }
                 }
             });

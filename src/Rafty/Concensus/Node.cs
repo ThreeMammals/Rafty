@@ -218,9 +218,8 @@ namespace Rafty.Concensus
 
         public void BecomeLeader(CurrentState state)
         {
-            //todo run tests before comment this in 
-            //State.Stop();
-            //State = new Leader(state, _fsm, _peers, _log, this, _settings);
+            State.Stop();
+            State = new Leader(state, _fsm, _peers, _log, this, _settings);
         }
 
         public void BecomeFollower(CurrentState state)
