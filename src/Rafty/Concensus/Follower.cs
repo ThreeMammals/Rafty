@@ -18,11 +18,13 @@ namespace Rafty.Concensus
         private Timer _electionTimer;
         private int _messagesSinceLastElectionExpiry;
         private readonly INode _node;
+        private ISettings _settings;
 
-        public Follower(CurrentState state, IFiniteStateMachine stateMachine, ILog log, IRandomDelay random, INode node)
+        public Follower(CurrentState state, IFiniteStateMachine stateMachine, ILog log, IRandomDelay random, INode node, ISettings settings)
         {
             _random = random;
             _node = node;
+            _settings = settings;
             _fsm = stateMachine;
             CurrentState = state;
             _log = log;
@@ -44,7 +46,7 @@ namespace Rafty.Concensus
 
         private void ResetElectionTimer()
         {
-            var timeout = _random.Get(CurrentState.MinTimeout, CurrentState.MaxTimeout);
+            var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
             _electionTimer?.Dispose();
             _electionTimer = _electionTimer = new Timer(x =>
             {
@@ -88,8 +90,7 @@ namespace Rafty.Concensus
             if (appendEntries.Term > CurrentState.CurrentTerm)
             {
                 nextState = new CurrentState(CurrentState.Id, appendEntries.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, 
-                    CurrentState.MinTimeout, CurrentState.MaxTimeout);
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
             }
 
             //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
@@ -114,8 +115,7 @@ namespace Rafty.Concensus
             }
 
             CurrentState = new CurrentState(CurrentState.Id, nextState.CurrentTerm,
-                CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.MinTimeout, 
-                CurrentState.MaxTimeout);
+                CurrentState.VotedFor, commitIndex, lastApplied);
 
             _messagesSinceLastElectionExpiry++;
 
@@ -150,8 +150,7 @@ namespace Rafty.Concensus
 
                 // update voted for....
                 CurrentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout, 
-                    CurrentState.MaxTimeout);
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 _messagesSinceLastElectionExpiry++;
                 return new RequestVoteResponse(true, CurrentState.CurrentTerm);

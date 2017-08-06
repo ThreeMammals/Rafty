@@ -21,11 +21,13 @@ namespace Rafty.Concensus
         private readonly INode _node;
         private Timer _electionTimer;
         private bool _requestVoteResponseWithGreaterTerm;
+        private ISettings _settings;
 
-        public Candidate(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random, INode node)
+        public Candidate(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random, INode node, ISettings settings)
         {
             _random = random;
             _node = node;
+            _settings = settings;
             _log = log;
             _peers = peers;
             _fsm = fsm;
@@ -48,7 +50,7 @@ namespace Rafty.Concensus
 
         private void ResetElectionTimer()
         {
-            var timeout = _random.Get(CurrentState.MinTimeout, CurrentState.MaxTimeout);
+            var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
             _electionTimer?.Dispose();
             _electionTimer = _electionTimer = new Timer(x =>
             {
@@ -75,7 +77,7 @@ namespace Rafty.Concensus
             var votedFor = CurrentState.Id;
 
             CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
-                CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout, CurrentState.MaxTimeout);
+                CurrentState.CommitIndex, CurrentState.LastApplied);
 
             var responses = new BlockingCollection<RequestVoteResponse>();
 
@@ -136,8 +138,7 @@ namespace Rafty.Concensus
             if (requestVoteResponse.Term > CurrentState.CurrentTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied,
-                    CurrentState.MinTimeout, CurrentState.MaxTimeout);
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 _requestVoteResponseWithGreaterTerm = true;
             }
@@ -217,16 +218,14 @@ namespace Rafty.Concensus
                 }
 
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
-                    CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.MinTimeout,
-                    CurrentState.MaxTimeout);
+                    CurrentState.VotedFor, commitIndex, lastApplied);
             }
 
             //todo consolidate with request vote
             if (appendEntries.Term > CurrentState.CurrentTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
-                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout,
-                    CurrentState.MaxTimeout);
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 _node.BecomeFollower(CurrentState);
             }
@@ -256,8 +255,7 @@ namespace Rafty.Concensus
                 if (requestVote.Term > CurrentState.CurrentTerm)
                 {
                     CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor,
-                        CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.MinTimeout,
-                        CurrentState.MaxTimeout);
+                        CurrentState.CommitIndex, CurrentState.LastApplied);
 
                     _node.BecomeFollower(CurrentState);
                 }
@@ -265,8 +263,7 @@ namespace Rafty.Concensus
                 var votedFor = requestVote.CandidateId;
 
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
-                    votedFor, CurrentState.CommitIndex, CurrentState.LastApplied, 
-                    CurrentState.MinTimeout, CurrentState.MaxTimeout);
+                    votedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 //candidate cannot vote for anyone else...
                 return new RequestVoteResponse(true, CurrentState.CurrentTerm);

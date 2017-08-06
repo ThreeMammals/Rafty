@@ -39,9 +39,9 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - Follower - 1. Reply false if term<currentTerm (§5.1)")]
         public void FollowerShouldReplyFalseIfTermIsLessThanCurrentTerm()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0);
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var requestVoteResponse = follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
@@ -50,9 +50,9 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - Follower - 2. Reply false if voted for is not default")]
         public void FollowerShouldReplyFalseIfVotedForIsNotDefault()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0);
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var requestVoteResponse = follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
@@ -61,9 +61,9 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - Follower - 2. Reply false if voted for is not candidateId")]
         public void FollowerShouldReplyFalseIfVotedForIsNotCandidateId()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0);
             var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var requestVoteResponse = follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
@@ -72,9 +72,9 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact(DisplayName = "RequestVote - Follower - 2. If votedFor is null or candidateId, and candidate’s log is atleast as up - to - date as receiver’s log, grant vote(§5.2, §5.4)")]
         public void FollowerShouldGrantVote()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0);
             var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(0).WithLastLogTerm(0).WithTerm(1).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var requestVoteResponse = follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(true);
             requestVoteResponse.Term.ShouldBe(1);

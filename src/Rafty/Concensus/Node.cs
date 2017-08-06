@@ -194,6 +194,7 @@ namespace Rafty.Concensus
         private readonly ILog _log;
         private readonly List<IPeer> _peers;
         private readonly IRandomDelay _random;
+        private readonly Settings _settings;
 
         public Node(IFiniteStateMachine fsm, ILog log, List<IPeer> peers, IRandomDelay random, Settings settings)
         {
@@ -201,7 +202,8 @@ namespace Rafty.Concensus
             _log = log;
             _peers = peers;
             _random = random;
-            BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1, settings.MinTimeout, settings.MaxTimeout));
+            _settings = settings;
+            BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1));
         }
 
         public IState State { get; private set; }
@@ -209,19 +211,22 @@ namespace Rafty.Concensus
         public void BecomeCandidate(CurrentState state)
         {
             State.Stop();
-            var candidate = new Candidate(state, _fsm, _peers, _log, _random, this);
+            var candidate = new Candidate(state, _fsm, _peers, _log, _random, this, _settings);
             State = candidate;
             candidate.BeginElection();
         }
 
         public void BecomeLeader(CurrentState state)
         {
+            //todo run tests before comment this in 
+            //State.Stop();
+            //State = new Leader(state, _fsm, _peers, _log, this, _settings);
         }
 
         public void BecomeFollower(CurrentState state)
         {
-            State.Stop();
-            State = new Follower(state, _fsm, _log, _random, this);
+            State?.Stop();
+            State = new Follower(state, _fsm, _log, _random, this, _settings);
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)

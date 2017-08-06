@@ -48,9 +48,9 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - 1. Reply false if term < currentTerm (§5.1)")]
         public void ShouldReplyFalseIfRpcTermLessThanCurrentTerm()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(false);
             appendEntriesResponse.Term.ShouldBe(1);
@@ -59,10 +59,10 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - 2. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)")]
         public void ShouldReplyFalseIfLogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesRpcPrevLogTerm()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 2, default(Guid), 0, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 2, default(Guid), 0, 0);
             _log.Apply(new LogEntry("", typeof(string), 2, 0));
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(0).WithPreviousLogTerm(1).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(false);
             appendEntriesResponse.Term.ShouldBe(2);
@@ -71,7 +71,7 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - 3. If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)")]
         public void ShouldDeleteExistingEntryIfItConflictsWithNewOne()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 2, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 2, 0);
             _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1, 1));
             _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1, 2));
@@ -81,7 +81,7 @@ min(leaderCommit, index of last new entry)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
                 .Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(2);
@@ -90,7 +90,7 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - 3. If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3) and Append any new entries not already in the log")]
         public void ShouldDeleteExistingEntryIfItConflictsWithNewOneAndAppendNewEntries()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
             _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1, 1));
             _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1, 2));
@@ -100,7 +100,7 @@ min(leaderCommit, index of last new entry)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
                 .Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(2);
@@ -110,7 +110,7 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - 4. Append any new entries not already in the log")]
         public void ShouldAppendAnyEntriesNotInTheLog()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
             _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1, 0));
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 1 commit index 1", typeof(string), 1, 1))
@@ -118,7 +118,7 @@ min(leaderCommit, index of last new entry)
                 .WithPreviousLogIndex(0)
                 .WithPreviousLogTerm(1)
                 .Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(1);
@@ -128,7 +128,7 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - Follower - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
         public void FollowerShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), -1, -1, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), -1, -1);
             var log = new LogEntry("term 1 commit index 0", typeof(string), 1, 0);
             _log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
@@ -139,7 +139,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(0)
                .Build();
             //assume node has applied log..
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             follower.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -147,7 +147,7 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - Candidate - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
         public void CandidateShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1, 100, 350);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
             //assume log applied by node?
             var log = new LogEntry("term 1 commit index 0", typeof(string), 1, 0);
             _log.Apply(log);
@@ -158,7 +158,7 @@ min(leaderCommit, index of last new entry)
                .WithPreviousLogTerm(0)
                .WithLeaderCommitIndex(0)
                .Build();
-            var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node);
+            var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             follower.CurrentState.CommitIndex.ShouldBe(0);
         }

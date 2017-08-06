@@ -38,8 +38,8 @@ set currentTerm = T, convert to follower (§5.1)*/
         [InlineData(2, 1, 2)]
         public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {
-            var currentState = new CurrentState(Guid.NewGuid(),currentTerm, default(Guid), 0, 0, 100, 350);
-            var follower = new Follower(currentState, _fsm, _log, _random, _node);
+            var currentState = new CurrentState(Guid.NewGuid(),currentTerm, default(Guid), 0, 0);
+            var follower = new Follower(currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             follower.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
@@ -49,8 +49,8 @@ set currentTerm = T, convert to follower (§5.1)*/
         [InlineData(2, 1, 2)]
         public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0, 100, 350);
-            var follower = new Follower(currentState, _fsm, _log, _random, _node);
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
+            var follower = new Follower(currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
             follower.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
@@ -61,8 +61,8 @@ set currentTerm = T, convert to follower (§5.1)*/
         [InlineData(2, 3, 3, typeof(Candidate))]
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0, 100, 350);
-            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node);
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode)_node;
@@ -74,8 +74,8 @@ set currentTerm = T, convert to follower (§5.1)*/
         [InlineData(2, 3, 3, typeof(Candidate))]
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
         {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0, 100, 350);
-            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node);
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
             var requestVoteResponse = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode) _node;

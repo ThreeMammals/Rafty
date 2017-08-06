@@ -1,5 +1,6 @@
-/*using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading;
 
 namespace Rafty.Concensus
 {
@@ -12,51 +13,44 @@ namespace Rafty.Concensus
 
     public sealed class Leader : IState
     {
-        private readonly ISendToSelf _sendToSelf;
         private readonly IFiniteStateMachine _fsm;
         private int _updated;
         private readonly object _lock = new object();
         private bool _handled;
         private readonly List<IPeer> _peers;
         private readonly ILog _log;
-        private readonly IRandomDelay _random;
-        private bool _stopped;
+        private readonly INode _node;
+        private Timer _electionTimer;
+        private readonly ISettings _settings;
 
-        public Leader(CurrentState currentState, ISendToSelf sendToSelf, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, IRandomDelay random)
+        public Leader(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, INode node, ISettings settings)
         {
-            _random = random;
+            _settings = settings;
+            _node = node;
             _log = log;
             _peers = peers;
             _fsm = fsm;
             CurrentState = currentState;
-            _sendToSelf = sendToSelf;
-
             InitialisePeerStates();
             //Upon election: send initial empty AppendEntries RPCs(heartbeat) to each server
-            //do this straight away with no timeout and dont call
-            //send to self...
-            //todo - this will error at the moment cos of log crap
-            Handle(new Timeout());
-
-            //todo - is this timeout correct? does it need to be less than the followers? Feel like this should tick
             //quite quickly if you are the leader to keep the nodes alive..
-            var smallestLeaderTimeout = 500;
-            if(CurrentState.Timeout.TotalMilliseconds < smallestLeaderTimeout)
+            ResetElectionTimer();
+        }
+
+
+        private void ResetElectionTimer()
+        {
+            _electionTimer?.Dispose();
+            _electionTimer = _electionTimer = new Timer(x =>
             {
-                _sendToSelf.Publish(new Timeout(TimeSpan.FromMilliseconds(smallestLeaderTimeout)));
-            }
-                
-            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
+                SendAppendEntries();
+
+            }, null, 0, Convert.ToInt32(_settings.HeartbeatTimeout));
         }
 
         public void Stop()
         {
-            _stopped = true;
-        }
-
-        public void Start()
-        {
-            _stopped = false;
+            _electionTimer.Dispose();
         }
 
         private void InitialisePeerStates()
@@ -75,24 +69,8 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set; }
 
-        public IState Handle(Timeout timeout)
+        public void SendAppendEntries()
         {
-            if (_stopped)
-            {
-                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-
-            //todo - is this timeout correct? does it need to be less than the followers?var smallestLeaderTimeout = 500;
-            var smallestLeaderTimeout = 500;
-            if(CurrentState.Timeout.TotalMilliseconds < smallestLeaderTimeout)
-            {
-                _sendToSelf.Publish(new Timeout(TimeSpan.FromMilliseconds(smallestLeaderTimeout)));
-            }
-                
-            _sendToSelf.Publish(new Timeout(CurrentState.Timeout));
-
-            IState nextState = this;
-
             var responses = new ConcurrentBag<AppendEntriesResponse>();
 
             Parallel.ForEach(PeerStates, p =>
@@ -122,9 +100,9 @@ namespace Rafty.Concensus
                 //todo - consolidate with AppendEntries and RequestVOte
                 if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
                 {
-                    var currentState = new CurrentState(CurrentState.Id, appendEntriesResponse.Term, CurrentState.VotedFor, 
-                        CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                    return new Follower(currentState, _sendToSelf, _fsm, _peers, _log, _random);
+                    var currentState = new CurrentState(CurrentState.Id, appendEntriesResponse.Term, 
+                        CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+                    _node.BecomeFollower(currentState);
                 }
             }
 
@@ -133,7 +111,7 @@ namespace Rafty.Concensus
              a majority of servers
              If there exists an N such that N > commitIndex, a majority
              of matchIndex[i] ≥ N, and log[N].term == currentTerm:
-             set commitIndex = N (§5.3, §5.4).#1#
+             set commitIndex = N (§5.3, §5.4).*/
             var n = CurrentState.CommitIndex + 1;
             var statesIndexOfHighestKnownReplicatedLogs = PeerStates.Select(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog).ToList();
             var greaterOrEqualToN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x >= n).ToList();
@@ -142,94 +120,14 @@ namespace Rafty.Concensus
             {
                 if (_log.GetTermAtIndex(n) == CurrentState.CurrentTerm)
                 {
-                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.Timeout,  n, CurrentState.LastApplied);
+                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
+                        CurrentState.VotedFor,  n, CurrentState.LastApplied);
                 }
             }
-
-            return nextState;
-        }
-
-        public IState Handle(BeginElection beginElection)
-        {
-            if (_stopped)
-            {
-                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-            return this;
-        }
-
-        public IState Handle(AppendEntries appendEntries)
-        {
-            if (_stopped)
-            {
-                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-            CurrentState nextState = CurrentState;
-
-            if(appendEntries.Term >= CurrentState.CurrentTerm)
-            {
-                //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-                var commitIndex = CurrentState.CommitIndex;
-                var lastApplied = CurrentState.LastApplied;
-                if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-                {
-                    //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
-                    var lastNewEntry = _log.LastLogIndex;
-                    commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
-                }
-
-                //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
-                //todo - not sure if this should be an if or a while
-                while(commitIndex > lastApplied)
-                {
-                    lastApplied++;
-                    var log = _log.Get(lastApplied);
-                    //todo - json deserialise into type? Also command might need to have type as a string not Type as this
-                    //will get passed over teh wire? Not sure atm ;)
-                    _fsm.Handle(log.CommandData);
-                }
-
-                nextState = new CurrentState(CurrentState.Id, nextState.CurrentTerm, 
-                    CurrentState.VotedFor, CurrentState.Timeout, commitIndex, lastApplied);
-            }
-
-            //todo consolidate with request vote
-            if(appendEntries.Term > CurrentState.CurrentTerm)
-            {
-                nextState = new CurrentState(CurrentState.Id, appendEntries.Term, 
-                    CurrentState.VotedFor, CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-
-            CurrentState = nextState;
-            return this;
-        }
-
-        public IState Handle(RequestVote requestVote)
-        {
-            if (_stopped)
-            {
-                return new Follower(CurrentState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-            //todo - consolidate with AppendEntries
-            if (requestVote.Term > CurrentState.CurrentTerm)
-            {
-                var nextState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor, 
-                    CurrentState.Timeout, CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new Follower(nextState, _sendToSelf, _fsm, _peers, _log, _random);
-            }
-
-            //leader cannot vote for anyone else...
-            return this;
         }
 
         public Response<T> Accept<T>(T command)
         {
-            if (_stopped)
-            {
-                return new Response<T>(false, command);
-            }
-
             //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
             var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm, CurrentState.CommitIndex);
@@ -283,5 +181,64 @@ namespace Rafty.Concensus
 
             return new List<LogEntry>();
         }
+
+        AppendEntriesResponse IState.Handle(AppendEntries appendEntries)
+        {
+            CurrentState nextState = CurrentState;
+
+            if (appendEntries.Term >= CurrentState.CurrentTerm)
+            {
+                //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
+                var commitIndex = CurrentState.CommitIndex;
+                var lastApplied = CurrentState.LastApplied;
+                if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
+                {
+                    //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
+                    var lastNewEntry = _log.LastLogIndex;
+                    commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+                }
+
+                //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
+                //todo - not sure if this should be an if or a while
+                while (commitIndex > lastApplied)
+                {
+                    lastApplied++;
+                    var log = _log.Get(lastApplied);
+                    //todo - json deserialise into type? Also command might need to have type as a string not Type as this
+                    //will get passed over teh wire? Not sure atm ;)
+                    _fsm.Handle(log.CommandData);
+                }
+
+                nextState = new CurrentState(CurrentState.Id, nextState.CurrentTerm,
+                    CurrentState.VotedFor, commitIndex, lastApplied);
+            }
+
+            //todo consolidate with request vote
+            if (appendEntries.Term > CurrentState.CurrentTerm)
+            {
+                nextState = new CurrentState(CurrentState.Id, appendEntries.Term,
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(nextState);
+                return new AppendEntriesResponse(nextState.CurrentTerm, true);
+            }
+
+            CurrentState = nextState;
+            return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
+        }
+
+        RequestVoteResponse IState.Handle(RequestVote requestVote)
+        {    
+            //todo - consolidate with AppendEntries
+            if (requestVote.Term > CurrentState.CurrentTerm)
+            {
+                var nextState = new CurrentState(CurrentState.Id, requestVote.Term,
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(nextState);
+                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
+            }
+
+            //leader cannot vote for anyone else...
+            return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+        }
     }
-}*/
+}

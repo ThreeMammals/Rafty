@@ -38,28 +38,28 @@ convert to candidate
         [Fact]
         public void CommitIndexShouldBeInitialisedToMinusOne()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.CurrentState.CommitIndex.ShouldBe(-1);
         }
 
         [Fact]
         public void CurrentTermShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.CurrentState.CurrentTerm.ShouldBe(0);
         }
 
         [Fact]
         public void LastAppliedShouldBeInitialisedToMinusOne()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.CurrentState.LastApplied.ShouldBe(-1);
         }
 
         [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeader()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
             Thread.Sleep(500);
             _node.State.ShouldBeOfType<Candidate>();
@@ -68,7 +68,7 @@ convert to candidate
         [Fact]
         public void ShouldBecomeCandidateWhenFollowerReceivesTimeoutAndHasNotHeardFromLeaderSinceLastTimeout()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
@@ -79,7 +79,7 @@ convert to candidate
         [Fact(Skip = "This test is failing at the moment because it doesnt get to reset the election timer and become candidate")]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
@@ -88,7 +88,7 @@ convert to candidate
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
@@ -99,14 +99,14 @@ convert to candidate
         [Fact]
         public void ShouldStartAsFollower()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.ShouldBeOfType<Follower>();
         }
 
         [Fact]
         public void VotedForShouldBeInitialisedToNone()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new Settings(100, 350));
+            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
             _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
         }
 
@@ -114,8 +114,8 @@ convert to candidate
         public void ShouldUpdateVotedFor()
         {
             _node = new NothingNode();
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1, 100, 350);
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
             var requestVoteResponse = follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
