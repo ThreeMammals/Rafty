@@ -7,32 +7,42 @@ namespace Rafty.Log
 
     public class InMemoryLog : ILog
     {
-        private readonly List<LogEntry> _log;
+        private readonly Dictionary<int, LogEntry> _log;
 
         public InMemoryLog()
         {
-            _log = new List<LogEntry>();
+            _log = new Dictionary<int, LogEntry>();
         }
 
-        public List<LogEntry> ExposedForTesting => _log;
+        public Dictionary<int, LogEntry> ExposedForTesting => _log;
 
-        public List<LogEntry> GetFrom(int index)
+        public List<Tuple<int,LogEntry>> GetFrom(int index)
         {
+            var logsToReturn = new List<Tuple<int, LogEntry>>();
             var take = _log.Count - index;
-            var logs = _log.GetRange(index, take);
-            return logs;
+            foreach(var log in _log)
+            {
+                if(log.Key >= index)
+                {
+                    logsToReturn.Add(new Tuple<int,LogEntry>(log.Key, log.Value));
+                }
+            }
+
+            return logsToReturn;
         }
 
         public int LastLogIndex
         {
             get
             {
-                if(_log.Count == 0)
+                var lastLog = _log.LastOrDefault();
+
+                if(lastLog.Value != null)
                 {
-                    return 0;
+                    return lastLog.Key;
                 }
 
-                return _log.Count - 1;
+                return 1;
             }
         }
 
@@ -40,19 +50,31 @@ namespace Rafty.Log
         {
             get
             {
-                if(_log.Count == 0)
+                 var lastLog = _log.LastOrDefault();
+
+                if(lastLog.Value != null)
                 {
-                    return 0;
+                    return lastLog.Value.Term;
                 }
-                
-                var lastLog = _log[_log.Count - 1];
-                return lastLog.Term;
+
+                return 0;
             }
         }
         
-        public void Apply(LogEntry logEntry)
+        public int Apply(LogEntry logEntry)
         {
-            _log.Add(logEntry);
+            if(_log.Count <= 0)
+            {
+                _log.Add(1, logEntry);
+                return 1;
+
+            }
+            else
+            {
+                var nextIndex = _log.Max(x => x.Key) + 1;
+                _log.Add(nextIndex, logEntry);
+                return nextIndex;
+            }
         }
 
         public long GetTermAtIndex(int index)
@@ -67,27 +89,34 @@ namespace Rafty.Log
                 return 0;
             }
 
-            if (index < 0)
+            if (index <= 0)
             {
-                return 0;
+                throw new Exception("Log starts at 1...");
             }
 
             return _log[index].Term;
         }
 
-        public void DeleteConflictsFromThisLog(LogEntry logEntry)
+        public void DeleteConflictsFromThisLog(int logIndex, LogEntry logEntry)
         {
-            var index = logEntry.CurrentCommitIndex;
-
-            for (int i = index; i < _log.Count; i++)
+            for (int i = logIndex; i <= _log.Max(x => x.Key); i++)
             {
-                var match = _log[i];
+                var match = _log[logIndex];
                 if (match.Term != logEntry.Term)
                 {
-                    var toRemove = _log.Count - i;
-                    _log.RemoveRange(i, toRemove);
+                    var toRemove = _log.Max(x => x.Key) - i;
+                    RemoveRange(i, toRemove);
                     break;
                 }
+            }
+        }
+
+        private void RemoveRange(int indexToRemove, int toRemove)
+        {
+            while(_log.ContainsKey(indexToRemove))
+            {
+                _log.Remove(indexToRemove);
+                indexToRemove++;
             }
         }
 
@@ -95,6 +124,11 @@ namespace Rafty.Log
 
         public LogEntry Get(int index)
         {
+            if (index <= 0)
+            {
+                throw new Exception("Log starts at 1...");
+            }
+
             if(_log.Count >= (index + 1))
             {
                 return _log[index];

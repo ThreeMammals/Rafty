@@ -195,9 +195,11 @@ namespace Rafty.Concensus
             }
 
             //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
-            foreach (var log in appendEntries.Entries)
+            var count = 1;
+            foreach (var newLog in appendEntries.Entries)
             {
-                _log.DeleteConflictsFromThisLog(log);
+                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
+                count++;
             }
 
             //Append any new entries not already in the log

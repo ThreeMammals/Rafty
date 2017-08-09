@@ -22,6 +22,8 @@ namespace Rafty.Concensus
         private readonly INode _node;
         private Timer _electionTimer;
         private readonly ISettings _settings;
+        private bool _appendingEntries;
+
 
         public Leader(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, INode node, ISettings settings)
         {
@@ -58,9 +60,9 @@ namespace Rafty.Concensus
             PeerStates = new List<PeerState>();
             foreach (var peer in _peers)
             {
-                var matchIndex = new MatchIndex(peer, -1);
+                var matchIndex = new MatchIndex(peer, 0);
                 //todo apparently you plus one to this but because i started everthing at -1 i dont think i need to?
-                var nextIndex = new NextIndex(peer, _log.LastLogIndex);
+                var nextIndex = new NextIndex(peer, CurrentState.CommitIndex + 1);
                 PeerStates.Add(new PeerState(peer, matchIndex, nextIndex));
             }
         }
@@ -76,7 +78,7 @@ namespace Rafty.Concensus
             Parallel.ForEach(PeerStates, p =>
             {
                 var logsToSend = GetLogsForPeer(p.NextIndex);
-                var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend, CurrentState.CommitIndex));
+                var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.Item2).ToList(), CurrentState.CommitIndex));
                 responses.Add(appendEntriesResponse);
                 //handle response and update state accordingly?
                 lock (_lock)
@@ -84,25 +86,13 @@ namespace Rafty.Concensus
                     if (appendEntriesResponse.Success)
                     {
                         var newMatchIndex =
-                            Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog,
-                                logsToSend.Count > 0 ? logsToSend.Max(x => x.CurrentCommitIndex) : 0);
-
-                        var matchIndex = logsToSend.Count > 0
-                            ? p.MatchIndex.IndexOfHighestKnownReplicatedLog + logsToSend.Max(x => x.CurrentCommitIndex)
-                            : p.MatchIndex.IndexOfHighestKnownReplicatedLog;
-
-                        if (newMatchIndex != matchIndex)
-                        {
-                            
-                        }
-
-                        var nextIndex = p.NextIndex.NextLogIndexToSendToPeer + logsToSend.Count;
+                            Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog, logsToSend.Count > 0 ? logsToSend.Max(x => x.Item1) : 0);
 
                         var newNextIndex = newMatchIndex + 1;
 
-                        if (nextIndex != newNextIndex)
+                        if(newNextIndex < 0 || newMatchIndex < 0)
                         {
-
+                            throw new Exception("Cannot be less than zero");
                         }
 
                         p.UpdateMatchIndex(newMatchIndex);
@@ -113,6 +103,10 @@ namespace Rafty.Concensus
                     if (!appendEntriesResponse.Success)
                     {
                         var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 0 ? 0 : p.NextIndex.NextLogIndexToSendToPeer - 1;
+                        if(nextIndex < 0)
+                        {
+                            
+                        }
                         p.UpdateNextIndex(nextIndex);
                     }
                 }
@@ -136,16 +130,17 @@ namespace Rafty.Concensus
              If there exists an N such that N > commitIndex, a majority
              of matchIndex[i] ≥ N, and log[N].term == currentTerm:
              set commitIndex = N (§5.3, §5.4).*/
-            var n = CurrentState.CommitIndex + 1;
+            
+            var nextCommitIndex = CurrentState.CommitIndex + 1;
             var statesIndexOfHighestKnownReplicatedLogs = PeerStates.Select(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog).ToList();
-            var greaterOrEqualToN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x >= n).ToList();
-            var lessThanN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x < n).ToList();
+            var greaterOrEqualToN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x >= nextCommitIndex).ToList();
+            var lessThanN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x < nextCommitIndex).ToList();
             if (greaterOrEqualToN.Count > lessThanN.Count)
             {
-                if (_log.GetTermAtIndex(n) == CurrentState.CurrentTerm)
+                if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
                 {
                     CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
-                        CurrentState.VotedFor,  n, CurrentState.LastApplied);
+                        CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied);
                 }
             }
         }
@@ -154,38 +149,32 @@ namespace Rafty.Concensus
         {
             //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
-            var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm, CurrentState.CommitIndex);
-            _log.Apply(log);
+            var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm);
+            var index = _log.Apply(log);
             //hack to make sure we dont handle a command twice? Must be a nicer way?
             _handled = false;
-            //cannot return to caller until log is commited to majority of servers..
+            _updated = 0;
+            
+            //ok so the idea of this loop is to wait until the heartbeat has sent this log to a majority of nodes then we commit it to the
+            //state machine
             while (!_handled)
             {
-                Parallel.ForEach(PeerStates, (p, s) =>
+                var commited = 0;
+                
+                foreach(var peer in PeerStates)
                 {
-                    var logs = GetLogsForPeer(p.NextIndex);
-                    //todo - this should not just be latest log?
-                    var appendEntries = new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex,
-                        _log.LastLogTerm, logs, CurrentState.CommitIndex);
-
-                    var appendEntriesResponse = p.Peer.Request(appendEntries);
-
-                    //lock to make sure we dont do this more than once
-                    lock (_lock)
+                    if(peer.MatchIndex.IndexOfHighestKnownReplicatedLog == index)
                     {
-                        if (appendEntriesResponse.Success && !_handled)
-                        {
-                            _updated++;
-                            //If replicated to majority of servers: apply to state machine
-                            if (_updated >= (_peers.Count + 1) / 2 + 1)
-                            {
-                                _fsm.Handle(command);
-                                _handled = true;
-                                SendAppendEntries();
-                            }
-                        }
+                        commited++;
                     }
-                });
+
+                    if (commited >= (_peers.Count) / 2 + 1)
+                    {
+                        _fsm.Handle(command);
+                        _handled = true;
+                        break;
+                    }
+                }
             }
 
             //send append entries to each server...
@@ -197,7 +186,7 @@ namespace Rafty.Concensus
         /// </summary>
         /// <param name="nextIndex"></param>
         /// <returns></returns>
-        public List<LogEntry> GetLogsForPeer(NextIndex nextIndex)
+        public List<Tuple<int,LogEntry>> GetLogsForPeer(NextIndex nextIndex)
         {
             if (_log.Count > 0)
             {
@@ -208,7 +197,7 @@ namespace Rafty.Concensus
                 }
             }
 
-            return new List<LogEntry>();
+            return new List<Tuple<int, LogEntry>>();
         }
 
         AppendEntriesResponse IState.Handle(AppendEntries appendEntries)

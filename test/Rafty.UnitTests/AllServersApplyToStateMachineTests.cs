@@ -35,7 +35,7 @@ namespace Rafty.UnitTests
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
             var fsm = new InMemoryStateMachine();
             var follower = new Follower(currentState, fsm, _log, _random, _node, new SettingsBuilder().Build());
-            var log = new LogEntry("test", typeof(string), 1, 0);
+            var log = new LogEntry("test", typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
                 .WithPreviousLogTerm(1)
@@ -55,7 +55,7 @@ namespace Rafty.UnitTests
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
             var fsm = new InMemoryStateMachine();
             var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
-            var log = new LogEntry("test", typeof(string), 1, 0);
+            var log = new LogEntry("test", typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
                 .WithPreviousLogTerm(1)

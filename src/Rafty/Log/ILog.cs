@@ -1,16 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rafty.Log
 {
     public interface ILog
     {
-        void Apply(LogEntry log);
+        int Apply(LogEntry log);
         LogEntry Get(int index);
-        List<LogEntry> GetFrom(int index);
+        List<Tuple<int, LogEntry>> GetFrom(int index);
         int LastLogIndex {get;}
         long LastLogTerm {get;}
         long GetTermAtIndex(int index);
-        void DeleteConflictsFromThisLog(LogEntry logEntry);
+        void DeleteConflictsFromThisLog(int index, LogEntry logEntry);
         int Count { get; }
     }
 } 

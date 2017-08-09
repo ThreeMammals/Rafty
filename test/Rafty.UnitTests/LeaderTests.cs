@@ -75,7 +75,7 @@ namespace Rafty.UnitTests
                 peers.ForEach(x =>
                 {
                     var peer = (FakePeer)x;
-                    if (peer.AppendEntriesResponses.Count == 1)
+                    if (peer.AppendEntriesResponses.Count >= 1)
                     {
                         passed++;
                     }
@@ -135,10 +135,9 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
             var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
-            var expected = _log.LastLogIndex;
             leader.PeerStates.ForEach(pS =>
             {
-                pS.NextIndex.NextLogIndexToSendToPeer.ShouldBe(expected);
+                pS.NextIndex.NextLogIndexToSendToPeer.ShouldBe(1);
             });
         }
 
@@ -154,7 +153,7 @@ namespace Rafty.UnitTests
             var leader = new Leader(_currentState,_fsm, _peers, _log, _node, new SettingsBuilder().Build());
             leader.PeerStates.ForEach(pS =>
             {
-                pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(-1);
+                pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(0);
             });
         }
         
@@ -168,15 +167,15 @@ namespace Rafty.UnitTests
             }
 
             //add 3 logs
-            var logOne = new LogEntry("1", typeof(string), 1, 0);
+            var logOne = new LogEntry("1", typeof(string), 1);
             _log.Apply(logOne);
-            var logTwo = new LogEntry("2", typeof(string), 1, 1);
+            var logTwo = new LogEntry("2", typeof(string), 1);
             _log.Apply(logTwo);
-            var logThree = new LogEntry("3", typeof(string), 1, 2);
+            var logThree = new LogEntry("3", typeof(string), 1);
             _log.Apply(logThree);
             _currentState = new CurrentState(_id, 1, default(Guid), 2, 2);
             var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
-            var logs = leader.GetLogsForPeer(new NextIndex(new FakePeer(true, true), 0));
+            var logs = leader.GetLogsForPeer(new NextIndex(new FakePeer(true, true), 1));
             logs.Count.ShouldBe(3);
         }
 
@@ -190,11 +189,11 @@ namespace Rafty.UnitTests
             }
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(Guid), 2, 2);
-            var logOne = new LogEntry("1", typeof(string), 1, 0);
+            var logOne = new LogEntry("1", typeof(string), 1);
             _log.Apply(logOne);
-            var logTwo = new LogEntry("2", typeof(string), 1, 1);
+            var logTwo = new LogEntry("2", typeof(string), 1);
             _log.Apply(logTwo);
-            var logThree = new LogEntry("3", typeof(string), 1, 2);
+            var logThree = new LogEntry("3", typeof(string), 1);
             _log.Apply(logThree);
             var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
 
@@ -204,12 +203,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 2)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 3)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 3)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 4)
                     {
                         passed++;
                     }
@@ -244,12 +243,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == -1)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 0)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
                     {
                         passed++;
                     }
@@ -274,12 +273,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
                     {
                         passed++;
                     }
@@ -305,12 +304,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
                     {
                         passed++;
                     }
@@ -335,12 +334,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 2)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 3)
                     {
                         passed++;
                     }
@@ -359,12 +358,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 2)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 3)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 3)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 4)
                     {
                         passed++;
                     }
@@ -387,13 +386,11 @@ namespace Rafty.UnitTests
                 _peers.Add(peer);
             }
             //add 3 logs
-            _currentState = new CurrentState(_id, 1, default(Guid), 1, 0);
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0);
             var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
             leader.Accept(new FakeCommand());
             leader.Accept(new FakeCommand());
             leader.Accept(new FakeCommand());
-
-            leader.CurrentState.CommitIndex.ShouldBe(2);
 
             bool PeersTest(List<PeerState> peerState)
             {
@@ -401,12 +398,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 2)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 3)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 3)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 4)
                     {
                         passed++;
                     }
@@ -415,6 +412,7 @@ namespace Rafty.UnitTests
                 return passed == peerState.Count * 2;
             }
             var result = WaitFor(2000).Until(() => PeersTest(leader.PeerStates));
+            leader.CurrentState.CommitIndex.ShouldBe(3);
             result.ShouldBeTrue();
         }
 
@@ -434,12 +432,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == -1)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 0)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
                     {
                         passed++;
                     }
@@ -467,12 +465,12 @@ namespace Rafty.UnitTests
 
                 peerState.ForEach(pS =>
                 {
-                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == -1)
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
                     {
                         passed++;
                     }
 
-                    if (pS.NextIndex.NextLogIndexToSendToPeer == 0)
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
                     {
                         passed++;
                     }
@@ -482,43 +480,6 @@ namespace Rafty.UnitTests
             }
             var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
             result.ShouldBeTrue();
-        }
-    }
-
-    public class RemoteControledPeer : IPeer
-    {
-        private RequestVoteResponse _requestVoteResponse;
-        private AppendEntriesResponse _appendEntriesResponse;
-        public int RequestVoteResponses { get; private set; }
-        public int AppendEntriesResponses { get; private set; }
-
-        public RemoteControledPeer()
-        {
-            Id = Guid.NewGuid();
-        }
-
-        public Guid Id { get; }
-
-        public void SetRequestVoteResponse(RequestVoteResponse requestVoteResponse)
-        {
-            _requestVoteResponse = requestVoteResponse;
-        }
-
-        public void SetAppendEntriesResponse(AppendEntriesResponse appendEntriesResponse)
-        {
-            _appendEntriesResponse = appendEntriesResponse;
-        }
-
-        public RequestVoteResponse Request(RequestVote requestVote)
-        {
-            RequestVoteResponses++;
-            return _requestVoteResponse;
-        }
-
-        public AppendEntriesResponse Request(AppendEntries appendEntries)
-        {
-            AppendEntriesResponses++;
-            return _appendEntriesResponse;
         }
     }
 }
