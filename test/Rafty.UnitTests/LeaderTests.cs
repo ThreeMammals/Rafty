@@ -135,7 +135,25 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
             var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
-            leader.PeerStates.ForEach(pS =>
+    
+            // bool FirstTest(List<PeerState> peerState)
+            // {
+            //     var passed = 0;
+
+            //     peerState.ForEach(pS =>
+            //     {
+            //         if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+            //         {
+            //             passed++;
+            //         }
+            //     });
+
+            //     return passed == peerState.Count;
+            // }
+            // var result = WaitFor(1000).Until(() => FirstTest(leader.PeerStates));
+            // result.ShouldBeTrue();
+
+             leader.PeerStates.ForEach(pS =>
             {
                 pS.NextIndex.NextLogIndexToSendToPeer.ShouldBe(1);
             });

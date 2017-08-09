@@ -76,7 +76,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         {
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
             var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
-            var requestVoteResponse = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
+            var requestVoteResponse = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).WithLastLogIndex(1).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode) _node;
             node.BecomeFollowerCount.ShouldBe(1);

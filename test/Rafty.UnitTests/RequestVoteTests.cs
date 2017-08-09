@@ -73,7 +73,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         public void FollowerShouldGrantVote()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0);
-            var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(0).WithLastLogTerm(0).WithTerm(1).Build();
+            var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(1).WithLastLogTerm(0).WithTerm(1).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var requestVoteResponse = follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(true);

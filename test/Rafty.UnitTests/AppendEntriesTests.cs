@@ -115,7 +115,7 @@ min(leaderCommit, index of last new entry)
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry("term 1 commit index 1", typeof(string), 1))
                 .WithTerm(1)
-                .WithPreviousLogIndex(0)
+                .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
                 .Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
@@ -128,20 +128,20 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - Follower - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
         public void FollowerShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), -1, -1);
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
             var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
             _log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
                .WithTerm(1)
-               .WithPreviousLogIndex(-1)
+               .WithPreviousLogIndex(1)
                .WithPreviousLogTerm(0)
-               .WithLeaderCommitIndex(0)
+               .WithLeaderCommitIndex(1)
                .Build();
             //assume node has applied log..
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
-            follower.CurrentState.CommitIndex.ShouldBe(0);
+            follower.CurrentState.CommitIndex.ShouldBe(1);
         }
 
         [Fact(DisplayName = "AppendEntries - Candidate - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]

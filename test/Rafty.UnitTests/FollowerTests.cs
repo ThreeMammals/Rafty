@@ -156,9 +156,9 @@ convert to candidate
         public void ShouldUpdateVotedFor()
         {
             _node = new NothingNode();
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
-            var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).Build();
+            var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
             var requestVoteResponse = follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
         }

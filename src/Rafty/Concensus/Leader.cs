@@ -62,7 +62,7 @@ namespace Rafty.Concensus
             {
                 var matchIndex = new MatchIndex(peer, 0);
                 //todo apparently you plus one to this but because i started everthing at -1 i dont think i need to?
-                var nextIndex = new NextIndex(peer, CurrentState.CommitIndex + 1);
+                var nextIndex = new NextIndex(peer, _log.LastLogIndex + 1);
                 PeerStates.Add(new PeerState(peer, matchIndex, nextIndex));
             }
         }
