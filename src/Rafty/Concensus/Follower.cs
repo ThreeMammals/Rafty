@@ -158,6 +158,13 @@ namespace Rafty.Concensus
                 return new RequestVoteResponse(true, CurrentState.CurrentTerm);
             }
 
+            //todo - consolidate with AppendEntries
+            if (requestVote.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+            }
+
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
