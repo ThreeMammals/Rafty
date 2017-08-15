@@ -129,7 +129,7 @@ namespace Rafty.Log
                 throw new Exception("Log starts at 1...");
             }
 
-            if(_log.Count >= (index + 1))
+            if(_log.Count >= index)
             {
                 return _log[index];
             }
