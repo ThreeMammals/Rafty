@@ -147,20 +147,20 @@ min(leaderCommit, index of last new entry)
         [Fact(DisplayName = "AppendEntries - Candidate - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
         public void CandidateShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
             //assume log applied by node?
             var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
             _log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
                .WithTerm(1)
-               .WithPreviousLogIndex(-1)
-               .WithPreviousLogTerm(0)
-               .WithLeaderCommitIndex(0)
+               .WithPreviousLogIndex(1)
+               .WithPreviousLogTerm(1)
+               .WithLeaderCommitIndex(1)
                .Build();
             var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
-            follower.CurrentState.CommitIndex.ShouldBe(0);
+            follower.CurrentState.CommitIndex.ShouldBe(1);
         }
 /*
         [Fact(DisplayName = "AppendEntries - Leader - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
