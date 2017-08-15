@@ -135,7 +135,7 @@ min(leaderCommit, index of last new entry)
                .WithEntry(log)
                .WithTerm(1)
                .WithPreviousLogIndex(1)
-               .WithPreviousLogTerm(0)
+               .WithPreviousLogTerm(1)
                .WithLeaderCommitIndex(1)
                .Build();
             //assume node has applied log..
