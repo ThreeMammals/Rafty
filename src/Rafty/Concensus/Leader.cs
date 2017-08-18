@@ -200,7 +200,7 @@ namespace Rafty.Concensus
             return new List<Tuple<int, LogEntry>>();
         }
 
-        AppendEntriesResponse IState.Handle(AppendEntries appendEntries)
+        public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
             CurrentState nextState = CurrentState;
 
@@ -227,14 +227,14 @@ namespace Rafty.Concensus
                     _fsm.Handle(log.CommandData);
                 }
 
-                nextState = new CurrentState(CurrentState.Id, nextState.CurrentTerm,
+                CurrentState = new CurrentState(CurrentState.Id, nextState.CurrentTerm,
                     CurrentState.VotedFor, commitIndex, lastApplied);
             }
 
             //todo consolidate with request vote
             if (appendEntries.Term > CurrentState.CurrentTerm)
             {
-                nextState = new CurrentState(CurrentState.Id, appendEntries.Term,
+                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
                     CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
                 _node.BecomeFollower(nextState);
                 return new AppendEntriesResponse(nextState.CurrentTerm, true);
