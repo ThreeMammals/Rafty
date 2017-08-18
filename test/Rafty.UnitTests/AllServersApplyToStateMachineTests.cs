@@ -32,27 +32,29 @@ namespace Rafty.UnitTests
         [Fact] 
         public void FollowerShouldApplyLogsToFsm()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
+            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
             var fsm = new InMemoryStateMachine();
             var follower = new Follower(currentState, fsm, _log, _random, _node, new SettingsBuilder().Build());
             var log = new LogEntry("test", typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
                 .WithPreviousLogTerm(1)
+                .WithLeaderCommitIndex(1)
+                .WithPreviousLogIndex(1)
                 .WithEntry(log)
                 .Build();
             //assume node has added the log..
             _log.Apply(log);
             var appendEntriesResponse = follower.Handle(appendEntries);
             follower.CurrentState.CurrentTerm.ShouldBe(1);
-            follower.CurrentState.LastApplied.ShouldBe(0);
+            follower.CurrentState.LastApplied.ShouldBe(1);
             fsm.ExposedForTesting.ShouldBe(1);
         }
 
-         [Fact] 
+        [Fact] 
         public void CandidateShouldApplyLogsToFsm()
         {
-            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), -1, -1);
+            var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
             var fsm = new InMemoryStateMachine();
             var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
             var log = new LogEntry("test", typeof(string), 1);
@@ -60,12 +62,14 @@ namespace Rafty.UnitTests
                 .WithTerm(1)
                 .WithPreviousLogTerm(1)
                 .WithEntry(log)
+                .WithPreviousLogIndex(1)
+                .WithLeaderCommitIndex(1)
                 .Build();
             //assume node has added the log..
             _log.Apply(log);
             var appendEntriesResponse = candidate.Handle(appendEntries);
             candidate.CurrentState.CurrentTerm.ShouldBe(1);
-            candidate.CurrentState.LastApplied.ShouldBe(0);
+            candidate.CurrentState.LastApplied.ShouldBe(1);
             fsm.ExposedForTesting.ShouldBe(1);
             var node = (NothingNode) _node;
             node.BecomeFollowerCount.ShouldBe(1);

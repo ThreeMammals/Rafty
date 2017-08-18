@@ -61,7 +61,7 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid(), 2, default(Guid), 0, 0);
             _log.Apply(new LogEntry("", typeof(string), 2));
-            var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(0).WithPreviousLogTerm(1).Build();
+            var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(1).WithPreviousLogTerm(1).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(false);
