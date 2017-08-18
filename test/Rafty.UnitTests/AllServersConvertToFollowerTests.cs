@@ -57,9 +57,9 @@ set currentTerm = T, convert to follower (§5.1)*/
 
         //candidate
         [Theory]
-        [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 3, 3, typeof(Candidate))]
-        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        [InlineData(0, 2, 2)]
+        [InlineData(2, 3, 3)]
+        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
             var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
@@ -70,9 +70,9 @@ set currentTerm = T, convert to follower (§5.1)*/
         }
 
         [Theory]
-        [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 3, 3, typeof(Candidate))]
-        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        [InlineData(0, 2, 2)]
+        [InlineData(2, 3, 3)]
+        public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
             var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
@@ -81,34 +81,29 @@ set currentTerm = T, convert to follower (§5.1)*/
             var node = (NothingNode) _node;
             node.BecomeFollowerCount.ShouldBe(1);
         }
-/*
+
         //leader
         [Theory]
-        [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 1, 2, typeof(Leader))]
-        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
-        {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
-                TimeSpan.FromSeconds(0), 0, 0);
-            var sendToSelf = new TestingSendToSelf();
-            var leader = new Leader(currentState, sendToSelf, _fsm, _peers, _log, _random);
-            var state = leader.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
-            state.ShouldBeOfType(expectedType);
-            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        [InlineData(0, 2, 2)]
+        [InlineData(2, 3, 3)]
+        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
+        {            
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
+
+            var leader = new Leader(currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = leader.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
+            leader.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
 
         [Theory]
-        [InlineData(0, 2, 2, typeof(Follower))]
-        [InlineData(2, 1, 2, typeof(Leader))]
-        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm, Type expectedType)
+        [InlineData(0, 2, 2)]
+        [InlineData(2, 3, 3)]
+        public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
-            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 
-                TimeSpan.FromSeconds(0), 0, 0);
-            var sendToSelf = new TestingSendToSelf();
-            var leader = new Leader(currentState, sendToSelf, _fsm, _peers, _log, _random);
-            var state = leader.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
-            state.ShouldBeOfType(expectedType);
-            state.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
-        }*/
+            var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
+            var leader = new Leader(currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var state = leader.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).WithLastLogIndex(1).Build());
+            leader.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
+        }
     }
 }

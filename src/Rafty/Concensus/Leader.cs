@@ -244,14 +244,14 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
         }
 
-        RequestVoteResponse IState.Handle(RequestVote requestVote)
+        public RequestVoteResponse Handle(RequestVote requestVote)
         {    
             //todo - consolidate with AppendEntries
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
-                var nextState = new CurrentState(CurrentState.Id, requestVote.Term,
+                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term,
                     CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
-                _node.BecomeFollower(nextState);
+                _node.BecomeFollower(CurrentState);
                 return new RequestVoteResponse(true, CurrentState.CurrentTerm);
             }
 
