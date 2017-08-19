@@ -1,4 +1,4 @@
-/*using System;
+using System;
 using Rafty.Concensus;
 
 namespace Rafty.AcceptanceTests
@@ -7,7 +7,7 @@ namespace Rafty.AcceptanceTests
     {
         private Node _node;
 
-        public Guid Id => _node.Id;
+        public Guid Id => _node.State.CurrentState.Id;
 
         public void SetNode (Node node)
         {
@@ -24,4 +24,4 @@ namespace Rafty.AcceptanceTests
             return _node.Handle(appendEntries);
         }
     }
-}*/
+}
