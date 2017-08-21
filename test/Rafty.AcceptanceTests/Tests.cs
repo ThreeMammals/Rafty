@@ -67,7 +67,6 @@ namespace Rafty.AcceptanceTests
             while(stopwatch.Elapsed.TotalSeconds < 25)
             {
                 Thread.Sleep(1000);
-                //assert
                 var leader = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
                 var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
                 var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
@@ -76,26 +75,50 @@ namespace Rafty.AcceptanceTests
                     if (leader.Count == 1 && followers.Count == 4)
                     {
                         passed = true;
-                        //break;
                     }
                 }
             }
 
             if (!passed)
             {
-                var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-                _output.WriteLine($"Leaders {leaders.Count}");
-                var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-                _output.WriteLine($"Candidate {candidate.Count}");
-                var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-                _output.WriteLine($"Followers {followers.Count}");
+                ReportServers();
                 throw new Exception("A leader was not elected in 25 seconds");
             }
 
-            _output.WriteLine("leader elected...");
-            _output.WriteLine($"Leaders {_servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList().Count}");
-            _output.WriteLine($"Candidate {_servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList().Count}");
-            _output.WriteLine($"Followers {_servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList().Count}");
+            ReportServers();
+        }
+
+        private void ReportServers()
+        {
+            var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
+            _output.WriteLine($"Leaders {leaders.Count}");
+            foreach(var leader in leaders)
+            {
+                _output.WriteLine("Leader");
+                _output.WriteLine($"Id {leader.State.CurrentState.Id}");
+                _output.WriteLine($"Term {leader.State.CurrentState.CurrentTerm}");
+                _output.WriteLine($"VotedFor {leader.State.CurrentState.VotedFor}");
+            }
+
+            var candidates = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
+            _output.WriteLine($"Candidates {candidates.Count}");
+            foreach(var candidate in candidates)
+            {
+                _output.WriteLine("Candidate");
+                _output.WriteLine($"Id {candidate.State.CurrentState.Id}");
+                _output.WriteLine($"Term {candidate.State.CurrentState.CurrentTerm}");
+                _output.WriteLine($"VotedFor {candidate.State.CurrentState.VotedFor}");
+            }
+
+            var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
+            _output.WriteLine($"Followers {followers.Count}");
+            foreach(var follower in followers)
+            {
+                _output.WriteLine("Follower");
+                _output.WriteLine($"Id {follower.State.CurrentState.Id}");
+                _output.WriteLine($"Term {follower.State.CurrentState.CurrentTerm}");
+                _output.WriteLine($"VotedFor {follower.State.CurrentState.VotedFor}");
+            }
         }
 
     //     [Fact]
