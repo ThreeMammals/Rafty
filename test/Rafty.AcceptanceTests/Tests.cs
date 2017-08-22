@@ -386,7 +386,7 @@ namespace Rafty.AcceptanceTests
             var log = new InMemoryLog();
             var fsm = new InMemoryStateMachine();
             var random = new RandomDelay();
-            var settings = new SettingsBuilder().WithMinTimeout(100).WithMaxTimeout(350).WithHeartbeatTimeout(50).Build();
+            var settings = new SettingsBuilder().WithMinTimeout(100).WithMaxTimeout(1000).WithHeartbeatTimeout(50).Build();
             var node = new Node(fsm, log, _peers, random, settings);
             var server = new Server(log, fsm, node);
             _servers.TryAdd(index, server);

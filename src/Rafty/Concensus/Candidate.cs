@@ -252,6 +252,19 @@ namespace Rafty.Concensus
 
         public RequestVoteResponse Handle(RequestVote requestVote)
         {
+              var term = CurrentState.CurrentTerm;
+
+            //If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower (§5.1)
+            if (requestVote.Term > CurrentState.CurrentTerm)
+            {
+                term = requestVote.Term;
+                // update voted for....
+                CurrentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(CurrentState);
+                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+            }
+
             //Reply false if term<currentTerm
             if (requestVote.Term < CurrentState.CurrentTerm)
             {
@@ -268,14 +281,6 @@ namespace Rafty.Concensus
             if (requestVote.LastLogIndex == _log.LastLogIndex &&
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
-                if (requestVote.Term > CurrentState.CurrentTerm)
-                {
-                    CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, CurrentState.VotedFor,
-                        CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                    _node.BecomeFollower(CurrentState);
-                }
-
                 var votedFor = requestVote.CandidateId;
 
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,

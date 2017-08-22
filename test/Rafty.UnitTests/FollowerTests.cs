@@ -80,7 +80,7 @@ convert to candidate
         public void CommitIndexShouldBeInitialisedToMinusOne()
         {
             _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
-            _node.State.CurrentState.CommitIndex.ShouldBe(-1);
+            _node.State.CurrentState.CommitIndex.ShouldBe(0);
         }
 
         [Fact]
@@ -91,10 +91,10 @@ convert to candidate
         }
 
         [Fact]
-        public void LastAppliedShouldBeInitialisedToMinusOne()
+        public void LastAppliedShouldBeInitialisedToZero()
         {
             _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
-            _node.State.CurrentState.LastApplied.ShouldBe(-1);
+            _node.State.CurrentState.LastApplied.ShouldBe(0);
         }
 
         [Fact]
