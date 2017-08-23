@@ -34,5 +34,10 @@ namespace Rafty.UnitTests
         {
             return new RequestVoteResponseBuilder().Build();
         }
+
+        public void Start()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

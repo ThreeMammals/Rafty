@@ -9,26 +9,30 @@ namespace Rafty.Concensus
     {
         private readonly IFiniteStateMachine _fsm;
         private readonly ILog _log;
-        private readonly List<IPeer> _peers;
+        private readonly Func<CurrentState, List<IPeer>> _getPeers;
         private readonly IRandomDelay _random;
         private readonly Settings _settings;
 
-        public Node(IFiniteStateMachine fsm, ILog log, List<IPeer> peers, IRandomDelay random, Settings settings)
+        public Node(IFiniteStateMachine fsm, ILog log, Func<CurrentState, List<IPeer>> getPeers, IRandomDelay random, Settings settings)
         {
             _fsm = fsm;
             _log = log;
-            _peers = peers;
+            _getPeers = getPeers;
             _random = random;
             _settings = settings;
-            BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0));
         }
 
         public IState State { get; private set; }
 
+        public void Start()
+        {
+            BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0));
+        }
+
         public void BecomeCandidate(CurrentState state)
         {
             State.Stop();
-            var candidate = new Candidate(state, _fsm, _peers, _log, _random, this, _settings);
+            var candidate = new Candidate(state, _fsm, _getPeers(state), _log, _random, this, _settings);
             State = candidate;
             candidate.BeginElection();
         }
@@ -36,7 +40,7 @@ namespace Rafty.Concensus
         public void BecomeLeader(CurrentState state)
         {
             State.Stop();
-            State = new Leader(state, _fsm, _peers, _log, this, _settings);
+            State = new Leader(state, _fsm, _getPeers(state), _log, this, _settings);
         }
 
         public void BecomeFollower(CurrentState state)

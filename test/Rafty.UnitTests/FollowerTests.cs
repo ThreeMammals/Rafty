@@ -13,51 +13,6 @@ namespace Rafty.UnitTests
     using Shouldly;
     using Xunit;
 
-/* Followers(�5.2):
-� Respond to RPCs from candidates and leaders
-� If election timeout elapses without receiving AppendEntries
-RPC from current leader or granting vote to candidate:
-convert to candidate
-*/
-
-    public class TestingNode : INode
-    {
-        
-        public IState State { get; private set; }
-
-        public int BecomeCandidateCount { get; private set; }
-
-        public void SetState(IState state)
-        {
-            State = state;
-        }
-
-        public void BecomeLeader(CurrentState state)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void BecomeFollower(CurrentState state)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void BecomeCandidate(CurrentState state)
-        {
-            BecomeCandidateCount++;
-        }
-
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
-        {
-            return State.Handle(appendEntries);
-        }
-
-        public RequestVoteResponse Handle(RequestVote requestVote)
-        {
-            return State.Handle(requestVote);
-        }
-    }
-
     public class FollowerTests 
     {
         private readonly IFiniteStateMachine _fsm;
@@ -79,21 +34,24 @@ convert to candidate
         [Fact]
         public void CommitIndexShouldBeInitialisedToMinusOne()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();
             _node.State.CurrentState.CommitIndex.ShouldBe(0);
         }
 
         [Fact]
         public void CurrentTermShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();
             _node.State.CurrentState.CurrentTerm.ShouldBe(0);
         }
 
         [Fact]
         public void LastAppliedShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();
             _node.State.CurrentState.LastApplied.ShouldBe(0);
         }
 
@@ -121,7 +79,8 @@ convert to candidate
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
@@ -130,7 +89,8 @@ convert to candidate
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             _node.State.ShouldBeOfType<Follower>();
@@ -141,14 +101,16 @@ convert to candidate
         [Fact]
         public void ShouldStartAsFollower()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();
             _node.State.ShouldBeOfType<Follower>();
         }
 
         [Fact]
         public void VotedForShouldBeInitialisedToNone()
         {
-            _node = new Node(_fsm, _log, _peers, _random, new SettingsBuilder().Build());
+            _node = new Node(_fsm, _log, (s) => _peers, _random, new SettingsBuilder().Build());
+            _node.Start();  
             _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
         }
 

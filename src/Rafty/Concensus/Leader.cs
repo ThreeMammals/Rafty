@@ -43,7 +43,7 @@ namespace Rafty.Concensus
         private void ResetElectionTimer()
         {
             _electionTimer?.Dispose();
-            _electionTimer = _electionTimer = new Timer(x =>
+            _electionTimer = new Timer(x =>
             {
                 SendAppendEntries();
 

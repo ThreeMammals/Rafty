@@ -8,6 +8,6 @@
         void BecomeCandidate(CurrentState state);
         AppendEntriesResponse Handle(AppendEntries appendEntries);
         RequestVoteResponse Handle(RequestVote requestVote);
-        
+        void Start();
     }
 }

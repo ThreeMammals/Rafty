@@ -48,7 +48,7 @@ namespace Rafty.Concensus
         {
             var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
             _electionTimer?.Dispose();
-            _electionTimer = _electionTimer = new Timer(x =>
+            _electionTimer = new Timer(x =>
             {
                 ElectionTimerExpired();
 

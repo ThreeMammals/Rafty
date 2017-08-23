@@ -31,7 +31,6 @@ namespace Rafty.AcceptanceTests
             _servers = new ConcurrentDictionary<int, Server>();
             _threads = new Thread[_numberOfServers];
             _peers = new List<IPeer>();
-
             for (int i = 0; i < _numberOfServers; i++)
             {
                 var peer = new NodePeer();
@@ -60,6 +59,12 @@ namespace Rafty.AcceptanceTests
                 var peer = (NodePeer)_peers[i];
                 var server = _servers[i];
                 peer.SetNode(server.Node);
+            }
+
+            _output.WriteLine("start the nodes");
+            foreach(var server in _servers)
+            {
+                server.Value.Node.Start();
             }
     
             var stopwatch = Stopwatch.StartNew();
@@ -386,8 +391,12 @@ namespace Rafty.AcceptanceTests
             var log = new InMemoryLog();
             var fsm = new InMemoryStateMachine();
             var random = new RandomDelay();
-            var settings = new SettingsBuilder().WithMinTimeout(100).WithMaxTimeout(1000).WithHeartbeatTimeout(50).Build();
-            var node = new Node(fsm, log, _peers, random, settings);
+            var settings = new SettingsBuilder().WithMinTimeout(350).WithMaxTimeout(1000).WithHeartbeatTimeout(50).Build();
+            Func<CurrentState, List<IPeer>> getPeers = state => {
+                var peersThatAreNotThisServer = _peers.Where(p => p?.Id != state.Id).ToList();
+                return peersThatAreNotThisServer;
+            };
+            var node = new Node(fsm, log, getPeers, random, settings);
             var server = new Server(log, fsm, node);
             _servers.TryAdd(index, server);
         }

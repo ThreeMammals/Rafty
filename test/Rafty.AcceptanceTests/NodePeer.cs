@@ -16,12 +16,26 @@ namespace Rafty.AcceptanceTests
 
         public RequestVoteResponse Request(RequestVote requestVote)
         {
-            return _node.Handle(requestVote);
+            try
+            {
+                return _node.Handle(requestVote);
+            }
+            catch(Exception e)
+            {
+                return new RequestVoteResponse(false, 0);
+            }
         }
 
         public AppendEntriesResponse Request(AppendEntries appendEntries)
         {
-            return _node.Handle(appendEntries);
+            try
+            {
+                return _node.Handle(appendEntries);
+            }
+            catch(Exception e)
+            {
+                return new AppendEntriesResponse(0, false);
+            }
         }
     }
 }
