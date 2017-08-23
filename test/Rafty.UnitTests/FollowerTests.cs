@@ -124,5 +124,21 @@ namespace Rafty.UnitTests
             var requestVoteResponse = follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
         }
+
+        [Fact]
+        public void ShouldVoteForNewCandidateInAnotherTermsElection()
+        {
+             _node = new NothingNode();
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            var requestVoteResponse = follower.Handle(requestVote);
+            follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+            requestVoteResponse.VoteGranted.ShouldBeTrue();
+            requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            requestVoteResponse = follower.Handle(requestVote);
+            requestVoteResponse.VoteGranted.ShouldBeTrue();
+            follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+        }
     }
 }

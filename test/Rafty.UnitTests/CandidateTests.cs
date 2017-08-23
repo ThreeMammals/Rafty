@@ -202,5 +202,21 @@ follower
             candidate.BeginElection();
             candidate.CurrentState.VotedFor.ShouldBe(_id);
         }
+
+        [Fact]
+        public void ShouldVoteForNewCandidateInAnotherTermsElection()
+        {
+            _node = new NothingNode();
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            var requestVoteResponse = candidate.Handle(requestVote);
+            candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+            requestVoteResponse.VoteGranted.ShouldBeTrue();
+            requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            requestVoteResponse = candidate.Handle(requestVote);
+            requestVoteResponse.VoteGranted.ShouldBeTrue();
+            candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+        }
     }
 }

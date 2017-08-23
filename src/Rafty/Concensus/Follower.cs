@@ -135,7 +135,7 @@ namespace Rafty.Concensus
                 // update voted for....
                 CurrentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId,
                     CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
             }
 
             //Reply false if term<currentTerm
@@ -155,8 +155,7 @@ namespace Rafty.Concensus
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
                 // update voted for....
-                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 _messagesSinceLastElectionExpiry++;
                 return new RequestVoteResponse(true, CurrentState.CurrentTerm);
