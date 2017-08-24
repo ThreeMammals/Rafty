@@ -9,5 +9,6 @@
         AppendEntriesResponse Handle(AppendEntries appendEntries);
         RequestVoteResponse Handle(RequestVote requestVote);
         void Start();
+        void Stop();
     }
 }

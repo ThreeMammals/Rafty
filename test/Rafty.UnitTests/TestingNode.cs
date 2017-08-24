@@ -50,5 +50,10 @@ namespace Rafty.UnitTests
         {
             throw new NotImplementedException();
         }
+
+        public void Stop()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
