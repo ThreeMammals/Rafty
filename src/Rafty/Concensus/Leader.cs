@@ -113,7 +113,7 @@ namespace Rafty.Concensus
                     {
                         if(logsToSend.Count > 0)
                         {
-                            //Console.WriteLine("appendEntriesResponse failed with logs > 0");
+                            Console.WriteLine("appendEntriesResponse failed with logs > 0");
                         }
                         var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 1 ? 1 : p.NextIndex.NextLogIndexToSendToPeer - 1;
                         if(nextIndex < 0)
