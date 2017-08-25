@@ -18,18 +18,16 @@ namespace Rafty.AcceptanceTests
     public class Tests : IDisposable
     {
         private ConcurrentDictionary<int, Server> _servers;
-        private Thread[] _threads;
         private List<IPeer> _peers;
         private int _numberOfServers;
         private readonly ITestOutputHelper _output;
-
+        private KeyValuePair<int, Server> _previousLeader;
 
         public Tests(ITestOutputHelper output)
         {
             _output = output;
             _numberOfServers = 5;
             _servers = new ConcurrentDictionary<int, Server>();
-            _threads = new Thread[_numberOfServers];
             _peers = new List<IPeer>();
             for (int i = 0; i < _numberOfServers; i++)
             {
@@ -55,6 +53,7 @@ namespace Rafty.AcceptanceTests
             StartNodes();
             AssertLeaderElectedAndRemainsLeader();
         }
+
         [Fact]
         public void ShouldElectANewLeaderAfterPreviousOneDies()
         {
@@ -65,138 +64,61 @@ namespace Rafty.AcceptanceTests
             AssertLeaderElected(3);
         }
 
-    //     [Fact]
-    //     public void ShouldAllowOldLeaderBackIntoTheCluster()
-    //     {
-    //         //set up the servers on diff threads
-    //         for (int i = 0; i < _numberOfServers; i++)
-    //         {   
-    //             var localIndex = i;
-    //             var thread = new Thread(x => StartServer(localIndex));
-    //             thread.Start();
-    //             _threads[localIndex] = thread;
-    //         }
+        [Fact]
+        public void ShouldAllowPreviousLeaderBackIntoTheCluster()
+        {
+            CreateServers();
+            AssignNodesToPeers();
+            StartNodes();
+            KillTheLeader();
+            AssertLeaderElected(3);
+            BringPreviousLeaderBackToLife();
+            AssertLeaderElected(4);
+        }
 
-    //         _output.WriteLine("wait for threads to start..");
-    //         Thread.Sleep(2000);
+        [Fact]
+        public void LeaderShouldAcceptCommandThenPersistToFollowersAndApplyToStateMachine()
+        {
+            CreateServers();
+            AssignNodesToPeers();
+            StartNodes();
+            AssertLeaderElected(4);
 
-    //         _output.WriteLine("set the node for each peer");
-    //         for (int i = 0; i < _numberOfServers; i++)
-    //         {
-    //             var peer = (NodePeer)_peers[i];
-    //             var server = _servers[i];
-    //             peer.SetNode(server.Node);
-    //         }
+            var leaderServer = _servers.First(x => x.Value.Node.State is Leader);
+            var command = new FakeCommand();
+            leaderServer.Value.Node.Accept(command);
 
-    //         _output.WriteLine("start each node");
-    //         for (int i = 0; i < _numberOfServers; i++)
-    //         {
-    //             var server = _servers[i];
-    //             var peers = _peers.Where(x => x?.Id != server?.Node?.Id).ToList();
-    //             server.Node.Start(peers, TimeSpan.FromMilliseconds(1000));
-    //         }       
+            var appliedToLeaderFsm = false;
+            var stopWatch = Stopwatch.StartNew();
+            while(stopWatch.Elapsed.Seconds < 25)
+            {
+                var fsm = (InMemoryStateMachine)leaderServer.Value.Fsm;
+                if(fsm.ExposedForTesting == 1)
+                {
+                    appliedToLeaderFsm = true;
+                    break;
+                }
+            }
 
-    //         var stopwatch = Stopwatch.StartNew();
-    //         var passed = false;
-    //         while(stopwatch.Elapsed.TotalSeconds < 50)
-    //         {
-    //             Thread.Sleep(1000);
-    //             var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-    //             var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-    //             var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-    //             if (leaders.Count > 0)
-    //             {
-    //                 if (leaders.Count == 1 && followers.Count == 4)
-    //                 {
-    //                     passed = true;
-    //                     break;
-    //                 }
-    //             }
-    //         }
+            if(!appliedToLeaderFsm)
+            {
+                var leader = (Leader)leaderServer.Value.Node.State;
+                _output.WriteLine($"Leader SendAppendEntriesCount {leader.SendAppendEntriesCount}");
+                var log = (InMemoryLog)leaderServer.Value.Log;
+                var fsm = (InMemoryStateMachine)leaderServer.Value.Fsm;
+                _output.WriteLine($"Leader log count {log.Count}");
+                _output.WriteLine($"Leader fsm count {fsm.ExposedForTesting}");
+                throw new Exception("Command was not applied to leader state machine..");
+            }
+        }
 
-    //         if (!passed)
-    //         {
-    //             var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-    //             _output.WriteLine($"Leaders {leaders.Count}");
-    //             var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-    //             _output.WriteLine($"Candidate {candidate.Count}");
-    //             var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-    //             _output.WriteLine($"Followers {followers.Count}");
-    //             throw new Exception("A leader was not elected in 50 seconds");
-    //         }
+        private void BringPreviousLeaderBackToLife()
+        {
+             //now we need to start that old node up..
+            _previousLeader.Value.Node.Start();
+            _servers.TryAdd(_previousLeader.Key, _previousLeader.Value);
+        }
 
-    //         //so we know a leader was elected..
-    //         //lets stop our current leader and see what happens..
-    //         var leaderServer = _servers.First(x => x.Value.Node.State.GetType() == typeof(Leader));
-    //         leaderServer.Value.SendToSelf.Dispose();
-    //         _servers.TryRemove(leaderServer.Key, out Server test);
-
-    //         //wait and see if we get a new leader..
-    //         stopwatch = Stopwatch.StartNew();
-    //         passed = false;
-    //         while(stopwatch.Elapsed.TotalSeconds < 50)
-    //         {
-    //             Thread.Sleep(1000);
-    //             //assert
-    //             var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-    //             var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-    //             var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-    //             if (leaders.Count > 0)
-    //             {
-    //                 if (leaders.Count == 1 && followers.Count == 3)
-    //                 {
-    //                     passed = true;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-
-    //         if (!passed)
-    //         {
-    //             var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-    //             _output.WriteLine($"Leaders {leaders.Count}");
-    //             var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-    //             _output.WriteLine($"Candidate {candidate.Count}");
-    //             var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-    //             _output.WriteLine($"Followers {followers.Count}");
-    //             throw new Exception("Didnt elect new leader after 50 seconds");
-    //         }
-
-    //         //now we need to start that old node up..
-    //         leaderServer.Value.SendToSelf.Restart();
-    //         _servers.TryAdd(leaderServer.Key, leaderServer.Value);
-
-    //         //wait and see if they go back into cluster ok
-    //         stopwatch = Stopwatch.StartNew();
-    //         passed = false;
-    //         while(stopwatch.Elapsed.TotalSeconds < 50)
-    //         {
-    //             Thread.Sleep(10000);
-    //             var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-    //             var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-    //             var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-    //             if (leaders.Count > 0)
-    //             {
-    //                 if (leaders.Count == 1 && followers.Count == 4)
-    //                 {
-    //                     passed = true;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-
-    //         if(!passed)
-    //         {
-    //             var leaders = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
-    //             _output.WriteLine($"Leaders {leaders.Count}");
-    //             var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
-    //             _output.WriteLine($"Candidate {candidate.Count}");
-    //             var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
-    //             _output.WriteLine($"Followers {followers.Count}");
-    //             throw new Exception("Old leader did not join cluster in the correct way after 50 seconds");
-    //         }
-    //     }
-    
         private void KillTheLeader()
         {
             Thread.Sleep(2000);
@@ -215,6 +137,7 @@ namespace Rafty.AcceptanceTests
             _output.WriteLine($"Term - {leaderServer.Value.Node.State.CurrentState.CurrentTerm}");
             _output.WriteLine($"VotedFor - {leaderServer.Value.Node.State.CurrentState.VotedFor}");
             _output.WriteLine("leader dies...");
+            _previousLeader = leaderServer;
         }
 
         private void ReportServers()
@@ -255,7 +178,7 @@ namespace Rafty.AcceptanceTests
             var log = new InMemoryLog();
             var fsm = new InMemoryStateMachine();
             var random = new RandomDelay();
-            var settings = new SettingsBuilder().WithMinTimeout(350).WithMaxTimeout(1000).WithHeartbeatTimeout(50).Build();
+            var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
             Func<CurrentState, List<IPeer>> getPeers = state => {
                 var peersThatAreNotThisServer = _peers.Where(p => p?.Id != state.Id).ToList();
                 return peersThatAreNotThisServer;
@@ -337,17 +260,11 @@ namespace Rafty.AcceptanceTests
 
         private void CreateServers()
         {
-            //set up the servers on diff threads
             for (int i = 0; i < _numberOfServers; i++)
             {   
                 var localIndex = i;
-                var thread = new Thread(x => StartServer(localIndex));
-                thread.Start();
-                _threads[localIndex] = thread;
+                StartServer(localIndex);
             }
-
-            _output.WriteLine("wait for threads to start..");
-            Thread.Sleep(2000);
         }
 
         private void AssignNodesToPeers()
@@ -375,5 +292,10 @@ namespace Rafty.AcceptanceTests
             {
             }
         }
+    }
+
+    public class FakeCommand
+    {
+        public string Value => "FakeCommand";
     }
 }

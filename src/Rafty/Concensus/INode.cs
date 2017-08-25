@@ -10,5 +10,6 @@
         RequestVoteResponse Handle(RequestVote requestVote);
         void Start();
         void Stop();
+        Response<T> Accept<T>(T command);
     }
 }

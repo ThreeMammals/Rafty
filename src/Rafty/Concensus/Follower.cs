@@ -62,14 +62,22 @@ namespace Rafty.Concensus
         {
             //Reply false if term < currentTerm (§5.1)
             if (appendEntries.Term < CurrentState.CurrentTerm)
-            {
+            { 
+                if(appendEntries.Entries.Count > 0)
+                {
+                    Console.WriteLine("Follower voting false because AE term less than current term");
+                }
                 return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
             }
 
             // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
             var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
-            if (termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
             {
+                if(appendEntries.Entries.Count > 0)
+                {
+                    Console.WriteLine("Follower voting false because terms at previous log index dont match");
+                }
                 return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
             }
 
@@ -121,6 +129,11 @@ namespace Rafty.Concensus
 
             _messagesSinceLastElectionExpiry++;
 
+            
+            if(appendEntries.Entries.Count > 0)
+            {
+                Console.WriteLine("Follower voting true");
+            }
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 

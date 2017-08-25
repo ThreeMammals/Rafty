@@ -23,6 +23,7 @@ namespace Rafty.Concensus
         private Timer _electionTimer;
         private readonly ISettings _settings;
         private bool _appendingEntries;
+        public long SendAppendEntriesCount;
 
 
         public Leader(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, INode node, ISettings settings)
@@ -73,11 +74,15 @@ namespace Rafty.Concensus
 
         private void SendAppendEntries()
         {
+            SendAppendEntriesCount++;
+            //Console.WriteLine($"SendAppendEntriesCount = {SendAppendEntriesCount}");
+
             var responses = new ConcurrentBag<AppendEntriesResponse>();
 
             Parallel.ForEach(PeerStates, p =>
             {
                 var logsToSend = GetLogsForPeer(p.NextIndex);
+              
                 var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.Item2).ToList(), CurrentState.CommitIndex));
                 responses.Add(appendEntriesResponse);
                 //handle response and update state accordingly?
@@ -85,6 +90,10 @@ namespace Rafty.Concensus
                 {
                     if (appendEntriesResponse.Success)
                     {
+                        if(logsToSend.Count > 0)
+                        {
+                            Console.WriteLine("appendEntriesResponse success with logs > 0");
+                        }
                         var newMatchIndex =
                             Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog, logsToSend.Count > 0 ? logsToSend.Max(x => x.Item1) : 0);
 
@@ -102,7 +111,11 @@ namespace Rafty.Concensus
 
                     if (!appendEntriesResponse.Success)
                     {
-                        var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 0 ? 0 : p.NextIndex.NextLogIndexToSendToPeer - 1;
+                        if(logsToSend.Count > 0)
+                        {
+                            //Console.WriteLine("appendEntriesResponse failed with logs > 0");
+                        }
+                        var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 1 ? 1 : p.NextIndex.NextLogIndexToSendToPeer - 1;
                         if(nextIndex < 0)
                         {
                             
@@ -175,6 +188,8 @@ namespace Rafty.Concensus
                         break;
                     }
                 }
+
+                Thread.Sleep(_settings.HeartbeatTimeout);
             }
 
             //send append entries to each server...

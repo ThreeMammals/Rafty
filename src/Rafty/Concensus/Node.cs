@@ -59,6 +59,10 @@ namespace Rafty.Concensus
             return State.Handle(requestVote);
         }
 
+        public Response<T> Accept<T>(T command)
+        {
+            return State.Accept(command);
+        }
         public void Stop()
         {
             State.Stop();

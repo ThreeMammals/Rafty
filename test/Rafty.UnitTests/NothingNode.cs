@@ -44,5 +44,10 @@ namespace Rafty.UnitTests
         {
             throw new System.NotImplementedException();
         }
+
+        public Response<T> Accept<T>(T command)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

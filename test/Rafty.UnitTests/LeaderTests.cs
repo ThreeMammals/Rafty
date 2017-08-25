@@ -450,6 +450,44 @@ namespace Rafty.UnitTests
             result.ShouldBeTrue();
         }
 
+
+
+        [Fact]
+        public void ShouldReplicateCommand()
+        {
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true, true));
+            }
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0);
+            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var command = new FakeCommand();
+            var response = leader.Accept(command);
+            response.Success.ShouldBeTrue();
+            bool TestPeerStates(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            result.ShouldBeTrue();
+        }
+
         [Fact]
         public void ShouldBeAbleToHandleWhenLeaderHasNoLogsAndCandidatesReturnFail()
         {
