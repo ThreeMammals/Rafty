@@ -128,12 +128,7 @@ namespace Rafty.Concensus
                 CurrentState.VotedFor, commitIndex, lastApplied);
 
             _messagesSinceLastElectionExpiry++;
-
             
-            if(appendEntries.Entries.Count > 0)
-            {
-                Console.WriteLine("Follower voting true");
-            }
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 

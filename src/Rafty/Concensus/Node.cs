@@ -26,7 +26,14 @@ namespace Rafty.Concensus
 
         public void Start()
         {
-            BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0));
+            if(State?.CurrentState == null)
+            {
+                BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0));
+            }
+            else
+            {
+                BecomeFollower(State.CurrentState);
+            }
         }
 
         public void BecomeCandidate(CurrentState state)

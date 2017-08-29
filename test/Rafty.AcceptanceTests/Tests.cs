@@ -83,17 +83,60 @@ namespace Rafty.AcceptanceTests
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
+            SendCommandToLeader();
+            AssertCommandAccepted(1, 4);
+        }
 
+        [Fact]
+        public void LeaderShouldAcceptManyCommandsThenPersistToFollowersAndApplyToStateMachine()
+        {
+            CreateServers();
+            AssignNodesToPeers();
+            StartNodes();
+            AssertLeaderElected(4);
+            SendCommandToLeader();
+            AssertCommandAccepted(1, 4);
+            SendCommandToLeader();
+            AssertCommandAccepted(2, 4);
+            SendCommandToLeader();
+            AssertCommandAccepted(3, 4);
+            SendCommandToLeader();
+            AssertCommandAccepted(4, 4);
+        }
+
+        [Fact]
+        public void ShouldCatchUpIfNodeDies()
+        {
+            CreateServers();
+            AssignNodesToPeers();
+            StartNodes();
+            KillTheLeader();
+            AssertLeaderElected(3);
+            SendCommandToLeader();
+            AssertCommandAccepted(1, 3);
+            BringPreviousLeaderBackToLife();
+            AssertLeaderElected(4);
+            AssertCommandAccepted(1, 4);
+            SendCommandToLeader();
+            AssertCommandAccepted(2, 4);
+        }
+
+        private void SendCommandToLeader()
+        {
             var leaderServer = _servers.First(x => x.Value.Node.State is Leader);
             var command = new FakeCommand();
             leaderServer.Value.Node.Accept(command);
+        }
 
+        private void AssertCommandAccepted(int expectedReplicatedCount, int expectedFollowers)
+        {
+            var leaderServer = _servers.First(x => x.Value.Node.State is Leader);
             var appliedToLeaderFsm = false;
             var stopWatch = Stopwatch.StartNew();
             while(stopWatch.Elapsed.Seconds < 25)
             {
-                var fsm = (InMemoryStateMachine)leaderServer.Value.Fsm;
-                if(fsm.ExposedForTesting == 1)
+                var finiteStateMachine = (InMemoryStateMachine)leaderServer.Value.Fsm;
+                if(finiteStateMachine.ExposedForTesting == expectedReplicatedCount)
                 {
                     appliedToLeaderFsm = true;
                     break;
@@ -104,11 +147,33 @@ namespace Rafty.AcceptanceTests
             {
                 var leader = (Leader)leaderServer.Value.Node.State;
                 _output.WriteLine($"Leader SendAppendEntriesCount {leader.SendAppendEntriesCount}");
-                var log = (InMemoryLog)leaderServer.Value.Log;
-                var fsm = (InMemoryStateMachine)leaderServer.Value.Fsm;
-                _output.WriteLine($"Leader log count {log.Count}");
-                _output.WriteLine($"Leader fsm count {fsm.ExposedForTesting}");
+                var inMemoryLog = (InMemoryLog)leaderServer.Value.Log;
+                var inMemoryStateMachine = (InMemoryStateMachine)leaderServer.Value.Fsm;
+                _output.WriteLine($"Leader log count {inMemoryLog.Count}");
+                _output.WriteLine($"Leader fsm count {inMemoryStateMachine.ExposedForTesting}");
                 throw new Exception("Command was not applied to leader state machine..");
+            }
+
+            appliedToLeaderFsm.ShouldBeTrue();
+            var state = (Leader)leaderServer.Value.Node.State;
+            var log = (InMemoryLog)leaderServer.Value.Log;
+            var fsm = (InMemoryStateMachine)leaderServer.Value.Fsm;
+            log.Count.ShouldBe(expectedReplicatedCount);
+            fsm.ExposedForTesting.ShouldBe(expectedReplicatedCount);
+
+
+            //check followers
+            var followers = _servers.Select(x => x.Value).Where(x => x.Node.State.GetType() == typeof(Follower)).ToList();
+
+            followers.Count.ShouldBe(expectedFollowers);
+
+            foreach(var follower in followers)
+            {
+                var followerState = (Follower)follower.Node.State;
+                var followerLog = (InMemoryLog)follower.Log;
+                var followerFsm = (InMemoryStateMachine)follower.Fsm;
+                followerLog.Count.ShouldBe(expectedReplicatedCount);
+                followerFsm.ExposedForTesting.ShouldBe(expectedReplicatedCount);
             }
         }
 

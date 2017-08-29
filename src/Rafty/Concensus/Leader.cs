@@ -90,10 +90,6 @@ namespace Rafty.Concensus
                 {
                     if (appendEntriesResponse.Success)
                     {
-                        if(logsToSend.Count > 0)
-                        {
-                            Console.WriteLine("appendEntriesResponse success with logs > 0");
-                        }
                         var newMatchIndex =
                             Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog, logsToSend.Count > 0 ? logsToSend.Max(x => x.Item1) : 0);
 
@@ -111,10 +107,6 @@ namespace Rafty.Concensus
 
                     if (!appendEntriesResponse.Success)
                     {
-                        if(logsToSend.Count > 0)
-                        {
-                            Console.WriteLine("appendEntriesResponse failed with logs > 0");
-                        }
                         var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 1 ? 1 : p.NextIndex.NextLogIndexToSendToPeer - 1;
                         if(nextIndex < 0)
                         {

@@ -99,6 +99,11 @@ namespace Rafty.Log
 
         public void DeleteConflictsFromThisLog(int logIndex, LogEntry logEntry)
         {
+            if(logIndex > 1 && logIndex > _log.Count -1)
+            {
+                return;
+            }
+
             for (int i = logIndex; i <= _log.Max(x => x.Key); i++)
             {
                 var match = _log[logIndex];
