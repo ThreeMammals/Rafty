@@ -1,250 +1,222 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using Moq;
-using Rafty.Messages;
-using Rafty.Messaging;
-using Rafty.Raft;
-using Rafty.Responses;
-using Rafty.ServiceDiscovery;
-using Rafty.State;
-using Shouldly;
-using TestStack.BDDfy;
-using Xunit;
-
 namespace Rafty.UnitTests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Concensus;
+    using Rafty.FiniteStateMachine;
+    using Rafty.Log;
+    using Shouldly;
+    using Xunit;
+
+/*Candidates(�5.2):
+� On conversion to candidate, start election:
+� Increment currentTerm
+� Vote for self
+� Reset election timer
+� Send RequestVote RPCs to all other servers
+� If votes received from majority of servers: become leader
+� If AppendEntries RPC received from new leader: convert to
+follower
+� If election timeout elapses: start new election*/
+
     public class CandidateTests
     {
-        private Mock<IMessageBus> _messageBus;
-        private Server _server;
-        private InMemoryServersInCluster _serversInCluster;
-        private FakeStateMachine _fakeStateMachine;
+        private IFiniteStateMachine _fsm;
+        private ILog _log;
+        private List<IPeer> _peers;
+        private IRandomDelay _random;
+        private INode _node;
+        private readonly Guid _id;
+        private CurrentState _currentState;
 
         public CandidateTests()
         {
-            _messageBus = new Mock<IMessageBus>();
-            _serversInCluster = new InMemoryServersInCluster();
+            _random = new RandomDelay();
+            _log = new InMemoryLog();
+            _peers = new List<IPeer>();
+            _fsm = new InMemoryStateMachine();
+            _id = Guid.NewGuid();
+            _node = new NothingNode();
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
         }
 
         [Fact]
-        public void server_should_increment_current_term_on_conversion_to_candidate()
+        public void ShouldStartNewElectionIfTimesout()
         {
-            var remoteServers = new List<ServerInCluster>
+            _peers = new List<IPeer>
             {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
+                new FakePeer(false),
+                new FakePeer(false),
+                new FakePeer(true),
+                new FakePeer(true)
             };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerDoesNotReceivesVotesFromAllRemoteServers())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => TheServerIsACandidate())
-                .And(x => ThenTheCurrentTermIs(1))
-                .BDDfy();
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            candidate.ShouldBeOfType<Candidate>();
+            candidate.CurrentState.CurrentTerm.ShouldBe(1);
         }
 
         [Fact]
-        public void server_should_vote_for_itself_on_conversion_to_candidate()
+        public void ShouldBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermGreaterThanCurrentTerm()
         {
-            this.Given(x => GivenANewServer())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => TheServerVotesForItself())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_reset_election_timer_on_conversion_to_candidate()
-        {
-            this.Given(x => GivenANewServer())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheServerResetsElectionTimer())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_request_votes_from_all_nodes_conversion_to_candidate()
-        {
-            var remoteServers = new List<ServerInCluster>
+            _peers = new List<IPeer>
             {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
+                new FakePeer(false),
+                new FakePeer(false),
+                new FakePeer(true),
+                new FakePeer(true)
             };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesVotesFromAllRemoteServers())
-                .And(x => x.GivenAllServersAppendEntries())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheServerRequestsVotesFromAllRemoteServers())
-                .BDDfy();
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
+            appendEntriesResponse.Success.ShouldBeTrue();
+            var node = (NothingNode)_node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
 
         [Fact]
-        public void server_should_become_leader_if_votes_received_from_majority_of_servers()
+        public void ShouldBecomeFollowerIfRequestVoteResponseTermGreaterThanCurrentTerm()
         {
-             var remoteServers = new List<ServerInCluster>
+            _peers = new List<IPeer>
             {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
+                new FakePeer(10),
+                new FakePeer(true),
+                new FakePeer(true),
+                new FakePeer(true)
             };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesVotesFromAllRemoteServers())
-                .And(x => x.GivenAllServersAppendEntries())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheServerIsTheLeader())
-                .And(x => ThenTheCurrentTermVotesAre(3))
-                .BDDfy();
-        }
-
-        private void GivenAllServersAppendEntries()
-        {
-            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
-
-            _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            var node = (NothingNode)_node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
 
         [Fact]
-        public void server_should_become_follower_if_receives_append_entries_while_candidate()
+        public void ShouldNotBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermLessThanCurrentTerm()
         {
-            var appendEntries = new AppendEntries(0, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.NewGuid())))
-                .When(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheServerIsAFollower())
-                .And(x => ThenTheCurrentTermVotesAre(0))
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_restart_election_if_election_times_out()
-        {
-            var remoteServers = new List<ServerInCluster>
+            _peers = new List<IPeer>
             {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
+                new FakePeer(false),
+                new FakePeer(false),
+                new FakePeer(true),
+                new FakePeer(true)
             };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerDoesNotReceivesVotesFromAllRemoteServers())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => TheServerDoesNotReceivesVotesFromAllRemoteServers())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.NewGuid())))
-                .Then(x => ThenTheServerIsACandidate())
-                .And(x => ThenTheCurrentTermVotesAre(1))
-                .BDDfy();
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
+            appendEntriesResponse.Success.ShouldBeFalse();
+            var node = (NothingNode)_node;
+            node.BecomeFollowerCount.ShouldBe(0);
         }
 
         [Fact]
-        public void should_not_restart_election_if_received_append_entries_in_current_term()
+        public void ShouldBecomeFollowerIfDoesntReceiveAnyVotes()
         {
-            this.Given(x => GivenANewServer())
-            .And(x => ServerReceives(new BecomeCandidate(Guid.NewGuid())))
-            .And(x => ServerReceives(new AppendEntries(1, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid())))
-            .When(x => ServerReceives(new BecomeCandidate(Guid.NewGuid())))
-            .Then(x => ThenTheServerIsAFollower())
-            .And(x => ThenTheCurrentTermVotesAre(0))
-            .BDDfy();
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(false));
+            }
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            var node = (NothingNode)_node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
 
-        private void ThenTheServerIsACandidate()
+        [Fact]
+        public void ShouldBecomeFollowerIfDoesntReceiveMajorityOfVotes()
         {
-            _server.State.ShouldBeOfType<Candidate>();
+            _peers = new List<IPeer>
+            {
+                new FakePeer(false),
+                new FakePeer(false),
+                new FakePeer(false),
+                new FakePeer(true)
+            };
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            var node = (NothingNode)_node;
+            node.BecomeFollowerCount.ShouldBe(1);
         }
 
-        private void ThenTheCurrentTermVotesAre(int expected)
+        [Fact]
+        public void ShouldBecomeLeaderIfReceivesMajorityOfVotes()
         {
-            _server.CurrentTermVotes.ShouldBe(expected);
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true));
+            }
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            var node = (NothingNode)_node;
+            node.BecomeLeaderCount.ShouldBe(1);
         }
 
-        private void ThenTheServerIsAFollower()
+        [Fact]
+        public void ShouldIncrementCurrentTermWhenElectionStarts()
         {
-            _server.State.ShouldBeOfType<Follower>();
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true));
+            }
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            candidate.CurrentState.CurrentTerm.ShouldBe(1);
         }
 
-        private void ThenTheServerIsTheLeader()
+        [Fact]
+        public void ShouldRequestVotesFromAllPeersWhenElectionStarts()
         {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true));
+            }
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            _peers.ForEach(x =>
+            {
+                var peer = (FakePeer) x;
+                peer.RequestVoteResponses.Count.ShouldBe(1);
+            });
         }
 
-        private void TheServerReceivesVotesFromAllRemoteServers()
+        [Fact]
+        public void ShouldResetTimeoutWhenElectionStarts()
         {
-            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new RequestVoteResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
-
-            _messageBus.Setup(x => x.Send(It.IsAny<RequestVote>())).ReturnsInOrder(response);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
         }
 
-         private void TheServerDoesNotReceivesVotesFromAllRemoteServers()
+        [Fact]
+        public void ShouldVoteForSelfWhenElectionStarts()
         {
-            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new RequestVoteResponse(_server.CurrentTerm, false, remoteServer.Id, _server.Id))).ToList();
-
-            _messageBus.Setup(x => x.Send(It.IsAny<RequestVote>())).ReturnsInOrder(response);
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true));
+            }
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            candidate.BeginElection();
+            candidate.CurrentState.VotedFor.ShouldBe(_id);
         }
 
-        private void GivenTheFollowingRemoteServers(List<ServerInCluster> remoteServers)
+        [Fact]
+        public void ShouldVoteForNewCandidateInAnotherTermsElection()
         {
-            _serversInCluster.Add(remoteServers);
-        }
-
-        private void ThenTheServerRequestsVotesFromAllRemoteServers()
-        {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
-        }
-
-        private void ThenTheServerResetsElectionTimer()
-        {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
-        }
-
-        private void TheServerVotesForItself()
-        {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
-        }
-
-        private void ThenTheCurrentTermIs(int expected)
-        {
-            _server.CurrentTerm.ShouldBe(expected);
-        }
-
-        private void ServerReceives(BecomeCandidate becomeCandidate)
-        {
-            _server.Receive(becomeCandidate);
-        }
-
-        private void ServerReceives(AppendEntries appendEntries)
-        {
-            _server.Receive(appendEntries).Wait();
-        }
-
-        private void TheServerIsACandidate()
-        {
-            _server.State.ShouldBeOfType<Candidate>();
-        }
-
-        private void GivenANewServer()
-        {
-            _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new LoggerFactory());
+            _node = new NothingNode();
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            var requestVoteResponse = candidate.Handle(requestVote);
+            candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
+            requestVoteResponse.VoteGranted.ShouldBeTrue();
+            requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            requestVoteResponse = candidate.Handle(requestVote);
+            requestVoteResponse.VoteGranted.ShouldBeTrue();
+            candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
         }
     }
 }

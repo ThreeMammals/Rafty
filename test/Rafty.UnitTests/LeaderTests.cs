@@ -1,444 +1,524 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using Moq;
-using Moq.Language.Flow;
-using Rafty.AcceptanceTests;
-using Rafty.Messages;
-using Rafty.Messaging;
-using Rafty.Raft;
-using Rafty.Responses;
-using Rafty.ServiceDiscovery;
-using Rafty.State;
+using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
+using Rafty.Log;
 using Shouldly;
-using TestStack.BDDfy;
 using Xunit;
+using static Rafty.UnitTests.Wait;
 
 namespace Rafty.UnitTests
 {
+    /*
+    state
+    nextIndex[] for each server, index of the next log entry
+    to send to that server (initialized to leader
+    last log index + 1)
+    matchIndex[] for each server, index of highest log entry
+    known to be replicated on server
+    (initialized to 0, increases monotonically)
+
+    behaviour
+    • Upon election: send initial empty AppendEntries RPCs
+    (heartbeat) to each server; repeat during idle periods to
+    prevent election timeouts (§5.2)
+    • If command received from client: append entry to local log,
+    respond after entry applied to state machine (§5.3)
+    • If last log index ≥ nextIndex for a follower: send
+    AppendEntries RPC with log entries starting at nextIndex
+    • If successful: update nextIndex and matchIndex for
+    follower (§5.3)
+    • If AppendEntries fails because of log inconsistency:
+    decrement nextIndex and retry (§5.3)
+    • If there exists an N such that N > commitIndex, a majority
+    of matchIndex[i] ≥ N, and log[N].term == currentTerm:
+    set commitIndex = N (§5.3, §5.4).
+    */
+
     public class LeaderTests
     {
-        private Mock<IMessageBus> _messageBus;
-        private Server _server;
-        private InMemoryServersInCluster _serversInCluster;
-        private FakeCommand _fakeCommand;
-        private FakeStateMachine _fakeStateMachine;
-
-
+        private readonly IFiniteStateMachine _fsm;
+        private INode _node;
+        private readonly Guid _id;
+        private CurrentState _currentState;
+        private List<IPeer> _peers;
+        private readonly ILog _log;
+        private readonly IRandomDelay _delay;
+        
         public LeaderTests()
         {
-            _messageBus = new Mock<IMessageBus>();
-            _serversInCluster = new InMemoryServersInCluster();
+            _delay = new RandomDelay();
+            _log = new InMemoryLog();
+            _peers = new List<IPeer>();
+            _fsm = new InMemoryStateMachine();
+            _id = Guid.NewGuid();
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            _node = new NothingNode();
         }
 
-        [Fact]
-        public void server_should_send_empty_append_entries_on_election()
+        [Fact(DisplayName = "Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts (§5.2)")]
+        public void ShouldSendEmptyAppendEntriesRpcOnElection()
         {
-             var remoteServers = new List<ServerInCluster>
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
             {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheServerReceivesSendHeartbeat())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_convert_to_follower_if_receives_append_entries_from_another_leader()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            var appendEntries = new AppendEntries(0, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid());
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheServerIsAFollower())
-                .BDDfy();
-        }
-
-
-        [Fact]
-        public void server_should_send_period_heartbeat_if_leader()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => TheServerReceivesAppendEntriesResponsesForCommand())
-                .When(x => ServerReceives(new SendHeartbeat()))
-                .Then(x => ThenTheServerSendsAHeartbeatToAllRemoteServers())
-                .And(x => TheServerWillSendAnotherHeartbeatLater())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_issue_append_entries_to_all_remote_servers_when_it_receives_command_from_client()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => TheServerReceivesAppendEntriesResponsesForCommand())
-                .When(x => WhenTheServerReceivesACommand(new FakeCommand(Guid.NewGuid())))
-                .Then(x => ThenTheServerSendAppendEntriesToEachRemoteServer())
-                .And(x => ThenCommandAppendedToLocalLog())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_commit_to_state_machine_when_command_persisted_to_majority_of_servers()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => TheServerReceivesAppendEntriesResponsesForCommand())
-                .And(x => WhenTheServerReceivesACommand(new FakeCommand(Guid.NewGuid())))
-                .Then(x => TheCommandIsAppliedToTheStateMachine())
-                .And(x => ThenTheCurrentTermAppendEntriesResponseIs(0))
-                .And(x => ThenTheCommitIndexIs(0))
-                .And(x => ThenTheLastAppliedIs(0))
-                .BDDfy();
-        }
-
-
-        [Fact]
-        public void server_should_be_leader_and_current_term_votes_are_3()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .When(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheCurrentTermVotesAre(3))
-                .And(x => TheServerIsALeader())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_initialise_next_index_on_election()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheNextIndexIsInitialisedForEachRemoteServer())
-                .BDDfy();
-        }
-
-         [Fact]
-        public void server_should_initialise_match_index_on_election()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .Then(x => ThenTheMatchIndexIsInitialisedForEachRemoteServer())
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_update_match_and_next_index_if_append_entries_succesfull()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .When(x => TheServerReceivesAMajorityOfVotes())
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => TheServerReceivesAppendEntriesResponsesForCommand())
-                .And(x => WhenTheServerReceivesACommand(new FakeCommand(Guid.NewGuid())))
-                .When(x => WhenTheServerReceivesAMajorityOfResponses())
-                .Then(x => ThenTheNextIndexIsUpdated(1))
-                .And(x => ThenTheMatchIndexIsUpdated(0))
-                .BDDfy();
-        }
-
-        [Fact]
-        public void server_should_decrement_next_index_and_retry_if_append_entries_fails()
-        {
-            var remoteServers = new List<ServerInCluster>
-            {
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-                new ServerInCluster(Guid.NewGuid()),
-            };
-
-            this.Given(x => GivenTheFollowingRemoteServers(remoteServers))
-                .And(x => GivenANewServer())
-                .And(x => TheServerReceivesAMajorityOfVotes())                
-                .And(x => ServerReceives(new BecomeCandidate(Guid.Empty)))
-                .And(x => TheServerReceivesAppendEntriesResponsesForCommand())
-                .And(x => WhenTheServerReceivesACommand(new FakeCommand(Guid.NewGuid())))
-                .When(x => WhenTheServerReceivesFailThenASuccessFromARemoteServer(remoteServers[2]))
-                .Then(x => ThenTheAppendEntriesIsRetried())
-                .BDDfy();
-        }
-
-        private void ServerReceives(BecomeCandidate becomeCandidate)
-        {
-            _server.Receive(becomeCandidate);
-        }
-
-        private void ThenTheAppendEntriesIsRetried()
-        {
-            _messageBus.Verify(x => x.Send(It.IsAny<AppendEntries>()), Times.Exactly(10));
-        }
-
-        private void WhenTheServerReceivesFailThenASuccessFromARemoteServer(ServerInCluster serverInCluster)
-        {
-            var fail = new AppendEntriesResponse(_server.CurrentTerm, false, serverInCluster.Id, _server.Id);
-
-            var success = new AppendEntriesResponse(_server.CurrentTerm, true, serverInCluster.Id, _server.Id);
-
-            _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(Task.FromResult(fail), Task.FromResult(success));
-        }
-
-        private void ThenTheCommitIndexIs(int expected)
-        {
-            _server.CommitIndex.ShouldBe(expected);
-        }
-
-        private void ThenTheLastAppliedIs(int expected)
-        {
-            _server.LastApplied.ShouldBe(expected);
-        }
-
-        private void ThenTheNextIndexIsUpdated(int expected)
-        {
-            foreach(var remoteSever in _serversInCluster.All.Where(x => x.Id != _server.Id))
-            {
-                var next = _server.NextIndex.First(x => x.Id == remoteSever.Id);
-                next.NextIndex.ShouldBe(expected);
+                _peers.Add(new FakePeer(true));
             }
-        }
-
-        private void ThenTheMatchIndexIsUpdated(int expected)
-        {
-            foreach(var remoteSever in _serversInCluster.All.Where(x => x.Id != _server.Id))
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            bool TestPeers(List<IPeer> peers)
             {
-                var match = _server.MatchIndex.First(x => x.Id == remoteSever.Id);
-                match.MatchIndex.ShouldBe(expected);
+                var passed = 0;
+
+                peers.ForEach(x =>
+                {
+                    var peer = (FakePeer)x;
+                    if (peer.AppendEntriesResponses.Count >= 1)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peers.Count;
             }
+            var result = WaitFor(1000).Until(() => TestPeers(_peers));
+            result.ShouldBeTrue();
         }
 
-        private void ThenTheMatchIndexIsInitialisedForEachRemoteServer()
+        [Fact(DisplayName = "If command received from client: append entry to local log")]
+        public void ShouldAppendCommandToLocalLog()
         {
-            foreach(var remoteServer in _serversInCluster.All.Where(x => x.Id != _server.Id))
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
             {
-                var match = _server.MatchIndex.First(x => x.Id == remoteServer.Id);
-                match.MatchIndex.ShouldBe(0);
+                var peer = new RemoteControledPeer();
+                peer.SetAppendEntriesResponse(new AppendEntriesResponse(1, true));
+                _peers.Add(peer);
             }
+            var log = new InMemoryLog();
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            var leader = new Leader(_currentState, _fsm, _peers, log, _node, new SettingsBuilder().Build());
+            leader.Accept(new FakeCommand());
+            log.ExposedForTesting.Count.ShouldBe(1);
         }
 
-        private void ThenTheNextIndexIsInitialisedForEachRemoteServer()
+        [Fact(DisplayName = "If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)")]
+        public void ShouldApplyCommandToStateMachine()
         {
-            foreach(var remoteServer in _serversInCluster.All.Where(x => x.Id != _server.Id))
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
             {
-                var next = _server.NextIndex.First(x => x.Id == remoteServer.Id);
-                next.NextIndex.ShouldBe(0);
+                var peer = new RemoteControledPeer();
+                peer.SetAppendEntriesResponse(new AppendEntriesResponse(1, true));
+                _peers.Add(peer);
             }
+            var log = new InMemoryLog();
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            var leader = new Leader(_currentState, _fsm, _peers, log, _node, new SettingsBuilder().Build());
+            var response = leader.Accept<FakeCommand>(new FakeCommand());
+            log.ExposedForTesting.Count.ShouldBe(1);
+
+            var fsm = (InMemoryStateMachine)_fsm;
+            fsm.ExposedForTesting.ShouldBe(1);
+            response.Success.ShouldBe(true);
         }
 
-        private void TheCommandIsAppliedToTheStateMachine()
+        [Fact(DisplayName = "for each server, index of the next log entry to send to that server(initialized to leader last log index + 1)")]
+        public void ShouldInitialiseNextIndex()
         {
-            _fakeStateMachine.Commands[0].ShouldBe(_fakeCommand);
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true));
+            }
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+    
+            leader.PeerStates.ForEach(pS =>
+            {
+                pS.NextIndex.NextLogIndexToSendToPeer.ShouldBe(1);
+            });
         }
 
-        private void ThenTheCurrentTermAppendEntriesResponseIs(int expected)
+        [Fact(DisplayName = "for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)")]
+        public void ShouldInitialiseMatchIndex()
         {
-            _server.CurrentTermAppendEntriesResponse.ShouldBe(expected);
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true));
+            }
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            leader.PeerStates.ForEach(pS =>
+            {
+                pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(0);
+            });
+        }
+        
+        [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex")]
+        public void ShouldSendAppendEntriesStartingAtNextIndex()
+        {
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true));
+            }
+
+            //add 3 logs
+            var logOne = new LogEntry("1", typeof(string), 1);
+            _log.Apply(logOne);
+            var logTwo = new LogEntry("2", typeof(string), 1);
+            _log.Apply(logTwo);
+            var logThree = new LogEntry("3", typeof(string), 1);
+            _log.Apply(logThree);
+            _currentState = new CurrentState(_id, 1, default(Guid), 2, 2);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var logs = leader.GetLogsForPeer(new NextIndex(new FakePeer(true, true), 1));
+            logs.Count.ShouldBe(3);
         }
 
-        private void WhenTheServerReceivesAMajorityOfResponses()
+        [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex If successful: update nextIndex and matchIndex for follower(§5.3)")]
+        public void ShouldUpdateMatchIndexAndNextIndexIfSuccessful()
         {
-            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true, true));
+            }
+            //add 3 logs
+            _currentState = new CurrentState(_id, 1, default(Guid), 2, 2);
+            var logOne = new LogEntry("1", typeof(string), 1);
+            _log.Apply(logOne);
+            var logTwo = new LogEntry("2", typeof(string), 1);
+            _log.Apply(logTwo);
+            var logThree = new LogEntry("3", typeof(string), 1);
+            _log.Apply(logThree);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
 
-            _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
+            bool FirstTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 3)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 4)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => FirstTest(leader.PeerStates));
+            result.ShouldBeTrue();
         }
 
-        private void ThenCommandAppendedToLocalLog()
+        [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex If AppendEntries fails because of log inconsistency: decrement nextIndex and retry(§5.3)")]
+        public void ShouldDecrementNextIndexAndRetry()
         {
-            _server.Log[0].Command.ShouldBe(_fakeCommand);
-        }
-
-        private void ThenTheServerIsAFollower()
-        {
-            _server.State.ShouldBeOfType<Follower>();
-        }
-
-        private void ServerReceives(AppendEntries appendEntries)
-        {
-            _server.Receive(appendEntries).Wait();
-        }
-
-        private void ThenTheServerSendAppendEntriesToEachRemoteServer()
-        {
-            _messageBus.Verify(x => x.Send
-            (It.IsAny<AppendEntries>()), Times.Exactly(10));
-        }
-
-        private void WhenTheServerReceivesACommand(FakeCommand fakeCommand)
-        {
-            _fakeCommand = fakeCommand;
-            _server.Receive(fakeCommand).Wait();
-        }
-
-        private void TheServerWillSendAnotherHeartbeatLater()
-        {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
-        }
-
-        private void ThenTheServerSendsAHeartbeatToAllRemoteServers()
-        {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
-        }
-
-        private void ThenTheServerReceivesSendHeartbeat()
-        {
-            _messageBus.Verify(x => x.Publish(It.IsAny<SendToSelf>()));
-        }
-
-        private void TheServerReceivesAppendEntriesResponsesForCommand()
-        {
-            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            //create peers that will initially return false when asked to append entries...
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                var peer = new RemoteControledPeer();
+                peer.SetAppendEntriesResponse(new AppendEntriesResponse(1, false));
+                _peers.Add(peer);
+            }
             
-            _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
+            _currentState = new CurrentState(_id, 1, default(Guid), 1, 1);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+
+            //send first command, this wont get commited because the guys are replying false
+            var task = Task.Run(async () => leader.Accept(new FakeCommand()));
+            bool FirstTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => FirstTest(leader.PeerStates));
+            result.ShouldBeTrue();
+            //now the peers accept the append entries
+            foreach (var peer in _peers)
+            {
+                var rcPeer = (RemoteControledPeer)peer;
+                rcPeer.SetAppendEntriesResponse(new AppendEntriesResponse(1, true));
+            }
+            //wait on sending the command
+            task.Wait();
+
+            bool SecondTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            result = WaitFor(1000).Until(() => SecondTest(leader.PeerStates));
+            result.ShouldBeTrue();
+
+            //now the peers stop accepting append entries..
+            foreach (var peer in _peers)
+            {
+                var rcPeer = (RemoteControledPeer)peer;
+                rcPeer.SetAppendEntriesResponse(new AppendEntriesResponse(1, false));
+            }
+
+            //send another command, this wont get commited because the guys are replying false
+            task = Task.Run(async () => leader.Accept(new FakeCommand()));
+            bool ThirdTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            result = WaitFor(1000).Until(() => ThirdTest(leader.PeerStates));
+            result.ShouldBeTrue();
+
+            //now the peers accept the append entries
+            foreach (var peer in _peers)
+            {
+                var rcPeer = (RemoteControledPeer)peer;
+                rcPeer.SetAppendEntriesResponse(new AppendEntriesResponse(1, true));
+            }
+            task.Wait();
+
+            bool FourthTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 2)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 3)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            result = WaitFor(1000).Until(() => FourthTest(leader.PeerStates));
+            result.ShouldBeTrue();
+
+            //send another command 
+            leader.Accept(new FakeCommand());
+            bool FirthTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 3)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 4)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            result = WaitFor(2000).Until(() => FirthTest(leader.PeerStates));
+            result.ShouldBeTrue();
         }
 
-        private void TheServerReceivesAMajorityOfVotes()
+        [Fact(DisplayName = "If there exists an N such that N > commitIndex, a majority of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N(§5.3, §5.4)")]
+        public void ShouldSetCommitIndex()
         {
-            var requestVoteResponses = _serversInCluster.All.Select(x => Task.FromResult(new RequestVoteResponse(0, true, x.Id, Guid.NewGuid()))).ToList();
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                var peer = new RemoteControledPeer();
+                peer.SetAppendEntriesResponse(new AppendEntriesResponse(1, true));
+                _peers.Add(peer);
+            }
+            //add 3 logs
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            leader.Accept(new FakeCommand());
+            leader.Accept(new FakeCommand());
+            leader.Accept(new FakeCommand());
 
-            _messageBus.Setup(x => x.Send(It.IsAny<RequestVote>())).ReturnsInOrder(requestVoteResponses);
-            
-            var response = _serversInCluster.All.Select(remoteServer => Task.FromResult(new AppendEntriesResponse(_server.CurrentTerm, true, remoteServer.Id, _server.Id))).ToList();
+            bool PeersTest(List<PeerState> peerState)
+            {
+                var passed = 0;
 
-            _messageBus.Setup(x => x.Send(It.IsAny<AppendEntries>())).ReturnsInOrder(response);
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 3)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 4)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(2000).Until(() => PeersTest(leader.PeerStates));
+            leader.CurrentState.CommitIndex.ShouldBe(3);
+            result.ShouldBeTrue();
         }
 
-        private void ServerReceives(SendHeartbeat heartbeat)
+        [Fact]
+        public void ShouldBeAbleToHandleWhenLeaderHasNoLogsAndCandidatesReturnSuccess()
         {
-            _server.Receive(heartbeat);
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true, true));
+            }
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0);
+            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            bool TestPeerStates(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            result.ShouldBeTrue();
         }
 
-        private void GivenTheFollowingRemoteServers(List<ServerInCluster> remoteServers)
+
+
+        [Fact]
+        public void ShouldReplicateCommand()
         {
-            _serversInCluster.Add(remoteServers);
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true, true));
+            }
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0);
+            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var command = new FakeCommand();
+            var response = leader.Accept(command);
+            response.Success.ShouldBeTrue();
+            bool TestPeerStates(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            result.ShouldBeTrue();
         }
 
-        private void ThenTheCurrentTermVotesAre(int expected)
+        [Fact]
+        public void ShouldBeAbleToHandleWhenLeaderHasNoLogsAndCandidatesReturnFail()
         {
-            _server.CurrentTermVotes.ShouldBe(expected);
-        }
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(true, true, true));
+            }
+            _currentState = new CurrentState(_id, 1, default(Guid),  0, 0);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            bool TestPeerStates(List<PeerState> peerState)
+            {
+                var passed = 0;
 
-        private void TheServerIsALeader()
-        {
-            _server.State.ShouldBeOfType<Leader>();
-        }
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    {
+                        passed++;
+                    }
 
-        private void GivenANewServer()
-        {
-            _fakeStateMachine = new FakeStateMachine();
-            _server = new Server(_messageBus.Object, _serversInCluster, _fakeStateMachine, new LoggerFactory());
-            _serversInCluster.Add(new ServerInCluster(_server.Id));
-        }
-    }
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    {
+                        passed++;
+                    }
+                });
 
-    public static class MoqExtensions
-    {
-        public static void ReturnsInOrder<T, TResult>(this ISetup<T, TResult> setup,
-          params TResult[] results) where T : class
-        {
-            setup.Returns(new Queue<TResult>(results).Dequeue);
-        }
-
-        public static void ReturnsInOrder<T, TResult>(this ISetup<T, TResult> setup,
-           List<TResult> results) where T : class
-        {
-            setup.Returns(new Queue<TResult>(results).Dequeue);
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            result.ShouldBeTrue();
         }
     }
 }

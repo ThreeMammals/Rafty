@@ -1,222 +1,185 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using Rafty.AcceptanceTests;
-using Rafty.Messages;
-using Rafty.Messaging;
-using Rafty.Raft;
-using Rafty.Responses;
-using Rafty.ServiceDiscovery;
-using Rafty.State;
+using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
+using Rafty.Log;
 using Shouldly;
-using TestStack.BDDfy;
 using Xunit;
 
 namespace Rafty.UnitTests
 {
-    public class AppendEntriesTests
+    public class AppendEntriesTests : IDisposable
     {
-        private Server _server;
-        private FakeMessageBus _messageBus;
-        private IServersInCluster _serversInCluster;
-        private FakeStateMachine _fakeStateMachine;
-        private AppendEntriesResponse _result;
+/*
+1. Reply false if term < currentTerm (§5.1)
+2. Reply false if log doesn’t contain an entry at prevLogIndex
+whose term matches prevLogTerm (§5.3)
+3. If an existing entry conflicts with a new one (same index
+but different terms), delete the existing entry and all that
+follow it (§5.3)
+4. Append any new entries not already in the log
+5. If leaderCommit > commitIndex, set commitIndex =
+min(leaderCommit, index of last new entry)
+*/
+
+        private readonly IFiniteStateMachine _fsm;
+        private readonly INode _node;
+        private CurrentState _currentState;
+        private readonly ILog _log;
+        private List<IPeer> _peers;
+        private readonly IRandomDelay _random;
 
         public AppendEntriesTests()
         {
-            _serversInCluster = new InMemoryServersInCluster();
+            _random = new RandomDelay();
+             _log = new InMemoryLog();
+            _peers = new List<IPeer>();
+            _fsm = new InMemoryStateMachine();
+            _node = new NothingNode();
+        }
+        
+
+        public void Dispose()
+        {
+            //_node.Dispose();
         }
 
-        [Fact]
-        public void server_should_reply_true_if_entries_is_empty()
+        
+        [Fact(DisplayName = "AppendEntries - 1. Reply false if term < currentTerm (§5.1)")]
+        public void ShouldReplyFalseIfRpcTermLessThanCurrentTerm()
         {
-            var id = Guid.NewGuid();
-            var appendEntries = new AppendEntries(0, id, 0, 0, null, 0, Guid.NewGuid());
-            var expected = new AppendEntriesResponse(0, true, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .When(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .And(x => ThenTheCurrentTermIs(0))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
+            var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(0).Build();
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            appendEntriesResponse.Success.ShouldBe(false);
+            appendEntriesResponse.Term.ShouldBe(1);
         }
 
-        [Fact]
-        public void server_should_set_current_term_as_message_term_if_greater_than_current_term()
+        [Fact(DisplayName = "AppendEntries - 2. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)")]
+        public void ShouldReplyFalseIfLogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesRpcPrevLogTerm()
         {
-            var id = Guid.NewGuid();
-            var appendEntries = new AppendEntries(1, id, 0, 0, null,0, Guid.NewGuid());
-            var expected = new AppendEntriesResponse(1, true, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .When(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .And(x => ThenTheCurrentTermIs(1))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 2, default(Guid), 0, 0);
+            _log.Apply(new LogEntry("", typeof(string), 2));
+            var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(1).WithPreviousLogTerm(1).Build();
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            appendEntriesResponse.Success.ShouldBe(false);
+            appendEntriesResponse.Term.ShouldBe(2);
         }
 
-        [Fact]
-        public void server_should_reply_false_if_term_is_less_than_current_term()
+        [Fact(DisplayName = "AppendEntries - 3. If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)")]
+        public void ShouldDeleteExistingEntryIfItConflictsWithNewOne()
         {
-            var entries = new Log(1, new FakeCommand(Guid.NewGuid()));
-            var id = Guid.NewGuid();
-            var appendEntries = new AppendEntries(0, id, 0, 0, entries, 0, Guid.NewGuid());
-            var expected = new AppendEntriesResponse(1, false, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .And(x => GivenTheCurrentTermIs(1))
-                .When(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 2, 0);
+            _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1));
+            _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1));
+            _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1));
+            var appendEntriesRpc = new AppendEntriesBuilder()
+                .WithEntry(new LogEntry("term 2 commit index 2", typeof(string),2))
+                .WithTerm(2)
+                .WithPreviousLogIndex(1)
+                .WithPreviousLogTerm(1)
+                .Build();
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            appendEntriesResponse.Success.ShouldBe(true);
+            appendEntriesResponse.Term.ShouldBe(2);
         }
 
-        [Fact]
-        public void server_should_append_new_entries_not_in_log_and_reply_true()
+        [Fact(DisplayName = "AppendEntries - 3. If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3) and Append any new entries not already in the log")]
+        public void ShouldDeleteExistingEntryIfItConflictsWithNewOneAndAppendNewEntries()
         {
-            var entries = new Log(0, new FakeCommand(Guid.NewGuid()));
-            var id = Guid.NewGuid();
-            var appendEntries = new AppendEntries(0, id, 1, 0, entries, 0, Guid.NewGuid());
-            var expected = new AppendEntriesResponse(0, true, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .When(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .And(x => ThenTheLogContainsEntriesCount(1))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
+            _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1));
+            _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1));
+            _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1));
+            var appendEntriesRpc = new AppendEntriesBuilder()
+                .WithEntry(new LogEntry("term 2 commit index 2", typeof(string), 2))
+                .WithTerm(2)
+                .WithPreviousLogIndex(1)
+                .WithPreviousLogTerm(1)
+                .Build();
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            appendEntriesResponse.Success.ShouldBe(true);
+            appendEntriesResponse.Term.ShouldBe(2);
+            _log.GetTermAtIndex(2).ShouldBe(2);
         }
 
-
-        [Fact]
-        public void
-            server_should_reply_false_if_log_doesnt_contain_an_entry_at_previous_log_index_matching_previous_log_term()
+        [Fact(DisplayName = "AppendEntries - 4. Append any new entries not already in the log")]
+        public void ShouldAppendAnyEntriesNotInTheLog()
         {
-            var entries = new Log(0, new FakeCommand(Guid.NewGuid()));
-            
-            var id = Guid.NewGuid();
-
-            var appendEntries = new AppendEntries(0, id, 0, 0, entries, 0, Guid.NewGuid());
-
-            var oldAppendEntries = new AppendEntries(0, id, 0, 1, entries, 0, Guid.NewGuid());
-
-            var expected = new AppendEntriesResponse(0, false, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .And(x => GivenTheServerRecieves(appendEntries))
-                .When(x => ServerReceives(oldAppendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
+            _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1));
+            var appendEntriesRpc = new AppendEntriesBuilder()
+                .WithEntry(new LogEntry("term 1 commit index 1", typeof(string), 1))
+                .WithTerm(1)
+                .WithPreviousLogIndex(1)
+                .WithPreviousLogTerm(1)
+                .Build();
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            appendEntriesResponse.Success.ShouldBe(true);
+            appendEntriesResponse.Term.ShouldBe(1);
+            _log.GetTermAtIndex(1).ShouldBe(1);
         }
 
-        [Fact]
-        public void server_should_delete_existing_entry_and_all_that_follow_if_existing_entry_conflicts_with_a_new_one()
+        [Fact(DisplayName = "AppendEntries - Follower - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
+        public void FollowerShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            var initialEntries = new Log(0, new FakeCommand(Guid.NewGuid()));
-
-            var initialAppendEntries = new AppendEntries(0, Guid.NewGuid(), 0, 0, initialEntries, 0, Guid.NewGuid());
-
-            var newEntries = new Log(1, new FakeCommand(Guid.NewGuid()));
-
-            var id = Guid.NewGuid();
-
-            var newAppendEntries = new AppendEntries(0, id, 0, 0, newEntries, 0, Guid.NewGuid());
-
-            var expected = new AppendEntriesResponse(0, true, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .And(x => GivenTheServerRecieves(initialAppendEntries))
-                .When(x => ServerReceives(newAppendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .And(x => ThenTheLogCountIs(1))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0);
+            var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
+            _log.Apply(log);
+            var appendEntriesRpc = new AppendEntriesBuilder()
+               .WithEntry(log)
+               .WithTerm(1)
+               .WithPreviousLogIndex(1)
+               .WithPreviousLogTerm(1)
+               .WithLeaderCommitIndex(1)
+               .Build();
+            //assume node has applied log..
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            follower.CurrentState.CommitIndex.ShouldBe(1);
         }
 
-
-        [Fact]
-        public void server_should_receive_multiple_append_entries()
+        [Fact(DisplayName = "AppendEntries - Candidate - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
+        public void CandidateShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            var entry = new Log(0, new FakeCommand(Guid.NewGuid()));
-
-            var id = Guid.NewGuid();
-
-            var first = new AppendEntries(0, id, 0, 0, entry, 0, Guid.NewGuid());
-
-            var second = new AppendEntries(0, id, 0, 0, entry, 0, Guid.NewGuid());
-
-            var third = new AppendEntries(0, id, 0, 0, entry, 0, Guid.NewGuid());
-
-            var expected = new AppendEntriesResponse(0, true, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .And(x => GivenTheServerRecieves(first))
-                .When(x => ServerReceives(second))
-                .And(x => ServerReceives(second))
-                .Then(x => ThenTheReplyIs(expected))
-                .And(x => ThenTheLogCountIs(3))
-                .BDDfy();
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
+            //assume log applied by node?
+            var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
+            _log.Apply(log);
+            var appendEntriesRpc = new AppendEntriesBuilder()
+               .WithEntry(log)
+               .WithTerm(1)
+               .WithPreviousLogIndex(1)
+               .WithPreviousLogTerm(1)
+               .WithLeaderCommitIndex(1)
+               .Build();
+            var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
+            follower.CurrentState.CommitIndex.ShouldBe(1);
         }
 
-        [Fact]
-        public void should_set_commit_index_if_leader_commit_greater_than_commit_index()
+        [Fact(DisplayName = "AppendEntries - Leader - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
+        public void LeaderShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
-            var entries = new Log(0, new FakeCommand(Guid.NewGuid()));
-            var id = Guid.NewGuid();
-            var appendEntries = new AppendEntries(0, id, 1, 0, entries, 1, Guid.NewGuid());
-            var expected = new AppendEntriesResponse(0, true, id, Guid.NewGuid());
-
-            this.Given(x => GivenANewServer())
-                .When(x => ServerReceives(appendEntries))
-                .Then(x => ThenTheReplyIs(expected))
-                .And(x => ThenTheCommitIndexIs(1))
-                .BDDfy();
-        }
-
-        private void ThenTheCommitIndexIs(int expected)
-        {
-            _server.CommitIndex.ShouldBe(expected);
-        }
-
-        private void ThenTheLogCountIs(int expected)
-        {
-            _server.Log.Count.ShouldBe(expected);
-        }
-
-        private void GivenTheServerRecieves(AppendEntries appendEntries)
-        {
-            _server.Receive(appendEntries).Wait();
-        }
-
-        private void GivenTheCurrentTermIs(int term)
-        {
-            _server.Receive(new AppendEntries(term, Guid.NewGuid(), 0, 0, null, 0, Guid.NewGuid())).Wait();
-        }
-
-        private void ThenTheCurrentTermIs(int expected)
-        {
-            _server.CurrentTerm.ShouldBe(expected);
-        }
-
-        private void ThenTheReplyIs(AppendEntriesResponse expected)
-        {
-            _result.Success.ShouldBe(expected.Success);
-            _result.Term.ShouldBe(expected.Term);
-        }
-
-        private void ServerReceives(AppendEntries appendEntries)
-        {
-            _result = _server.Receive(appendEntries).Result;
-        }
-
-        private void GivenANewServer()
-        {
-            _fakeStateMachine = new FakeStateMachine();
-            _messageBus = new FakeMessageBus();
-            _server = new Server(_messageBus, _serversInCluster, _fakeStateMachine, new LoggerFactory());
-        }
-
-        private void ThenTheLogContainsEntriesCount(int expectedCount)
-        {
-            _server.Log.Count.ShouldBe(expectedCount);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
+            //assume log applied by node?
+            var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
+            _log.Apply(log);
+            var appendEntriesRpc = new AppendEntriesBuilder()
+               .WithEntry(log)
+               .WithTerm(1)
+               .WithPreviousLogIndex(1)
+               .WithPreviousLogTerm(1)
+               .WithLeaderCommitIndex(1)
+               .Build();
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var state = leader.Handle(appendEntriesRpc);
+            leader.CurrentState.CommitIndex.ShouldBe(1);
         }
     }
 }
