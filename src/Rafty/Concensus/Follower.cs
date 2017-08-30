@@ -132,48 +132,86 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
         {
-             var term = CurrentState.CurrentTerm;
+            var term = CurrentState.CurrentTerm;
 
-            //If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower (§5.1)
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
                 term = requestVote.Term;
-                // update voted for....
                 CurrentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId,
                     CurrentState.CommitIndex, CurrentState.LastApplied);
-                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
+                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 
+            return (null, false);
+        }
+
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
+        {
             //Reply false if term<currentTerm
             if (requestVote.Term < CurrentState.CurrentTerm)
             {
-                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), false);
             }
 
-            //Reply false if voted for is not candidateId
-            //Reply false if voted for is not default
+            return (null, false);
+        }
+
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote)
+        {
             if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
             {
-                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), true);
             }
 
-            if (requestVote.LastLogIndex == _log.LastLogIndex &&
+            return (null, false);
+        }
+
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
+        {
+             if (requestVote.LastLogIndex == _log.LastLogIndex &&
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
                 // update voted for....
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 _messagesSinceLastElectionExpiry++;
-                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
+                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 
-            //todo - consolidate with AppendEntries
-            if (requestVote.Term > CurrentState.CurrentTerm)
+            return (null, false);
+        }
+
+
+        public RequestVoteResponse Handle(RequestVote requestVote)
+        {
+            var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
+
+            if(response.shouldReturn)
             {
-                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                return response.requestVoteResponse;
+            }
+
+            response = RequestVoteTermIsLessThanCurrentTerm(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
+            }
+
+            response = VotedForIsNotThisOrNobody(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
+            }
+
+            response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
             }
 
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
@@ -181,9 +219,9 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
+            //todo - send message to leader...
             throw new NotImplementedException();
         }
-
 
         public void Stop()
         {
