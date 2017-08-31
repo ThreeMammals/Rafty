@@ -31,30 +31,6 @@ namespace Rafty.Concensus
             ResetElectionTimer();
         }
 
-        private void ElectionTimerExpired()
-        {
-            if (_messagesSinceLastElectionExpiry == 0)
-            {
-                _node.BecomeCandidate(CurrentState);
-            }
-            else
-            {
-                _messagesSinceLastElectionExpiry = 0;
-                ResetElectionTimer();
-            }
-        }
-
-        private void ResetElectionTimer()
-        {
-            var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
-            _electionTimer?.Dispose();
-            _electionTimer = new Timer(x =>
-            {
-                ElectionTimerExpired();
-
-            }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
-        }
-
         public CurrentState CurrentState { get; private set;}
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
@@ -145,7 +121,6 @@ namespace Rafty.Concensus
 
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
         {
-            //Reply false if term<currentTerm
             if (requestVote.Term < CurrentState.CurrentTerm)
             {
                 return (new RequestVoteResponse(false, CurrentState.CurrentTerm), false);
@@ -169,7 +144,6 @@ namespace Rafty.Concensus
              if (requestVote.LastLogIndex == _log.LastLogIndex &&
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
-                // update voted for....
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
 
                 _messagesSinceLastElectionExpiry++;
@@ -202,8 +176,7 @@ namespace Rafty.Concensus
 
         private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
         {
-            //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
-             var count = 1;
+            var count = 1;
             foreach (var newLog in appendEntries.Entries)
             {
                 _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
@@ -221,12 +194,10 @@ namespace Rafty.Concensus
 
         private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
         {
-            //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
             var commitIndex = CurrentState.CommitIndex;
             var lastApplied = CurrentState.LastApplied;
             if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
             {
-                //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
                 var lastNewEntry = _log.LastLogIndex;
                 commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
             }
@@ -247,6 +218,30 @@ namespace Rafty.Concensus
                 CurrentState.VotedFor, commitIndex, lastApplied);
 
             _messagesSinceLastElectionExpiry++;
+        }
+        
+        private void ElectionTimerExpired()
+        {
+            if (_messagesSinceLastElectionExpiry == 0)
+            {
+                _node.BecomeCandidate(CurrentState);
+            }
+            else
+            {
+                ResetElectionTimer();
+            }
+        }
+
+        private void ResetElectionTimer()
+        {
+            _messagesSinceLastElectionExpiry = 0;
+            var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
+            _electionTimer?.Dispose();
+            _electionTimer = new Timer(x =>
+            {
+                ElectionTimerExpired();
+
+            }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }
     }
 }
