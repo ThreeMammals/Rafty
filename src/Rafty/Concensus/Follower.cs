@@ -57,79 +57,75 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set;}
 
-
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            //Reply false if term < currentTerm (§5.1)
-            if (appendEntries.Term < CurrentState.CurrentTerm)
-            { 
-                if(appendEntries.Entries.Count > 0)
-                {
-                    Console.WriteLine("Follower voting false because AE term less than current term");
-                }
-                return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
-            }
+            var response = AppendEntriesTermIsLessThanCurrentTerm(appendEntries);
 
-            // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
-            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
-            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            if(response.shouldReturn)
             {
-                if(appendEntries.Entries.Count > 0)
-                {
-                    Console.WriteLine("Follower voting false because terms at previous log index dont match");
-                }
-                return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
+                return response.appendEntriesResponse;
             }
 
-            //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
-             var count = 1;
-            foreach (var newLog in appendEntries.Entries)
+            response = LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries);
+
+            if(response.shouldReturn)
             {
-                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
-                count++;
+                return response.appendEntriesResponse;
             }
 
-            //Append any new entries not already in the log
-            foreach (var log in appendEntries.Entries)
-            {
-                _log.Apply(log);
-            }
+            DeleteAnyConflictsInLog(appendEntries);
 
-            CurrentState nextState = CurrentState;
-            //todo consolidate with request vote
-            if (appendEntries.Term > CurrentState.CurrentTerm)
-            {
-                nextState = new CurrentState(CurrentState.Id, appendEntries.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
-            }
+            ApplyEntriesToLog(appendEntries);
 
-            //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-            var commitIndex = CurrentState.CommitIndex;
-            var lastApplied = CurrentState.LastApplied;
-            if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-            {
-                //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
-                var lastNewEntry = _log.LastLogIndex;
-                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
-            }
+            var commitIndexAndLastApplied = CommitIndexAndLastApplied(appendEntries);
 
-            //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
-            //todo - not sure if this should be an if or a while
-            while (commitIndex > lastApplied)
-            {
-                lastApplied++;
-                var log = _log.Get(lastApplied);
-                //todo - json deserialise into type? Also command might need to have type as a string not Type as this
-                //will get passed over teh wire? Not sure atm ;)
-                _fsm.Handle(log.CommandData);
-            }
-
-            CurrentState = new CurrentState(CurrentState.Id, nextState.CurrentTerm,
-                CurrentState.VotedFor, commitIndex, lastApplied);
-
-            _messagesSinceLastElectionExpiry++;
+            ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
             
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
+        }
+
+        public RequestVoteResponse Handle(RequestVote requestVote)
+        {
+            var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
+            }
+
+            response = RequestVoteTermIsLessThanCurrentTerm(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
+            }
+
+            response = VotedForIsNotThisOrNobody(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
+            }
+
+            response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
+
+            if(response.shouldReturn)
+            {
+                return response.requestVoteResponse;
+            }
+
+            return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+        }
+
+        public Response<T> Accept<T>(T command)
+        {
+            //todo - send message to leader...
+            throw new NotImplementedException();
+        }
+
+        public void Stop()
+        {
+            _electionTimer.Dispose();
         }
 
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
@@ -183,49 +179,74 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries)
         {
-            var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
-
-            if(response.shouldReturn)
-            {
-                return response.requestVoteResponse;
+            if (appendEntries.Term < CurrentState.CurrentTerm)
+            { 
+                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
             }
 
-            response = RequestVoteTermIsLessThanCurrentTerm(requestVote);
-
-            if(response.shouldReturn)
-            {
-                return response.requestVoteResponse;
-            }
-
-            response = VotedForIsNotThisOrNobody(requestVote);
-
-            if(response.shouldReturn)
-            {
-                return response.requestVoteResponse;
-            }
-
-            response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
-
-            if(response.shouldReturn)
-            {
-                return response.requestVoteResponse;
-            }
-
-            return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+            return (null, false);
         }
 
-        public Response<T> Accept<T>(T command)
+        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries)
         {
-            //todo - send message to leader...
-            throw new NotImplementedException();
+            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
+            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            {
+                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
+            }
+
+            return (null, false);
         }
 
-        public void Stop()
+        private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
         {
-            _electionTimer.Dispose();
+            //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
+             var count = 1;
+            foreach (var newLog in appendEntries.Entries)
+            {
+                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
+                count++;
+            }
+        }
+
+        private void ApplyEntriesToLog(AppendEntries appendEntries)
+        {
+            foreach (var log in appendEntries.Entries)
+            {
+                _log.Apply(log);
+            }
+        }
+
+        private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
+        {
+            //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
+            var commitIndex = CurrentState.CommitIndex;
+            var lastApplied = CurrentState.LastApplied;
+            if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
+            {
+                //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
+                var lastNewEntry = _log.LastLogIndex;
+                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+            }
+
+            return (commitIndex, lastApplied);
+        }
+
+        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
+        {
+            while (commitIndex > lastApplied)
+            {
+                lastApplied++;
+                var log = _log.Get(lastApplied);
+                _fsm.Handle(log.CommandData);
+            }
+
+            CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
+                CurrentState.VotedFor, commitIndex, lastApplied);
+
+            _messagesSinceLastElectionExpiry++;
         }
     }
 }
