@@ -42,42 +42,10 @@ namespace Rafty.Concensus
             ResetElectionTimer();
         }
 
-        private void ElectionTimerExpired()
-        {
-            if (!_electioneering)
-            {
-                _node.BecomeCandidate(CurrentState);
-            }
-            else
-            {
-                ResetElectionTimer();
-            }
-        }
-
-        private void ResetElectionTimer()
-        {
-            var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
-            _electionTimer?.Dispose();
-            _electionTimer = new Timer(x =>
-            {
-                ElectionTimerExpired();
-
-            }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
-        }
-
         public CurrentState CurrentState { get; private set;}
 
         public void BeginElection()
         {
-            // On conversion to candidate, start election:
-            // Reset election timer
-            // Increment currentTerm
-            // Vote for self
-            // Send RequestVote RPCs to all other servers
-            // If receives majority of votes become leader
-            // If there are no peers become the leader
-            // If doesnt receive majority of votes become follower
-
             var nextTerm = CurrentState.CurrentTerm + 1;
 
             var votedFor = CurrentState.Id;
@@ -115,83 +83,43 @@ namespace Rafty.Concensus
             _node.BecomeFollower(CurrentState);
         }
 
-        private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> responses)
+        // todo - inject as function into candidate and follower as logic is the same...
+        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries)
         {
-            var tasks = new List<Task>();
-
-            foreach (var peer in _peers)
-            {
-                var task = GetVote(peer, responses);
-                tasks.Add(task);
+            if (appendEntries.Term < CurrentState.CurrentTerm)
+            { 
+                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
             }
 
-            return tasks;
+            return (null, false);
         }
 
-        private async Task CountVotes(BlockingCollection<RequestVoteResponse> states)
+        // todo - inject as function into candidate and follower as logic is the same...
+        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries)
         {
-            var receivedResponses = 0;
-            var tasks = new List<Task>();
-            foreach (var requestVoteResponse in states.GetConsumingEnumerable())
+            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
+            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
             {
-                var task = CountVote(requestVoteResponse);
-                tasks.Add(task);
-                receivedResponses++;
-
-                if (receivedResponses >= _peers.Count)
-                {
-                    break;
-                }
+                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
             }
 
-            Task.WaitAll(tasks.ToArray());
-        }
-
-        private async Task CountVote(RequestVoteResponse requestVoteResponse)
-        {
-            if (requestVoteResponse.Term > CurrentState.CurrentTerm)
-            {
-                CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                _requestVoteResponseWithGreaterTerm = true;
-            }
-
-            if (requestVoteResponse.VoteGranted)
-            {
-                lock (_lock)
-                {
-                    _votesThisElection++;
-
-                    //If votes received from majority of servers: become leader
-                    if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
-                    {
-                        _becomeLeader = true;
-                    }
-                }
-            }
-        }
-
-        private async Task GetVote(IPeer peer, BlockingCollection<RequestVoteResponse> responses) 
-        {
-            var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
-
-            responses.Add(requestVoteResponse);
+            return (null, false);
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            //Reply false if term < currentTerm (§5.1)
-            if (appendEntries.Term < CurrentState.CurrentTerm)
+            var response = AppendEntriesTermIsLessThanCurrentTerm(appendEntries);
+
+            if(response.shouldReturn)
             {
-                return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
+                return response.appendEntriesResponse;
             }
 
-            // Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
-            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
-            if (termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            response = LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries);
+
+            if(response.shouldReturn)
             {
-                return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
+                return response.appendEntriesResponse;
             }
 
             //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
@@ -293,12 +221,100 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
+            // todo - work out what a candidate should do if it gets a command sent to it? Maybe return a retry?
             throw new NotImplementedException();
         }
 
         public void Stop()
         {
             _electionTimer.Dispose();
+        }
+
+        private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> responses)
+        {
+            var tasks = new List<Task>();
+
+            foreach (var peer in _peers)
+            {
+                var task = GetVote(peer, responses);
+                tasks.Add(task);
+            }
+
+            return tasks;
+        }
+
+        private async Task CountVotes(BlockingCollection<RequestVoteResponse> states)
+        {
+            var receivedResponses = 0;
+            var tasks = new List<Task>();
+            foreach (var requestVoteResponse in states.GetConsumingEnumerable())
+            {
+                var task = CountVote(requestVoteResponse);
+                tasks.Add(task);
+                receivedResponses++;
+
+                if (receivedResponses >= _peers.Count)
+                {
+                    break;
+                }
+            }
+
+            Task.WaitAll(tasks.ToArray());
+        }
+
+        private async Task CountVote(RequestVoteResponse requestVoteResponse)
+        {
+            if (requestVoteResponse.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+
+                _requestVoteResponseWithGreaterTerm = true;
+            }
+
+            if (requestVoteResponse.VoteGranted)
+            {
+                lock (_lock)
+                {
+                    _votesThisElection++;
+
+                    //If votes received from majority of servers: become leader
+                    if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
+                    {
+                        _becomeLeader = true;
+                    }
+                }
+            }
+        }
+
+        private async Task GetVote(IPeer peer, BlockingCollection<RequestVoteResponse> responses) 
+        {
+            var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
+
+            responses.Add(requestVoteResponse);
+        }
+
+                private void ElectionTimerExpired()
+        {
+            if (!_electioneering)
+            {
+                _node.BecomeCandidate(CurrentState);
+            }
+            else
+            {
+                ResetElectionTimer();
+            }
+        }
+
+        private void ResetElectionTimer()
+        {
+            var timeout = _random.Get(_settings.MinTimeout, _settings.MaxTimeout);
+            _electionTimer?.Dispose();
+            _electionTimer = new Timer(x =>
+            {
+                ElectionTimerExpired();
+
+            }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }
     }
 }

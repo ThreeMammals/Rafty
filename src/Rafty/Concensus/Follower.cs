@@ -153,6 +153,7 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
+        // todo - inject as function into candidate and follower as logic is the same...
         private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries)
         {
             if (appendEntries.Term < CurrentState.CurrentTerm)
@@ -163,6 +164,7 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
+        // todo - inject as function into candidate and follower as logic is the same...
         private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries)
         {
             var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
