@@ -112,56 +112,6 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
         
-        // cannot be consolidated with follower
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
-        {
-            if (requestVote.Term > CurrentState.CurrentTerm)
-            {
-                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
-                _node.BecomeFollower(CurrentState);
-                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
-            }
-
-            return (null, false);
-        }
-
-        // todo - consolidate with follower and pass in as function
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
-        {
-            if (requestVote.Term < CurrentState.CurrentTerm)
-            {
-                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), false);
-            }
-
-            return (null, false);
-        }
-
-        // todo - consolidate with follower and pass in as function
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote)
-        {
-            if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
-            {
-                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), true);
-            }
-
-            return (null, false);
-        }
-
-        // todo - consolidate with follower and pass in as function
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
-        {
-             if (requestVote.LastLogIndex == _log.LastLogIndex &&
-                requestVote.LastLogTerm == _log.LastLogTerm)
-            {
-                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
-            }
-
-            return (null, false);
-        }
-
         public RequestVoteResponse Handle(RequestVote requestVote)
         {
             var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
@@ -191,7 +141,7 @@ namespace Rafty.Concensus
             {
                 return response.requestVoteResponse;
             }
-            
+
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
@@ -270,7 +220,7 @@ namespace Rafty.Concensus
             responses.Add(requestVoteResponse);
         }
 
-                private void ElectionTimerExpired()
+        private void ElectionTimerExpired()
         {
             if (!_electioneering)
             {
@@ -373,6 +323,56 @@ namespace Rafty.Concensus
 
                 _node.BecomeFollower(CurrentState);
             }
+        }
+
+        // inject and consolidate with leader
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
+        {
+            if (requestVote.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(CurrentState);
+                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
+        }
+
+        // todo - consolidate with follower and pass in as function
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
+        {
+            if (requestVote.Term < CurrentState.CurrentTerm)
+            {
+                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), false);
+            }
+
+            return (null, false);
+        }
+
+        // todo - consolidate with follower and pass in as function
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote)
+        {
+            if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
+            {
+                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
+        }
+
+        // todo - consolidate with follower and pass in as function
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
+        {
+             if (requestVote.LastLogIndex == _log.LastLogIndex &&
+                requestVote.LastLogTerm == _log.LastLogTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
+
+                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
         }
     }
 }
