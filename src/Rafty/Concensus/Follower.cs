@@ -87,6 +87,8 @@ namespace Rafty.Concensus
 
             response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
 
+            _messagesSinceLastElectionExpiry++;
+            
             if(response.shouldReturn)
             {
                 return response.requestVoteResponse;
@@ -121,6 +123,7 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
+        // todo - consolidate with candidate and pass in as function
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
         {
             if (requestVote.Term < CurrentState.CurrentTerm)
@@ -131,6 +134,7 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
+        // todo - consolidate with candidate and pass in as function
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote)
         {
             if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
@@ -141,6 +145,7 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
+        // todo - consolidate with candidate and pass in as function
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
         {
              if (requestVote.LastLogIndex == _log.LastLogIndex &&
@@ -148,7 +153,6 @@ namespace Rafty.Concensus
             {
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
 
-                _messagesSinceLastElectionExpiry++;
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 

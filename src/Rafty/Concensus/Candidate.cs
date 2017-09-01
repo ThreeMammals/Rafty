@@ -83,88 +83,6 @@ namespace Rafty.Concensus
             _node.BecomeFollower(CurrentState);
         }
 
-        // todo - inject as function into candidate and follower as logic is the same...
-        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries)
-        {
-            if (appendEntries.Term < CurrentState.CurrentTerm)
-            { 
-                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
-            }
-
-            return (null, false);
-        }
-
-        // todo - inject as function into candidate and follower as logic is the same...
-        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries)
-        {
-            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
-            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
-            {
-                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
-            }
-
-            return (null, false);
-        }
-        
-        // todo - inject as function into candidate and follower as logic is the same...
-        private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
-        {
-            var count = 1;
-            foreach (var newLog in appendEntries.Entries)
-            {
-                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
-                count++;
-            }
-        }
-
-        // todo - inject as function into candidate and follower as logic is the same...
-        private void ApplyEntriesToLog(AppendEntries appendEntries)
-        {
-            foreach (var log in appendEntries.Entries)
-            {
-                _log.Apply(log);
-            }
-        }
-
-        // todo - inject as function into candidate and follower as logic is the same...
-        private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
-        {
-            var commitIndex = CurrentState.CommitIndex;
-            var lastApplied = CurrentState.LastApplied;
-            if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-            {
-                var lastNewEntry = _log.LastLogIndex;
-                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
-            }
-
-            return (commitIndex, lastApplied);
-        }
-
-        // not the same as follower
-        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
-        {
-            while (commitIndex > lastApplied)
-            {
-                lastApplied++;
-                var log = _log.Get(lastApplied);
-                _fsm.Handle(log.CommandData);
-            }
-
-            CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
-                CurrentState.VotedFor, commitIndex, lastApplied);
-        }
-
-        private void AppendEntriesTermIsGreaterThanCurrentTerm(AppendEntries appendEntries)
-        {
-            if (appendEntries.Term > CurrentState.CurrentTerm)
-            {
-                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                _node.BecomeFollower(CurrentState);
-            }
-        }
-
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
             var response = AppendEntriesTermIsLessThanCurrentTerm(appendEntries);
@@ -193,45 +111,87 @@ namespace Rafty.Concensus
 
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
+        
+        // cannot be consolidated with follower
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
+        {
+            if (requestVote.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(CurrentState);
+                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
+        }
+
+        // todo - consolidate with follower and pass in as function
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
+        {
+            if (requestVote.Term < CurrentState.CurrentTerm)
+            {
+                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), false);
+            }
+
+            return (null, false);
+        }
+
+        // todo - consolidate with follower and pass in as function
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote)
+        {
+            if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
+            {
+                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
+        }
+
+        // todo - consolidate with follower and pass in as function
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
+        {
+             if (requestVote.LastLogIndex == _log.LastLogIndex &&
+                requestVote.LastLogTerm == _log.LastLogTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
+
+                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
+        }
 
         public RequestVoteResponse Handle(RequestVote requestVote)
         {
-            var term = CurrentState.CurrentTerm;
+            var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
 
-            //If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower (§5.1)
-            if (requestVote.Term > CurrentState.CurrentTerm)
+            if(response.shouldReturn)
             {
-                term = requestVote.Term;
-                // update voted for....
-                CurrentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
-                _node.BecomeFollower(CurrentState);
-                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
+                return response.requestVoteResponse;
             }
 
-            //Reply false if term<currentTerm
-            if (requestVote.Term < CurrentState.CurrentTerm)
+            response = RequestVoteTermIsLessThanCurrentTerm(requestVote);
+
+            if(response.shouldReturn)
             {
-                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+                return response.requestVoteResponse;
             }
 
-            //Reply false if voted for is not candidateId
-            //Reply false if voted for is not default
-            if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
+            response = VotedForIsNotThisOrNobody(requestVote);
+
+            if(response.shouldReturn)
             {
-                return new RequestVoteResponse(false, CurrentState.CurrentTerm);
+                return response.requestVoteResponse;
             }
 
-            if (requestVote.LastLogIndex == _log.LastLogIndex &&
-                requestVote.LastLogTerm == _log.LastLogTerm)
+            response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
+
+            if(response.shouldReturn)
             {
-                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
-                    requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                //candidate cannot vote for anyone else...
-                return new RequestVoteResponse(true, CurrentState.CurrentTerm);
+                return response.requestVoteResponse;
             }
-
+            
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
@@ -331,6 +291,88 @@ namespace Rafty.Concensus
                 ElectionTimerExpired();
 
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
+        }
+
+                // todo - inject as function into candidate and follower as logic is the same...
+        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries)
+        {
+            if (appendEntries.Term < CurrentState.CurrentTerm)
+            { 
+                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
+            }
+
+            return (null, false);
+        }
+
+        // todo - inject as function into candidate and follower as logic is the same...
+        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries)
+        {
+            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
+            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
+            {
+                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
+            }
+
+            return (null, false);
+        }
+        
+        // todo - inject as function into candidate and follower as logic is the same...
+        private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
+        {
+            var count = 1;
+            foreach (var newLog in appendEntries.Entries)
+            {
+                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
+                count++;
+            }
+        }
+
+        // todo - inject as function into candidate and follower as logic is the same...
+        private void ApplyEntriesToLog(AppendEntries appendEntries)
+        {
+            foreach (var log in appendEntries.Entries)
+            {
+                _log.Apply(log);
+            }
+        }
+
+        // todo - inject as function into candidate and follower as logic is the same...
+        private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
+        {
+            var commitIndex = CurrentState.CommitIndex;
+            var lastApplied = CurrentState.LastApplied;
+            if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
+            {
+                var lastNewEntry = _log.LastLogIndex;
+                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+            }
+
+            return (commitIndex, lastApplied);
+        }
+
+        // not the same as follower
+        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
+        {
+            while (commitIndex > lastApplied)
+            {
+                lastApplied++;
+                var log = _log.Get(lastApplied);
+                _fsm.Handle(log.CommandData);
+            }
+
+            CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
+                CurrentState.VotedFor, commitIndex, lastApplied);
+        }
+
+        private void AppendEntriesTermIsGreaterThanCurrentTerm(AppendEntries appendEntries)
+        {
+            if (appendEntries.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+
+                _node.BecomeFollower(CurrentState);
+            }
         }
     }
 }
