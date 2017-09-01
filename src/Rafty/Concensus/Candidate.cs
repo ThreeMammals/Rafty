@@ -105,6 +105,65 @@ namespace Rafty.Concensus
 
             return (null, false);
         }
+        
+        // todo - inject as function into candidate and follower as logic is the same...
+        private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
+        {
+            var count = 1;
+            foreach (var newLog in appendEntries.Entries)
+            {
+                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
+                count++;
+            }
+        }
+
+        // todo - inject as function into candidate and follower as logic is the same...
+        private void ApplyEntriesToLog(AppendEntries appendEntries)
+        {
+            foreach (var log in appendEntries.Entries)
+            {
+                _log.Apply(log);
+            }
+        }
+
+        // todo - inject as function into candidate and follower as logic is the same...
+        private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
+        {
+            var commitIndex = CurrentState.CommitIndex;
+            var lastApplied = CurrentState.LastApplied;
+            if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
+            {
+                var lastNewEntry = _log.LastLogIndex;
+                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+            }
+
+            return (commitIndex, lastApplied);
+        }
+
+        // not the same as follower
+        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
+        {
+            while (commitIndex > lastApplied)
+            {
+                lastApplied++;
+                var log = _log.Get(lastApplied);
+                _fsm.Handle(log.CommandData);
+            }
+
+            CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
+                CurrentState.VotedFor, commitIndex, lastApplied);
+        }
+
+        private void AppendEntriesTermIsGreaterThanCurrentTerm(AppendEntries appendEntries)
+        {
+            if (appendEntries.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+
+                _node.BecomeFollower(CurrentState);
+            }
+        }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
@@ -121,61 +180,18 @@ namespace Rafty.Concensus
             {
                 return response.appendEntriesResponse;
             }
+          
+            DeleteAnyConflictsInLog(appendEntries);
 
-            //If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all that follow it(§5.3)
-            var count = 1;
-            foreach (var newLog in appendEntries.Entries)
-            {
-                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
-                count++;
-            }
+            ApplyEntriesToLog(appendEntries);
 
-            //Append any new entries not already in the log
-            foreach (var log in appendEntries.Entries)
-            {
-                _log.Apply(log);
-            }
+            var commitIndexAndLastApplied = CommitIndexAndLastApplied(appendEntries);
 
-            //todo - not sure about this should a candidate apply logs from a leader on the same term when it is in candidate mode
-            //for that term? Does this need to just fall into the greater than?
-            if (appendEntries.Term >= CurrentState.CurrentTerm)
-            {
-                //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-                var commitIndex = CurrentState.CommitIndex;
-                var lastApplied = CurrentState.LastApplied;
-                if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-                {
-                    //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
-                    var lastNewEntry = _log.LastLogIndex;
-                    commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
-                }
+            ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
 
-                //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
-                //todo - not sure if this should be an if or a while
-                while (commitIndex > lastApplied)
-                {
-                    lastApplied++;
-                    var log = _log.Get(lastApplied);
-                    //todo - json deserialise into type? Also command might need to have type as a string not Type as this
-                    //will get passed over teh wire? Not sure atm ;)
-                    _fsm.Handle(log.CommandData);
-                }
-
-                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
-                    CurrentState.VotedFor, commitIndex, lastApplied);
-            }
-
-            //todo consolidate with request vote
-            if (appendEntries.Term > CurrentState.CurrentTerm)
-            {
-                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                _node.BecomeFollower(CurrentState);
-            }
+            AppendEntriesTermIsGreaterThanCurrentTerm(appendEntries);
 
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
-            
         }
 
         public RequestVoteResponse Handle(RequestVote requestVote)

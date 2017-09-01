@@ -57,6 +57,8 @@ namespace Rafty.Concensus
 
             ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
             
+            _messagesSinceLastElectionExpiry++;
+            
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 
@@ -176,6 +178,7 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
+        // todo - inject as function into candidate and follower as logic is the same...
         private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
         {
             var count = 1;
@@ -186,6 +189,7 @@ namespace Rafty.Concensus
             }
         }
 
+        // todo - inject as function into candidate and follower as logic is the same...
         private void ApplyEntriesToLog(AppendEntries appendEntries)
         {
             foreach (var log in appendEntries.Entries)
@@ -194,6 +198,7 @@ namespace Rafty.Concensus
             }
         }
 
+        // todo - inject as function into candidate and follower as logic is the same...
         private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
         {
             var commitIndex = CurrentState.CommitIndex;
@@ -207,6 +212,7 @@ namespace Rafty.Concensus
             return (commitIndex, lastApplied);
         }
 
+        // not the same as candidate
         private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
         {
             while (commitIndex > lastApplied)
@@ -218,8 +224,6 @@ namespace Rafty.Concensus
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
                 CurrentState.VotedFor, commitIndex, lastApplied);
-
-            _messagesSinceLastElectionExpiry++;
         }
         
         private void ElectionTimerExpired()
