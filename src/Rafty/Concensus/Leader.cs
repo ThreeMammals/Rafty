@@ -35,8 +35,6 @@ namespace Rafty.Concensus
             _fsm = fsm;
             CurrentState = currentState;
             InitialisePeerStates();
-            //Upon election: send initial empty AppendEntries RPCs(heartbeat) to each server
-            //quite quickly if you are the leader to keep the nodes alive..
             ResetElectionTimer();
         }
 
@@ -108,45 +106,31 @@ namespace Rafty.Concensus
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            CurrentState nextState = CurrentState;
-
-            if (appendEntries.Term >= CurrentState.CurrentTerm)
+            if (appendEntries.Term > CurrentState.CurrentTerm)
             {
-                //If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
                 var commitIndex = CurrentState.CommitIndex;
                 var lastApplied = CurrentState.LastApplied;
                 if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
                 {
-                    //This only works because of the code in the node class that handles the message first (I think..im a bit stupid)
                     var lastNewEntry = _log.LastLogIndex;
                     commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
                 }
 
-                //If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)\
-                //todo - not sure if this should be an if or a while
                 while (commitIndex > lastApplied)
                 {
                     lastApplied++;
                     var log = _log.Get(lastApplied);
-                    //todo - json deserialise into type? Also command might need to have type as a string not Type as this
-                    //will get passed over teh wire? Not sure atm ;)
                     _fsm.Handle(log.CommandData);
                 }
 
-                CurrentState = new CurrentState(CurrentState.Id, nextState.CurrentTerm,
-                    CurrentState.VotedFor, commitIndex, lastApplied);
-            }
-
-            //todo consolidate with request vote
-            if (appendEntries.Term > CurrentState.CurrentTerm)
-            {
                 CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
-                _node.BecomeFollower(nextState);
-                return new AppendEntriesResponse(nextState.CurrentTerm, true);
+                    CurrentState.VotedFor, commitIndex, lastApplied);
+
+                _node.BecomeFollower(CurrentState);
+
+                return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
             }
 
-            CurrentState = nextState;
             return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
         }
 
@@ -188,7 +172,6 @@ namespace Rafty.Concensus
               
                 var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.Item2).ToList(), CurrentState.CommitIndex));
                 responses.Add(appendEntriesResponse);
-                //handle response and update state accordingly?
                 lock (_lock)
                 {
                     if (appendEntriesResponse.Success)
@@ -205,7 +188,6 @@ namespace Rafty.Concensus
 
                         p.UpdateMatchIndex(newMatchIndex);
                         p.UpdateNextIndex(newNextIndex);
-                        //if no logs then this is heartbeat so dont change it..
                     }
 
                     if (!appendEntriesResponse.Success)
@@ -220,24 +202,16 @@ namespace Rafty.Concensus
                 }
             });
 
-            //this code is pretty shit...sigh
             foreach (var appendEntriesResponse in responses)
             {
-                //todo - consolidate with AppendEntries and RequestVOte
                 if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
                 {
                     var currentState = new CurrentState(CurrentState.Id, appendEntriesResponse.Term, 
                         CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
                     _node.BecomeFollower(currentState);
+                    return;
                 }
             }
-
-            /* Mark log entries committed if stored on a majority of
-             servers and at least one entry from current term is stored on
-             a majority of servers
-             If there exists an N such that N > commitIndex, a majority
-             of matchIndex[i] ≥ N, and log[N].term == currentTerm:
-             set commitIndex = N (§5.3, §5.4).*/
             
             var nextCommitIndex = CurrentState.CommitIndex + 1;
             var statesIndexOfHighestKnownReplicatedLogs = PeerStates.Select(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog).ToList();

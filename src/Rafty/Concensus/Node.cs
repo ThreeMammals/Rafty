@@ -39,6 +39,7 @@ namespace Rafty.Concensus
         public void BecomeCandidate(CurrentState state)
         {
             State.Stop();
+           
             var candidate = new Candidate(state, _fsm, _getPeers(state), _log, _random, this, _settings);
             State = candidate;
             candidate.BeginElection();
