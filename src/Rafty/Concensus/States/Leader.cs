@@ -51,65 +51,33 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set; }
 
-        private int AddCommandToLog<T>(T command)
-        {
-            var json = JsonConvert.SerializeObject(command);
-            var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm);
-            var index = _log.Apply(log);
-            return index;
-        }
-
-        private bool WaitingForCommandToPersist()
-        {
-            return !_handled;
-        }
-
-        private void SetUpPersisting()
-        {
-            _handled = false;
-        }
-
-        private bool CommitedToMajority(int commited)
-        {
-            return commited >= (_peers.Count) / 2 + 1;
-        }
-
-        private bool Commited(PeerState peer, int index)
-        {
-            return peer.MatchIndex.IndexOfHighestKnownReplicatedLog == index;
-        }
-
-        private void FinishWaitingForCommandToPersist()
-        {
-            _handled = true;
-        }
 
         public Response<T> Accept<T>(T command)
         {
             var index = AddCommandToLog(command);
 
-            SetUpPersisting();
+            SetUpReplication();
             
-            while (WaitingForCommandToPersist())
+            while (WaitingForCommandToReplicate())
             {
-                var commited = 0;
+                var replicated = 0;
 
                 foreach(var peer in PeerStates)
                 {
-                    if(Commited(peer, index))
+                    if(Replicated(peer, index))
                     {
-                        commited++;
+                        replicated++;
                     }
 
-                    if (CommitedToMajority(commited))
+                    if (ReplicatedToMajority(replicated))
                     {
                         _fsm.Handle(command);
-                        FinishWaitingForCommandToPersist();
+                        FinishWaitingForCommandToReplicate();
                         break;
                     }
                 }
 
-                Thread.Sleep(_settings.HeartbeatTimeout);
+                Wait();
             }
 
             return new Response<T>(_handled, command);
@@ -269,12 +237,50 @@ namespace Rafty.Concensus
         private void InitialisePeerStates()
         {
             PeerStates = new List<PeerState>();
-            foreach (var peer in _peers)
-            {
-                var matchIndex = new MatchIndex(peer, 0);
-                var nextIndex = new NextIndex(peer, _log.LastLogIndex);
-                PeerStates.Add(new PeerState(peer, matchIndex, nextIndex));
-            }
+
+            _peers.ForEach(p => {
+                var matchIndex = new MatchIndex(p, 0);
+                var nextIndex = new NextIndex(p, _log.LastLogIndex);
+                PeerStates.Add(new PeerState(p, matchIndex, nextIndex));
+            });
+        }
+
+        private int AddCommandToLog<T>(T command)
+        {
+            var json = JsonConvert.SerializeObject(command);
+            var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm);
+            var index = _log.Apply(log);
+            return index;
+        }
+
+        private bool WaitingForCommandToReplicate()
+        {
+            return !_handled;
+        }
+
+        private void SetUpReplication()
+        {
+            _handled = false;
+        }
+
+        private bool ReplicatedToMajority(int commited)
+        {
+            return commited >= (_peers.Count) / 2 + 1;
+        }
+
+        private bool Replicated(PeerState peer, int index)
+        {
+            return peer.MatchIndex.IndexOfHighestKnownReplicatedLog == index;
+        }
+
+        private void FinishWaitingForCommandToReplicate()
+        {
+            _handled = true;
+        }
+
+        private void Wait()
+        {
+            Thread.Sleep(_settings.HeartbeatTimeout);
         }
     }
 }
