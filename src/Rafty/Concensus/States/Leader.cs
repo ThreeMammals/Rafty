@@ -14,7 +14,6 @@ namespace Rafty.Concensus
     public sealed class Leader : IState
     {
         private readonly IFiniteStateMachine _fsm;
-        private int _updated;
         private readonly object _lock = new object();
         private bool _handled;
         private readonly List<IPeer> _peers;
@@ -22,11 +21,16 @@ namespace Rafty.Concensus
         private readonly INode _node;
         private Timer _electionTimer;
         private readonly ISettings _settings;
-        private bool _appendingEntries;
         public long SendAppendEntriesCount;
 
 
-        public Leader(CurrentState currentState, IFiniteStateMachine fsm, List<IPeer> peers, ILog log, INode node, ISettings settings)
+        public Leader(
+            CurrentState currentState, 
+            IFiniteStateMachine fsm, 
+            List<IPeer> peers, 
+            ILog log, 
+            INode node, 
+            ISettings settings)
         {
             _settings = settings;
             _node = node;
@@ -47,33 +51,60 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set; }
 
-        public Response<T> Accept<T>(T command)
+        private int AddCommandToLog<T>(T command)
         {
-            //If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
             var json = JsonConvert.SerializeObject(command);
             var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm);
             var index = _log.Apply(log);
-            //hack to make sure we dont handle a command twice? Must be a nicer way?
+            return index;
+        }
+
+        private bool WaitingForCommandToPersist()
+        {
+            return !_handled;
+        }
+
+        private void SetUpPersisting()
+        {
             _handled = false;
-            _updated = 0;
+        }
+
+        private bool CommitedToMajority(int commited)
+        {
+            return commited >= (_peers.Count) / 2 + 1;
+        }
+
+        private bool Commited(PeerState peer, int index)
+        {
+            return peer.MatchIndex.IndexOfHighestKnownReplicatedLog == index;
+        }
+
+        private void FinishWaitingForCommandToPersist()
+        {
+            _handled = true;
+        }
+
+        public Response<T> Accept<T>(T command)
+        {
+            var index = AddCommandToLog(command);
+
+            SetUpPersisting();
             
-            //ok so the idea of this loop is to wait until the heartbeat has sent this log to a majority of nodes then we commit it to the
-            //state machine
-            while (!_handled)
+            while (WaitingForCommandToPersist())
             {
                 var commited = 0;
-                
+
                 foreach(var peer in PeerStates)
                 {
-                    if(peer.MatchIndex.IndexOfHighestKnownReplicatedLog == index)
+                    if(Commited(peer, index))
                     {
                         commited++;
                     }
 
-                    if (commited >= (_peers.Count) / 2 + 1)
+                    if (CommitedToMajority(commited))
                     {
                         _fsm.Handle(command);
-                        _handled = true;
+                        FinishWaitingForCommandToPersist();
                         break;
                     }
                 }
@@ -81,7 +112,6 @@ namespace Rafty.Concensus
                 Thread.Sleep(_settings.HeartbeatTimeout);
             }
 
-            //send append entries to each server...
             return new Response<T>(_handled, command);
         }
 
