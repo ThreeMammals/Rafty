@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Rafty.Concensus.States;
 using Rafty.FiniteStateMachine;
 using Rafty.Log;
 
@@ -22,6 +23,7 @@ namespace Rafty.Concensus
         private Timer _electionTimer;
         private bool _requestVoteResponseWithGreaterTerm;
         private ISettings _settings;
+        private IRules _rules;
 
         public Candidate(CurrentState currentState, 
             IFiniteStateMachine fsm, 
@@ -29,8 +31,10 @@ namespace Rafty.Concensus
             ILog log, 
             IRandomDelay random, 
             INode node, 
-            ISettings settings)
+            ISettings settings,
+            IRules rules)
         {
+            _rules = rules;
             _random = random;
             _node = node;
             _settings = settings;
@@ -85,25 +89,25 @@ namespace Rafty.Concensus
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
-            var response = AppendEntriesTermIsLessThanCurrentTerm(appendEntries);
+            var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
 
             if(response.shouldReturn)
             {
                 return response.appendEntriesResponse;
             }
 
-            response = LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries);
+            response = _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
 
             if(response.shouldReturn)
             {
                 return response.appendEntriesResponse;
             }
           
-            DeleteAnyConflictsInLog(appendEntries);
+            _rules.DeleteAnyConflictsInLog(appendEntries, _log);
 
-            ApplyEntriesToLog(appendEntries);
+            _rules.ApplyEntriesToLog(appendEntries, _log);
 
-            var commitIndexAndLastApplied = CommitIndexAndLastApplied(appendEntries);
+            var commitIndexAndLastApplied = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
             ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
 
@@ -121,14 +125,14 @@ namespace Rafty.Concensus
                 return response.requestVoteResponse;
             }
 
-            response = RequestVoteTermIsLessThanCurrentTerm(requestVote);
+            response = _rules.RequestVoteTermIsLessThanCurrentTerm(requestVote, CurrentState);
 
             if(response.shouldReturn)
             {
                 return response.requestVoteResponse;
             }
 
-            response = VotedForIsNotThisOrNobody(requestVote);
+            response = _rules.VotedForIsNotThisOrNobody(requestVote, CurrentState);
 
             if(response.shouldReturn)
             {
@@ -242,65 +246,7 @@ namespace Rafty.Concensus
 
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }
-
-                // todo - inject as function into candidate and follower as logic is the same...
-        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries)
-        {
-            if (appendEntries.Term < CurrentState.CurrentTerm)
-            { 
-                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
-            }
-
-            return (null, false);
-        }
-
-        // todo - inject as function into candidate and follower as logic is the same...
-        private (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries)
-        {
-            var termAtPreviousLogIndex = _log.GetTermAtIndex(appendEntries.PreviousLogIndex);
-            if (termAtPreviousLogIndex > 0 && termAtPreviousLogIndex != appendEntries.PreviousLogTerm)
-            {
-                return (new AppendEntriesResponse(CurrentState.CurrentTerm, false), true);
-            }
-
-            return (null, false);
-        }
         
-        // todo - inject as function into candidate and follower as logic is the same...
-        private void DeleteAnyConflictsInLog(AppendEntries appendEntries)
-        {
-            var count = 1;
-            foreach (var newLog in appendEntries.Entries)
-            {
-                _log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
-                count++;
-            }
-        }
-
-        // todo - inject as function into candidate and follower as logic is the same...
-        private void ApplyEntriesToLog(AppendEntries appendEntries)
-        {
-            foreach (var log in appendEntries.Entries)
-            {
-                _log.Apply(log);
-            }
-        }
-
-        // todo - inject as function into candidate and follower as logic is the same...
-        private (int commitIndex, int lastApplied) CommitIndexAndLastApplied(AppendEntries appendEntries)
-        {
-            var commitIndex = CurrentState.CommitIndex;
-            var lastApplied = CurrentState.LastApplied;
-            if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-            {
-                var lastNewEntry = _log.LastLogIndex;
-                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
-            }
-
-            return (commitIndex, lastApplied);
-        }
-
-        // not the same as follower
         private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
         {
             while (commitIndex > lastApplied)
@@ -325,7 +271,6 @@ namespace Rafty.Concensus
             }
         }
 
-        // inject and consolidate with leader
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
         {
             if (requestVote.Term > CurrentState.CurrentTerm)
@@ -339,29 +284,6 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        // todo - consolidate with follower and pass in as function
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote)
-        {
-            if (requestVote.Term < CurrentState.CurrentTerm)
-            {
-                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), false);
-            }
-
-            return (null, false);
-        }
-
-        // todo - consolidate with follower and pass in as function
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote)
-        {
-            if (CurrentState.VotedFor == CurrentState.Id || CurrentState.VotedFor != default(Guid))
-            {
-                return (new RequestVoteResponse(false, CurrentState.CurrentTerm), true);
-            }
-
-            return (null, false);
-        }
-
-        // todo - consolidate with follower and pass in as function
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
         {
              if (requestVote.LastLogIndex == _log.LastLogIndex &&

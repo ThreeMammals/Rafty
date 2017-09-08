@@ -146,7 +146,6 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        // inject and consolidate with candidate
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
         {
             if (requestVote.Term > CurrentState.CurrentTerm)

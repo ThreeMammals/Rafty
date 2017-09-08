@@ -164,7 +164,7 @@ min(leaderCommit, index of last new entry)
                .WithPreviousLogTerm(1)
                .WithLeaderCommitIndex(1)
                .Build();
-            var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings);
+            var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             follower.CurrentState.CommitIndex.ShouldBe(1);
         }

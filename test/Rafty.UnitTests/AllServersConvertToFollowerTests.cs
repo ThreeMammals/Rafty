@@ -67,7 +67,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
-            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode)_node;
@@ -80,7 +80,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid(), currentTerm, default(Guid), 0, 0);
-            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var requestVoteResponse = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).WithLastLogIndex(1).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode) _node;
