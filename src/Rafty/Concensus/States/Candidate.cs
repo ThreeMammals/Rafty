@@ -73,11 +73,6 @@ namespace Rafty.Concensus
             _node.BecomeFollower(CurrentState);
         }
 
-        private bool WonElection()
-        {
-            return _becomeLeader && !_requestVoteResponseWithGreaterTerm;
-        }
-
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
             var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
@@ -152,46 +147,50 @@ namespace Rafty.Concensus
         }
 
 
-        private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> responses)
+        private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> requestVoteResponses)
         {
-            var tasks = new List<Task>();
+            var getVotes = new List<Task>();
 
-            foreach (var peer in _peers)
-            {
-                var task = GetVote(peer, responses);
-                tasks.Add(task);
-            }
+            _peers.ForEach(p => {
+                getVotes.Add(RequestVote(p, requestVoteResponses));
+            });
 
-            return tasks;
+            return getVotes;
         }
 
-        private async Task CountVotes(BlockingCollection<RequestVoteResponse> states)
+        private async Task CountVotes(BlockingCollection<RequestVoteResponse> requestVoteResponses)
         {
             var receivedResponses = 0;
-            var tasks = new List<Task>();
-            foreach (var requestVoteResponse in states.GetConsumingEnumerable())
+
+            var votingCount = new List<Task>();
+
+            foreach (var requestVoteResponse in requestVoteResponses.GetConsumingEnumerable())
             {
-                var task = CountVote(requestVoteResponse);
-                tasks.Add(task);
+                var countedVote = CountVote(requestVoteResponse);
+
+                votingCount.Add(countedVote);
+
                 receivedResponses++;
 
-                if (receivedResponses >= _peers.Count)
+                if (ReceivedMaximumResponses(receivedResponses))
                 {
                     break;
                 }
             }
 
-            Task.WaitAll(tasks.ToArray());
+            Task.WaitAll(votingCount.ToArray());
+        }
+
+        private bool ReceivedMaximumResponses(int receivedResponses)
+        {
+            return receivedResponses >= _peers.Count;
         }
 
         private async Task CountVote(RequestVoteResponse requestVoteResponse)
         {
-            if (requestVoteResponse.Term > CurrentState.CurrentTerm)
+            if (ResponseContainsTermGreaterThanCurrentTerm(requestVoteResponse))
             {
-                CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
-
-                _requestVoteResponseWithGreaterTerm = true;
+                BecomeFollowerAfterElectionFinishes(requestVoteResponse);
             }
 
             if (requestVoteResponse.VoteGranted)
@@ -200,20 +199,42 @@ namespace Rafty.Concensus
                 {
                     _votesThisElection++;
 
-                    //If votes received from majority of servers: become leader
-                    if (_votesThisElection >= (_peers.Count + 1) / 2 + 1)
+                    if (HasMajority())
                     {
-                        _becomeLeader = true;
+                        BecomeLeader();
                     }
                 }
             }
         }
 
-        private async Task GetVote(IPeer peer, BlockingCollection<RequestVoteResponse> responses) 
+        private bool ResponseContainsTermGreaterThanCurrentTerm(RequestVoteResponse requestVoteResponse)
+        {
+            return requestVoteResponse.Term > CurrentState.CurrentTerm;
+        }
+
+        private void BecomeFollowerAfterElectionFinishes(RequestVoteResponse requestVoteResponse)
+        {
+                CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+
+                _requestVoteResponseWithGreaterTerm = true;
+        }
+
+        private bool HasMajority()
+        {
+            return _votesThisElection >= (_peers.Count + 1) / 2 + 1;
+        }
+
+        private void BecomeLeader()
+        {
+            _becomeLeader = true;
+        }
+
+        private async Task RequestVote(IPeer peer, BlockingCollection<RequestVoteResponse> requestVoteResponses) 
         {
             var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
 
-            responses.Add(requestVoteResponse);
+            requestVoteResponses.Add(requestVoteResponse);
         }
 
         private void ElectionTimerExpired()
@@ -332,6 +353,11 @@ namespace Rafty.Concensus
             Task.WaitAll(votes.ToArray());
 
             checkVotes.Wait();
+        }
+
+        private bool WonElection()
+        {
+            return _becomeLeader && !_requestVoteResponseWithGreaterTerm;
         }
     }
 }
