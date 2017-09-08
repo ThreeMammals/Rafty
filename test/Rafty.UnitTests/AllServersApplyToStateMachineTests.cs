@@ -87,7 +87,7 @@ namespace Rafty.UnitTests
             
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
             var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
-            var leader = new Leader(currentState, fsm, _peers, _log, _node, _settings);
+            var leader = new Leader(currentState, fsm, _peers, _log, _node, _settings, _rules);
             var log = new LogEntry("test", typeof(string), 1);
                var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)

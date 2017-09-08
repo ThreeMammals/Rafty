@@ -183,7 +183,7 @@ min(leaderCommit, index of last new entry)
                .WithPreviousLogTerm(1)
                .WithLeaderCommitIndex(1)
                .Build();
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings);
+            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
             var state = leader.Handle(appendEntriesRpc);
             leader.CurrentState.CommitIndex.ShouldBe(1);
         }

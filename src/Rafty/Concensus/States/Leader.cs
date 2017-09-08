@@ -8,6 +8,7 @@ namespace Rafty.Concensus
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using Newtonsoft.Json;
+    using Rafty.Concensus.States;
     using Rafty.FiniteStateMachine;
     using Rafty.Log;
 
@@ -22,6 +23,7 @@ namespace Rafty.Concensus
         private Timer _electionTimer;
         private readonly ISettings _settings;
         public long SendAppendEntriesCount;
+        private IRules _rules;
 
 
         public Leader(
@@ -30,8 +32,10 @@ namespace Rafty.Concensus
             List<IPeer> peers, 
             ILog log, 
             INode node, 
-            ISettings settings)
+            ISettings settings,
+            IRules rules)
         {
+            _rules = rules;
             _settings = settings;
             _node = node;
             _log = log;
@@ -83,46 +87,13 @@ namespace Rafty.Concensus
             return new Response<T>(_handled, command);
         }
 
-        /// <summary>
-        /// This is only public so I could test it....i feel bad will work towards not having it public
-        /// </summary>
-        /// <param name="nextIndex"></param>
-        /// <returns></returns>
-        public List<Tuple<int,LogEntry>> GetLogsForPeer(NextIndex nextIndex)
-        {
-            if (_log.Count > 0)
-            {
-                if (_log.LastLogIndex >= nextIndex.NextLogIndexToSendToPeer)
-                {
-                    var logs = _log.GetFrom(nextIndex.NextLogIndexToSendToPeer);
-                    return logs;
-                }
-            }
-
-            return new List<Tuple<int, LogEntry>>();
-        }
-
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
             if (appendEntries.Term > CurrentState.CurrentTerm)
             {
-                var commitIndex = CurrentState.CommitIndex;
-                var lastApplied = CurrentState.LastApplied;
-                if (appendEntries.LeaderCommitIndex > CurrentState.CommitIndex)
-                {
-                    var lastNewEntry = _log.LastLogIndex;
-                    commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
-                }
+                var response = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
-                while (commitIndex > lastApplied)
-                {
-                    lastApplied++;
-                    var log = _log.Get(lastApplied);
-                    _fsm.Handle(log.CommandData);
-                }
-
-                CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
-                    CurrentState.VotedFor, commitIndex, lastApplied);
+                ApplyToStateMachine(appendEntries, response.commitIndex, response.lastApplied);
 
                 _node.BecomeFollower(CurrentState);
 
@@ -142,19 +113,6 @@ namespace Rafty.Concensus
             }
 
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
-        }
-
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
-        {
-            if (requestVote.Term > CurrentState.CurrentTerm)
-            {
-                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
-                _node.BecomeFollower(CurrentState);
-                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
-            }
-
-            return (null, false);
         }
 
         private void SendAppendEntries()
@@ -281,6 +239,46 @@ namespace Rafty.Concensus
         private void Wait()
         {
             Thread.Sleep(_settings.HeartbeatTimeout);
+        }
+
+        private List<Tuple<int,LogEntry>> GetLogsForPeer(NextIndex nextIndex)
+        {
+            if (_log.Count > 0)
+            {
+                if (_log.LastLogIndex >= nextIndex.NextLogIndexToSendToPeer)
+                {
+                    var logs = _log.GetFrom(nextIndex.NextLogIndexToSendToPeer);
+                    return logs;
+                }
+            }
+
+            return new List<Tuple<int, LogEntry>>();
+        }
+
+        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
+        {
+            if (requestVote.Term > CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
+                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(CurrentState);
+                return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
+            }
+
+            return (null, false);
+        }
+
+        private void ApplyToStateMachine(AppendEntries appendEntries, int commitIndex, int lastApplied)
+        {
+            while (commitIndex > lastApplied)
+            {
+                lastApplied++;
+                var log = _log.Get(lastApplied);
+                _fsm.Handle(log.CommandData);
+            }
+
+            CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
+                CurrentState.VotedFor, commitIndex, lastApplied);
         }
     }
 }

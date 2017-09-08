@@ -146,7 +146,6 @@ namespace Rafty.Concensus
             _electionTimer.Dispose();
         }
 
-
         private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> requestVoteResponses)
         {
             var getVotes = new List<Task>();
