@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using Rafty.FiniteStateMachine;
 using Rafty.Log;
+using Rafty.Concensus.States;
 
 namespace Rafty.UnitTests
 {
@@ -19,13 +20,17 @@ namespace Rafty.UnitTests
         private readonly IRandomDelay _random;
         private readonly INode _node;
         private IFiniteStateMachine _fsm;
+        private Settings _settings;
+        private IRules _rules;
 
         public AllServersApplyToStateMachineTests()
         {
+            _rules = new Rules();
+            _settings = new SettingsBuilder().Build();
             _random = new RandomDelay();
             _peers = new List<IPeer>();
             _log = new InMemoryLog();
-            _fsm = new InMemoryStateMachine();
+            _fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
             _node = new NothingNode();
         }
 
@@ -33,8 +38,8 @@ namespace Rafty.UnitTests
         public void FollowerShouldApplyLogsToFsm()
         {
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
-            var fsm = new InMemoryStateMachine();
-            var follower = new Follower(currentState, fsm, _log, _random, _node, new SettingsBuilder().Build());
+            var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
+            var follower = new Follower(currentState, fsm, _log, _random, _node, _settings, _rules);
             var log = new LogEntry("test", typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
@@ -55,8 +60,8 @@ namespace Rafty.UnitTests
         public void CandidateShouldApplyLogsToFsm()
         {
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
-            var fsm = new InMemoryStateMachine();
-            var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node, new SettingsBuilder().Build());
+            var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
+            var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node, _settings);
             var log = new LogEntry("test", typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
@@ -81,8 +86,8 @@ namespace Rafty.UnitTests
         {
             
             var currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
-            var fsm = new InMemoryStateMachine();
-            var leader = new Leader(currentState, fsm, _peers, _log, _node, new SettingsBuilder().Build());
+            var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
+            var leader = new Leader(currentState, fsm, _peers, _log, _node, _settings);
             var log = new LogEntry("test", typeof(string), 1);
                var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)

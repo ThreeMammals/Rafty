@@ -1,4 +1,5 @@
 using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
 using Rafty.Log;
 
 namespace Rafty.AcceptanceTests

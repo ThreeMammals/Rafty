@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Rafty.Concensus.States;
 using Rafty.FiniteStateMachine;
 using Rafty.Log;
 
@@ -12,9 +13,12 @@ namespace Rafty.Concensus
         private readonly Func<CurrentState, List<IPeer>> _getPeers;
         private readonly IRandomDelay _random;
         private readonly Settings _settings;
+        private IRules _rules;
 
         public Node(IFiniteStateMachine fsm, ILog log, Func<CurrentState, List<IPeer>> getPeers, IRandomDelay random, Settings settings)
         {
+            //dont really want this injected at the moment...
+            _rules = new Rules();
             _fsm = fsm;
             _log = log;
             _getPeers = getPeers;
@@ -54,7 +58,7 @@ namespace Rafty.Concensus
         public void BecomeFollower(CurrentState state)
         {
             State?.Stop();
-            State = new Follower(state, _fsm, _log, _random, this, _settings);
+            State = new Follower(state, _fsm, _log, _random, this, _settings, _rules);
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)

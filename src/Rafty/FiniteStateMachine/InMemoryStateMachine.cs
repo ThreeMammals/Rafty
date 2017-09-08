@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Rafty.FiniteStateMachine;
 
-namespace Rafty.Concensus
+namespace Rafty.FiniteStateMachine
 {
     public class InMemoryStateMachine : IFiniteStateMachine
     {
