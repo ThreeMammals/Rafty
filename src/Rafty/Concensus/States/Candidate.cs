@@ -25,7 +25,8 @@ namespace Rafty.Concensus
         private ISettings _settings;
         private IRules _rules;
 
-        public Candidate(CurrentState currentState, 
+        public Candidate(
+            CurrentState currentState, 
             IFiniteStateMachine fsm, 
             List<IPeer> peers, 
             ILog log, 
@@ -42,7 +43,7 @@ namespace Rafty.Concensus
             _peers = peers;
             _fsm = fsm;
             CurrentState = currentState;
-            _electioneering = true;
+            StartElectioneering();
             ResetElectionTimer();
         }
 
@@ -50,41 +51,31 @@ namespace Rafty.Concensus
 
         public void BeginElection()
         {
-            var nextTerm = CurrentState.CurrentTerm + 1;
+            SetUpElection();
 
-            var votedFor = CurrentState.Id;
-
-            _votesThisElection++;
-
-            CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
-                CurrentState.CommitIndex, CurrentState.LastApplied);
-
-            var responses = new BlockingCollection<RequestVoteResponse>();
-            
-            if (_peers.Count == 0)
+            if (No(_peers))
             {
-                _electioneering = false;
+                StopElectioneering();
                 _node.BecomeLeader(CurrentState);
                 return;
             }
 
-            var votes = GetVotes(responses);
+            DoElection();
 
-            var checkVotes = CountVotes(responses);
+            StopElectioneering();
 
-            Task.WaitAll(votes.ToArray());
-
-            checkVotes.Wait();
-
-            _electioneering = false;
-
-            if (_becomeLeader && !_requestVoteResponseWithGreaterTerm)
+            if (WonElection())
             {
                 _node.BecomeLeader(CurrentState);
                 return;
             }
 
             _node.BecomeFollower(CurrentState);
+        }
+
+        private bool WonElection()
+        {
+            return _becomeLeader && !_requestVoteResponseWithGreaterTerm;
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
@@ -160,6 +151,7 @@ namespace Rafty.Concensus
             _electionTimer.Dispose();
         }
 
+
         private List<Task> GetVotes(BlockingCollection<RequestVoteResponse> responses)
         {
             var tasks = new List<Task>();
@@ -226,7 +218,7 @@ namespace Rafty.Concensus
 
         private void ElectionTimerExpired()
         {
-            if (!_electioneering)
+            if (NotElecting())
             {
                 _node.BecomeCandidate(CurrentState);
             }
@@ -234,6 +226,11 @@ namespace Rafty.Concensus
             {
                 ResetElectionTimer();
             }
+        }
+
+        private bool NotElecting()
+        {
+            return !_electioneering;
         }
 
         private void ResetElectionTimer()
@@ -295,6 +292,46 @@ namespace Rafty.Concensus
             }
 
             return (null, false);
+        }
+
+        private void StartElectioneering()
+        {
+            _electioneering = true;
+        }
+
+        private void StopElectioneering()
+        {
+            _electioneering = false;
+        }
+        
+        private bool No(List<IPeer> peers)
+        {
+            return peers.Count == 0;
+        }
+
+        private void SetUpElection()
+        {
+            var nextTerm = CurrentState.CurrentTerm + 1;
+
+            var votedFor = CurrentState.Id;
+
+            _votesThisElection++;
+
+            CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
+                CurrentState.CommitIndex, CurrentState.LastApplied);
+        }
+        
+        private void DoElection()
+        {
+            var requestVoteResponses = new BlockingCollection<RequestVoteResponse>();
+            
+            var votes = GetVotes(requestVoteResponses);
+
+            var checkVotes = CountVotes(requestVoteResponses);
+
+            Task.WaitAll(votes.ToArray());
+
+            checkVotes.Wait();
         }
     }
 }
