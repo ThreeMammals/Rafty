@@ -22,7 +22,14 @@ namespace Rafty.Concensus
         private ISettings _settings;
         private IRules _rules;
 
-        public Follower(CurrentState state, IFiniteStateMachine stateMachine, ILog log, IRandomDelay random, INode node, ISettings settings, IRules rules)
+        public Follower(
+            CurrentState state, 
+            IFiniteStateMachine stateMachine, 
+            ILog log, 
+            IRandomDelay random, 
+            INode node, 
+            ISettings settings, 
+            IRules rules)
         {
             _rules = rules;
             _random = random;
@@ -113,12 +120,9 @@ namespace Rafty.Concensus
 
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)
         {
-            var term = CurrentState.CurrentTerm;
-
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
-                term = requestVote.Term;
-                CurrentState = new CurrentState(CurrentState.Id, term, requestVote.CandidateId,
+                CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
                     CurrentState.CommitIndex, CurrentState.LastApplied);
                  return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
@@ -126,7 +130,6 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        // has state cant consolidate
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
         {
              if (requestVote.LastLogIndex == _log.LastLogIndex &&
@@ -140,7 +143,6 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        // not the same as candidate or leader..
         private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
         {
             while (commitIndex > lastApplied)
