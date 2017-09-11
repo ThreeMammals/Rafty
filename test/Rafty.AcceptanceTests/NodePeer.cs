@@ -7,7 +7,18 @@ namespace Rafty.AcceptanceTests
     {
         private Node _node;
 
-        public Guid Id => _node.State.CurrentState.Id;
+        public Guid Id 
+        {
+            get 
+            {
+                if(_node?.State?.CurrentState?.Id != null)
+                {
+                    return _node.State.CurrentState.Id;
+                }
+                
+                return default(Guid);
+            }
+        }
 
         public void SetNode (Node node)
         {

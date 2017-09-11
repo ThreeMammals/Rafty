@@ -138,8 +138,7 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
-            //todo return retry?
-            throw new NotImplementedException();
+           return new Response<T>("Please retry command later...currently electing new a new leader..", command);
         }
 
         public void Stop()
