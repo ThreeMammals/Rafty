@@ -16,15 +16,15 @@ namespace Rafty.Log
 
         public Dictionary<int, LogEntry> ExposedForTesting => _log;
 
-        public List<Tuple<int,LogEntry>> GetFrom(int index)
+        public List<(int index, LogEntry logEntry)> GetFrom(int index)
         {
-            var logsToReturn = new List<Tuple<int, LogEntry>>();
+            var logsToReturn = new List<(int, LogEntry)>();
             var take = _log.Count - index;
             foreach(var log in _log)
             {
                 if(log.Key >= index)
                 {
-                    logsToReturn.Add(new Tuple<int,LogEntry>(log.Key, log.Value));
+                    logsToReturn.Add((log.Key, log.Value));
                 }
             }
 

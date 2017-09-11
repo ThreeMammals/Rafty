@@ -115,59 +115,92 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        private void SendAppendEntries()
+        private ConcurrentBag<AppendEntriesResponse> SetUpAppendingEntries()
         {
             SendAppendEntriesCount++;
-
             var responses = new ConcurrentBag<AppendEntriesResponse>();
+            return responses;
+        }
 
-            Parallel.ForEach(PeerStates, p =>
-            {
-                var logsToSend = GetLogsForPeer(p.NextIndex);
-              
-                var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.Item2).ToList(), CurrentState.CommitIndex));
-                responses.Add(appendEntriesResponse);
-                lock (_lock)
-                {
-                    if (appendEntriesResponse.Success)
-                    {
-                        var newMatchIndex =
-                            Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog, logsToSend.Count > 0 ? logsToSend.Max(x => x.Item1) : 0);
+        private AppendEntriesResponse GetAppendEntriesResponse(PeerState p, List<(int, LogEntry logEntry)> logsToSend)
+        {
+            var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.logEntry).ToList(), CurrentState.CommitIndex));
+            return appendEntriesResponse;
+        }
 
-                        var newNextIndex = newMatchIndex + 1;
+        private void UpdatePeerIndexes(PeerState p, List<(int index, LogEntry logEntry)> logsToSend)
+        {
+            var newMatchIndex =
+                Math.Max(p.MatchIndex.IndexOfHighestKnownReplicatedLog, logsToSend.Count > 0 ? logsToSend.Max(x => x.index) : 0);
+            var newNextIndex = newMatchIndex + 1;
+            p.UpdateMatchIndex(newMatchIndex);
+            p.UpdateNextIndex(newNextIndex);
+        }
 
-                        if(newNextIndex < 0 || newMatchIndex < 0)
-                        {
-                            throw new Exception("Cannot be less than zero");
-                        }
-
-                        p.UpdateMatchIndex(newMatchIndex);
-                        p.UpdateNextIndex(newNextIndex);
-                    }
-
-                    if (!appendEntriesResponse.Success)
-                    {
-                        var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 1 ? 1 : p.NextIndex.NextLogIndexToSendToPeer - 1;
-                        if(nextIndex < 0)
-                        {
-                            
-                        }
+        private void UpdatePeerIndexes(PeerState p)
+        {
+            var nextIndex = p.NextIndex.NextLogIndexToSendToPeer <= 1 ? 1 : p.NextIndex.NextLogIndexToSendToPeer - 1;
                         p.UpdateNextIndex(nextIndex);
-                    }
+        }
+
+        private void UpdateIndexes(PeerState peer, List<(int index, LogEntry logEntry)> logsToSend, AppendEntriesResponse appendEntriesResponse)
+        {
+            lock (_lock)
+            {
+                if (appendEntriesResponse.Success)
+                {
+                    UpdatePeerIndexes(peer, logsToSend);
+                } 
+                else
+                {
+                    UpdatePeerIndexes(peer);
                 }
+            }
+        }
+
+        private void SendAppendEntries()
+        {
+            var appendEntriesResponses = SetUpAppendingEntries();
+
+            Parallel.ForEach(PeerStates, peer =>
+            {
+                var logsToSend = GetLogsForPeer(peer.NextIndex);
+              
+                var appendEntriesResponse = GetAppendEntriesResponse(peer, logsToSend);
+
+                appendEntriesResponses.Add(appendEntriesResponse);
+                
+                UpdateIndexes(peer, logsToSend, appendEntriesResponse);
             });
 
-            foreach (var appendEntriesResponse in responses)
+            var response = DoesResponseContainsGreaterTerm(appendEntriesResponses);
+
+            if(response.conainsGreaterTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, response.newTerm, 
+                        CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+                _node.BecomeFollower(CurrentState);
+                return;
+            }
+
+            UpdateCommitIndex();
+        }
+
+        private (bool conainsGreaterTerm, long newTerm) DoesResponseContainsGreaterTerm(ConcurrentBag<AppendEntriesResponse> appendEntriesResponses)
+        {
+            foreach (var appendEntriesResponse in appendEntriesResponses)
             {
                 if(appendEntriesResponse.Term > CurrentState.CurrentTerm)
                 {
-                    var currentState = new CurrentState(CurrentState.Id, appendEntriesResponse.Term, 
-                        CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
-                    _node.BecomeFollower(currentState);
-                    return;
+                    return (true, appendEntriesResponse.Term);
                 }
             }
-            
+
+            return (false, 0);
+        }
+
+        private void UpdateCommitIndex()
+        {
             var nextCommitIndex = CurrentState.CommitIndex + 1;
             var statesIndexOfHighestKnownReplicatedLogs = PeerStates.Select(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog).ToList();
             var greaterOrEqualToN = statesIndexOfHighestKnownReplicatedLogs.Where(x => x >= nextCommitIndex).ToList();
@@ -241,7 +274,7 @@ namespace Rafty.Concensus
             Thread.Sleep(_settings.HeartbeatTimeout);
         }
 
-        private List<Tuple<int,LogEntry>> GetLogsForPeer(NextIndex nextIndex)
+        private List<(int index ,LogEntry logEntry)> GetLogsForPeer(NextIndex nextIndex)
         {
             if (_log.Count > 0)
             {
@@ -252,7 +285,7 @@ namespace Rafty.Concensus
                 }
             }
 
-            return new List<Tuple<int, LogEntry>>();
+            return new List<(int, LogEntry)>();
         }
 
         private (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsGreaterThanCurrentTerm(RequestVote requestVote)

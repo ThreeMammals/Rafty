@@ -7,7 +7,7 @@ namespace Rafty.Log
     {
         int Apply(LogEntry log);
         LogEntry Get(int index);
-        List<Tuple<int, LogEntry>> GetFrom(int index);
+        List<(int index, LogEntry logEntry)> GetFrom(int index);
         int LastLogIndex {get;}
         long LastLogTerm {get;}
         long GetTermAtIndex(int index);
