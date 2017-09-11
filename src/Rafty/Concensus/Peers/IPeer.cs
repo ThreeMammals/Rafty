@@ -7,5 +7,6 @@ namespace Rafty.Concensus
         Guid Id {get;}
         RequestVoteResponse Request(RequestVote requestVote);
         AppendEntriesResponse Request(AppendEntries appendEntries);
+        Response<T> Request<T>(T command);
     }
 }

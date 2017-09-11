@@ -15,5 +15,10 @@ namespace Rafty.Concensus
         {
             throw new NotImplementedException();
         }
+
+        public Response<T> Request<T>(T command)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

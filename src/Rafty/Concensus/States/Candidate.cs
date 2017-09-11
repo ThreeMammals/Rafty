@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Rafty.Concensus.States;
@@ -137,7 +138,7 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
-            // todo - work out what a candidate should do if it gets a command sent to it? Maybe return a retry?
+            //todo return retry?
             throw new NotImplementedException();
         }
 
@@ -214,7 +215,7 @@ namespace Rafty.Concensus
         private void BecomeFollowerAfterElectionFinishes(RequestVoteResponse requestVoteResponse)
         {
                 CurrentState = new CurrentState(CurrentState.Id, requestVoteResponse.Term,
-                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+                    CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
 
                 _requestVoteResponseWithGreaterTerm = true;
         }
@@ -274,7 +275,7 @@ namespace Rafty.Concensus
             }
 
             CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,
-                CurrentState.VotedFor, commitIndex, lastApplied);
+                CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.LeaderId);
         }
 
         private void AppendEntriesTermIsGreaterThanCurrentTerm(AppendEntries appendEntries)
@@ -282,7 +283,7 @@ namespace Rafty.Concensus
             if (appendEntries.Term > CurrentState.CurrentTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
 
                 _node.BecomeFollower(CurrentState);
             }
@@ -293,7 +294,7 @@ namespace Rafty.Concensus
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 _node.BecomeFollower(CurrentState);
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
@@ -306,7 +307,7 @@ namespace Rafty.Concensus
              if (requestVote.LastLogIndex == _log.LastLogIndex &&
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
-                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
 
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
@@ -338,7 +339,7 @@ namespace Rafty.Concensus
             _votesThisElection++;
 
             CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
-                CurrentState.CommitIndex, CurrentState.LastApplied);
+                CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
         }
         
         private void DoElection()

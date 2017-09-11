@@ -32,7 +32,7 @@ namespace Rafty.Concensus
         {
             if(State?.CurrentState == null)
             {
-                BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0));
+                BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0, default(Guid)));
             }
             else
             {
@@ -58,7 +58,7 @@ namespace Rafty.Concensus
         public void BecomeFollower(CurrentState state)
         {
             State?.Stop();
-            State = new Follower(state, _fsm, _log, _random, this, _settings, _rules);
+            State = new Follower(state, _fsm, _log, _random, this, _settings, _rules, _getPeers(state));
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)

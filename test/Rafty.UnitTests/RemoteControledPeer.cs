@@ -38,5 +38,10 @@ namespace Rafty.UnitTests
             AppendEntriesResponses++;
             return _appendEntriesResponse;
         }
+
+        public Response<T> Request<T>(T command)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

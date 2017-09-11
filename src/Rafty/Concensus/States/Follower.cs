@@ -21,6 +21,7 @@ namespace Rafty.Concensus
         private readonly INode _node;
         private ISettings _settings;
         private IRules _rules;
+        private List<IPeer> _peers;
 
         public Follower(
             CurrentState state, 
@@ -29,8 +30,10 @@ namespace Rafty.Concensus
             IRandomDelay random, 
             INode node, 
             ISettings settings, 
-            IRules rules)
+            IRules rules,
+            List<IPeer> peers)
         {
+            _peers = peers;
             _rules = rules;
             _random = random;
             _node = node;
@@ -109,8 +112,13 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
-            //todo - send message to leader...
-            throw new NotImplementedException();
+            var leader = _peers.FirstOrDefault(x => x.Id == CurrentState.LeaderId);
+            if(leader != null)
+            {
+                return leader.Request(command);
+            }
+            
+            return new Response<T>(false, command);
         }
 
         public void Stop()
@@ -123,7 +131,7 @@ namespace Rafty.Concensus
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                  return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 
@@ -135,7 +143,7 @@ namespace Rafty.Concensus
              if (requestVote.LastLogIndex == _log.LastLogIndex &&
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
-                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied);
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
 
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
@@ -153,7 +161,7 @@ namespace Rafty.Concensus
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
-                CurrentState.VotedFor, commitIndex, lastApplied);
+                CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.LeaderId);
         }
         
         private void ElectionTimerExpired()

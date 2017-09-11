@@ -42,7 +42,7 @@ follower
             _fsm = new InMemoryStateMachine();
             _id = Guid.NewGuid();
             _node = new NothingNode();
-            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0);
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
         }
 
         [Fact]
@@ -211,7 +211,7 @@ follower
         public void ShouldVoteForNewCandidateInAnotherTermsElection()
         {
             _node = new NothingNode();
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0);
+            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0, default(Guid));
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
             var requestVoteResponse = candidate.Handle(requestVote);

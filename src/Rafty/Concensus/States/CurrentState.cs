@@ -6,13 +6,14 @@ namespace Rafty.Concensus
 
     public class CurrentState
     {
-        public CurrentState(Guid id, long currentTerm, Guid votedFor, int commitIndex, int lastApplied)
+        public CurrentState(Guid id, long currentTerm, Guid votedFor, int commitIndex, int lastApplied, Guid leaderId)
         {
             Id = id;
             CurrentTerm = currentTerm;
             VotedFor = votedFor;
             CommitIndex = commitIndex;
             LastApplied = lastApplied;
+            LeaderId = leaderId;
         }
 
         public long CurrentTerm { get; private set; }
@@ -21,5 +22,6 @@ namespace Rafty.Concensus
         public int LastApplied { get; private set; }
         public Uri Address { get; private set; }
         public Guid Id { get; private set; }
+        public Guid LeaderId { get; private set; }
     }
 }

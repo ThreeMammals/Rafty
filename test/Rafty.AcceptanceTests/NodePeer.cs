@@ -37,5 +37,10 @@ namespace Rafty.AcceptanceTests
                 return new AppendEntriesResponse(0, false);
             }
         }
+
+        public Response<T> Request<T>(T command)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

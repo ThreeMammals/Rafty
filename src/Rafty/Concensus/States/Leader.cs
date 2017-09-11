@@ -1,9 +1,8 @@
-using System.Collections.Concurrent;
-using System.Linq;
-using System.Threading;
-
 namespace Rafty.Concensus
-{
+{  
+    using System.Collections.Concurrent;
+    using System.Linq;
+    using System.Threading;
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
@@ -24,7 +23,6 @@ namespace Rafty.Concensus
         private readonly ISettings _settings;
         public long SendAppendEntriesCount;
         private IRules _rules;
-
 
         public Leader(
             CurrentState currentState, 
@@ -178,7 +176,7 @@ namespace Rafty.Concensus
             if(response.conainsGreaterTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, response.newTerm, 
-                        CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied);
+                        CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 _node.BecomeFollower(CurrentState);
                 return;
             }
@@ -210,7 +208,7 @@ namespace Rafty.Concensus
                 if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
                 {
                     CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
-                        CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied);
+                        CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 }
             }
         }
@@ -293,7 +291,7 @@ namespace Rafty.Concensus
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
-                    CurrentState.CommitIndex, CurrentState.LastApplied);
+                    CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 _node.BecomeFollower(CurrentState);
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
@@ -311,7 +309,7 @@ namespace Rafty.Concensus
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
-                CurrentState.VotedFor, commitIndex, lastApplied);
+                CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.LeaderId);
         }
     }
 }

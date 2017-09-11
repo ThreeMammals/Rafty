@@ -11,6 +11,13 @@ namespace Rafty.UnitTests
         private readonly bool _appendEntryTwo;
         private bool _appendEntryThree;
         private int _term = 1;
+        private Guid _id;
+        public int ReceivedCommands;
+
+        public FakePeer(Guid id)
+        {
+            _id = id;
+        }
 
         public FakePeer(int term)
         {
@@ -47,7 +54,7 @@ namespace Rafty.UnitTests
 
         public List<AppendEntriesResponse> AppendEntriesResponses { get; } = new List<AppendEntriesResponse>();
 
-        public Guid Id => throw new NotImplementedException();
+        public Guid Id => _id;
 
         public RequestVoteResponse Request(RequestVote requestVote)
         {
@@ -76,6 +83,12 @@ namespace Rafty.UnitTests
             response = new AppendEntriesResponse(_term, _appendEntry);
             AppendEntriesResponses.Add(response);
             return response;
+        }
+
+        public Response<T> Request<T>(T command)
+        {
+            ReceivedCommands++;
+            return new Response<T>(true, command);
         }
     }
 }
