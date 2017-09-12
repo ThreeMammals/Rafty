@@ -14,8 +14,6 @@ using Rafty.FiniteStateMachine;
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 namespace Rafty.AcceptanceTests
 {
-
-
     public class Tests : IDisposable
     {
         private ConcurrentDictionary<int, Server> _servers;
@@ -89,6 +87,17 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
+        public void FollowerShouldForwardCommandToLeaderThenPersistToFollowersAndApplyToStateMachine()
+        {
+            CreateServers();
+            AssignNodesToPeers();
+            StartNodes();
+            AssertLeaderElected(4);
+            SendCommandToFollower();
+            AssertCommandAccepted(1, 4);
+        }
+
+        [Fact]
         public void LeaderShouldAcceptManyCommandsThenPersistToFollowersAndApplyToStateMachine()
         {
             CreateServers();
@@ -127,6 +136,13 @@ namespace Rafty.AcceptanceTests
             var leaderServer = _servers.First(x => x.Value.Node.State is Leader);
             var command = new FakeCommand();
             leaderServer.Value.Node.Accept(command);
+        }
+
+        private void SendCommandToFollower()
+        {
+            var followerServer = _servers.First(x => x.Value.Node.State is Follower);
+            var command = new FakeCommand();
+            followerServer.Value.Node.Accept(command);
         }
 
         private void AssertCommandAccepted(int expectedReplicatedCount, int expectedFollowers)

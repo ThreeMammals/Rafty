@@ -93,8 +93,10 @@ namespace Rafty.Concensus
 
                 ApplyToStateMachine(appendEntries, response.commitIndex, response.lastApplied);
 
-                _node.BecomeFollower(CurrentState);
+                SetLeaderId(appendEntries);
 
+                _node.BecomeFollower(CurrentState);
+                
                 return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
             }
 
@@ -310,6 +312,11 @@ namespace Rafty.Concensus
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
                 CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.LeaderId);
+        }
+
+        private void SetLeaderId(AppendEntries appendEntries)
+        {
+            CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, appendEntries.LeaderId);
         }
     }
 }

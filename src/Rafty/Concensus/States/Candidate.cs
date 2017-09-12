@@ -98,6 +98,8 @@ namespace Rafty.Concensus
 
             ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
 
+            SetLeaderId(appendEntries);
+            
             AppendEntriesTermIsGreaterThanCurrentTerm(appendEntries);
 
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
@@ -138,7 +140,7 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
-           return new Response<T>("Please retry command later...currently electing new a new leader..", command);
+           return new Response<T>("Please retry command later. Currently electing new a new leader.", command);
         }
 
         public void Stop()
@@ -339,6 +341,11 @@ namespace Rafty.Concensus
 
             CurrentState = new CurrentState(CurrentState.Id, nextTerm, votedFor, 
                 CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
+        }
+
+        private void SetLeaderId(AppendEntries appendEntries)
+        {
+            CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, appendEntries.LeaderId);
         }
         
         private void DoElection()

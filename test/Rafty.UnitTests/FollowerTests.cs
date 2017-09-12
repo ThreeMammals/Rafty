@@ -162,5 +162,16 @@ namespace Rafty.UnitTests
             response.Success.ShouldBeTrue();
             leader.ReceivedCommands.ShouldBe(1);
         }
+
+        [Fact]
+        public void FollowerShouldReturnRetryIfNoLeader()
+        {             
+            _node = new NothingNode();
+            _currentState = new CurrentState(_currentState.Id, _currentState.CurrentTerm, _currentState.VotedFor, _currentState.CommitIndex, _currentState.LastApplied, _currentState.LeaderId);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var response = follower.Accept(new FakeCommand());
+            response.Success.ShouldBeFalse();
+            response.Error.ShouldBe("Please retry command later. Unable to find leader.");
+        }
     }
 }

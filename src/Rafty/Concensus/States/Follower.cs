@@ -69,6 +69,8 @@ namespace Rafty.Concensus
             var commitIndexAndLastApplied = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
             ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
+
+            SetLeaderId(appendEntries);
             
             _messagesSinceLastElectionExpiry++;
             
@@ -118,7 +120,7 @@ namespace Rafty.Concensus
                 return leader.Request(command);
             }
             
-            return new Response<T>(false, command);
+            return new Response<T>("Please retry command later. Unable to find leader.", command);
         }
 
         public void Stop()
@@ -174,6 +176,11 @@ namespace Rafty.Concensus
             {
                 ResetElectionTimer();
             }
+        }
+
+        private void SetLeaderId(AppendEntries appendEntries)
+        {
+            CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, appendEntries.LeaderId);
         }
 
         private void ResetElectionTimer()

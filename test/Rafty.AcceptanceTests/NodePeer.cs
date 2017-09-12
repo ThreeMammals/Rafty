@@ -51,7 +51,14 @@ namespace Rafty.AcceptanceTests
 
         public Response<T> Request<T>(T command)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return _node.Accept(command);
+            }
+            catch(Exception e)
+            {
+                return new Response<T>("Unable to send command to node.", command);
+            }
         }
     }
 }

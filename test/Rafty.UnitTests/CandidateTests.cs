@@ -230,7 +230,7 @@ follower
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var response = candidate.Accept(new FakeCommand());
             response.Success.ShouldBeFalse();
-            response.Error.ShouldBe("Please retry command later...currently electing new a new leader..");
+            response.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");
         }
     }
 }

@@ -24,6 +24,12 @@ namespace Rafty.UnitTests
             _term = term;
         }
 
+        public FakePeer(int term, Guid id)
+        {
+            _term = term;
+            _id = id;
+        }
+
         public FakePeer(bool grantVote)
         {
             _grantVote = grantVote;

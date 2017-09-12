@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Rafty.UnitTests
 {
-    public class AppendEntriesTests : IDisposable
+    public class AppendEntriesTests
     {
 /*
 1. Reply false if term < currentTerm (§5.1)
@@ -43,13 +43,6 @@ min(leaderCommit, index of last new entry)
             _fsm = new InMemoryStateMachine();
             _node = new NothingNode();
         }
-        
-
-        public void Dispose()
-        {
-            //_node.Dispose();
-        }
-
         
         [Fact(DisplayName = "AppendEntries - 1. Reply false if term < currentTerm (§5.1)")]
         public void ShouldReplyFalseIfRpcTermLessThanCurrentTerm()
@@ -123,12 +116,14 @@ min(leaderCommit, index of last new entry)
                 .WithTerm(1)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
+                .WithLeaderId(Guid.NewGuid())
                 .Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(1);
             _log.GetTermAtIndex(1).ShouldBe(1);
+            follower.CurrentState.LeaderId.ShouldBe(appendEntriesRpc.LeaderId);
         }
 
         [Fact(DisplayName = "AppendEntries - Follower - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
@@ -163,10 +158,12 @@ min(leaderCommit, index of last new entry)
                .WithPreviousLogIndex(1)
                .WithPreviousLogTerm(1)
                .WithLeaderCommitIndex(1)
+               .WithLeaderId(Guid.NewGuid())
                .Build();
-            var follower = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
-            var appendEntriesResponse = follower.Handle(appendEntriesRpc);
-            follower.CurrentState.CommitIndex.ShouldBe(1);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var appendEntriesResponse = candidate.Handle(appendEntriesRpc);
+            candidate.CurrentState.CommitIndex.ShouldBe(1);
+            candidate.CurrentState.LeaderId.ShouldBe(appendEntriesRpc.LeaderId);
         }
 
         [Fact(DisplayName = "AppendEntries - Leader - 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)")]
@@ -182,10 +179,12 @@ min(leaderCommit, index of last new entry)
                .WithPreviousLogIndex(1)
                .WithPreviousLogTerm(1)
                .WithLeaderCommitIndex(1)
+               .WithLeaderId(Guid.NewGuid())
                .Build();
             var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
             var state = leader.Handle(appendEntriesRpc);
             leader.CurrentState.CommitIndex.ShouldBe(1);
+            leader.CurrentState.LeaderId.ShouldBe(appendEntriesRpc.LeaderId);
         }
     }
 }
