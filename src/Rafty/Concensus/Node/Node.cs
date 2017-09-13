@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Rafty.Concensus.States;
 using Rafty.FiniteStateMachine;
+using Rafty.Infrastructure;
 using Rafty.Log;
 
 namespace Rafty.Concensus
@@ -14,16 +16,27 @@ namespace Rafty.Concensus
         private readonly IRandomDelay _random;
         private readonly Settings _settings;
         private IRules _rules;
+        private IPeersProvider _peersProvider;
 
-        public Node(IFiniteStateMachine fsm, ILog log, Func<CurrentState, List<IPeer>> getPeers, IRandomDelay random, Settings settings)
+        public Node(
+            IFiniteStateMachine fsm, 
+            ILog log, 
+            IRandomDelay random, 
+            Settings settings,
+            IPeersProvider peersProvider)
         {
-            //dont really want this injected at the moment...
+            //dont think rules should be injected at the moment..EEK UNCLE BOB
             _rules = new Rules();
             _fsm = fsm;
             _log = log;
-            _getPeers = getPeers;
             _random = random;
             _settings = settings;
+            _peersProvider = peersProvider;
+            _getPeers = state => {
+                var peers = _peersProvider.Get();
+                var peersThatAreNotThisServer = peers.Where(p => p?.Id != state.Id).ToList();
+                return peersThatAreNotThisServer;
+            };
         }
 
         public IState State { get; private set; }

@@ -10,11 +10,12 @@ using System.Linq;
 using System.Diagnostics;
 using Xunit.Abstractions;
 using Rafty.FiniteStateMachine;
+using Rafty.Infrastructure;
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 namespace Rafty.AcceptanceTests
 {
-    public class Tests : IDisposable
+    public class Tests
     {
         private ConcurrentDictionary<int, Server> _servers;
         private List<IPeer> _peers;
@@ -35,10 +36,19 @@ namespace Rafty.AcceptanceTests
             }
         }
 
+        // [Fact]
+        // public void ShouldRunInSoloMode()
+        // {
+        //     CreateServers(1);
+        //     AssignNodesToPeers();
+        //     StartNodes();
+        //     AssertLeaderElected(0);
+        // }
+
         [Fact]
         public void ShouldElectLeader()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
@@ -47,7 +57,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void ShouldElectAndRemainLeader()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElectedAndRemainsLeader();
@@ -56,7 +66,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void ShouldElectANewLeaderAfterPreviousOneDies()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             KillTheLeader();
@@ -66,7 +76,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void ShouldAllowPreviousLeaderBackIntoTheCluster()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             KillTheLeader();
@@ -78,7 +88,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void LeaderShouldAcceptCommandThenPersistToFollowersAndApplyToStateMachine()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
@@ -89,7 +99,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void FollowerShouldForwardCommandToLeaderThenPersistToFollowersAndApplyToStateMachine()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
@@ -100,7 +110,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void LeaderShouldAcceptManyCommandsThenPersistToFollowersAndApplyToStateMachine()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
@@ -117,7 +127,7 @@ namespace Rafty.AcceptanceTests
         [Fact]
         public void ShouldCatchUpIfNodeDies()
         {
-            CreateServers();
+            CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             KillTheLeader();
@@ -261,11 +271,8 @@ namespace Rafty.AcceptanceTests
             var fsm = new InMemoryStateMachine();
             var random = new RandomDelay();
             var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
-            Func<CurrentState, List<IPeer>> getPeers = state => {
-                var peersThatAreNotThisServer = _peers.Where(p => p?.Id != state.Id).ToList();
-                return peersThatAreNotThisServer;
-            };
-            var node = new Node(fsm, log, getPeers, random, settings);
+            var peersProvider = new InMemoryPeersProvider(_peers);
+            var node = new Node(fsm, log, random, settings, peersProvider);
             var server = new Server(log, fsm, node);
             _servers.TryAdd(index, server);
         }
@@ -340,12 +347,13 @@ namespace Rafty.AcceptanceTests
             ReportServers();
         }
 
-        private void CreateServers()
+        private void CreateServers(int numberOfServers)
         {
+            _numberOfServers = numberOfServers;
+
             for (int i = 0; i < _numberOfServers; i++)
             {   
-                var localIndex = i;
-                StartServer(localIndex);
+                StartServer(i);
             }
         }
 
@@ -366,12 +374,6 @@ namespace Rafty.AcceptanceTests
             foreach(var server in _servers)
             {
                 server.Value.Node.Start();
-            }
-        }
-        public void Dispose()
-        {
-            foreach(var server in _servers.Select(x => x.Value))
-            {
             }
         }
     }

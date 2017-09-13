@@ -14,6 +14,10 @@ namespace Rafty.UnitTests
         private Guid _id;
         public int ReceivedCommands;
 
+        public FakePeer()
+        {
+        }
+
         public FakePeer(Guid id)
         {
             _id = id;
