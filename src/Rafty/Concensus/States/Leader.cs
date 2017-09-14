@@ -224,7 +224,7 @@ namespace Rafty.Concensus
 
             }, null, 0, Convert.ToInt32(_settings.HeartbeatTimeout));
         }
-
+    
         private void InitialisePeerStates()
         {
             PeerStates = new List<PeerState>();
