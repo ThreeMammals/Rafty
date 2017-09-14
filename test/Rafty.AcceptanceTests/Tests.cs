@@ -26,24 +26,45 @@ namespace Rafty.AcceptanceTests
         public Tests(ITestOutputHelper output)
         {
             _output = output;
-            _numberOfServers = 5;
             _servers = new ConcurrentDictionary<int, Server>();
             _peers = new List<IPeer>();
-            for (int i = 0; i < _numberOfServers; i++)
-            {
-                var peer = new NodePeer();
-                _peers.Add(peer);
-            }
+        }
+
+        [Fact]
+        public void ShouldRunInSoloMode()
+        {
+            CreateServers(1);
+            AssignNodesToPeers();
+            StartNodes();
+            AssertLeaderElected(0);
         }
 
         // [Fact]
-        // public void ShouldRunInSoloMode()
+        // public void ShouldRunInSoloModeThenAddNewServersThatBecomeFollowers()
         // {
         //     CreateServers(1);
         //     AssignNodesToPeers();
         //     StartNodes();
         //     AssertLeaderElected(0);
+        //     AddNewServers();
+        //     AssertLeaderElected(1);
         // }
+
+        private void AddNewServers()
+        {
+            var peer = new NodePeer();
+            _peers.Add(peer);
+            var log = new InMemoryLog();
+            var fsm = new InMemoryStateMachine();
+            var random = new RandomDelay();
+            var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
+            var peersProvider = new InMemoryPeersProvider(_peers);
+            var node = new Node(fsm, log, random, settings, peersProvider);
+            var server = new Server(log, fsm, node);
+            peer.SetNode(server.Node);
+            var nextIndex = _servers.Count;
+            _servers.TryAdd(nextIndex, server);
+        }
 
         [Fact]
         public void ShouldElectLeader()
@@ -350,6 +371,12 @@ namespace Rafty.AcceptanceTests
         private void CreateServers(int numberOfServers)
         {
             _numberOfServers = numberOfServers;
+
+            for (int i = 0; i < _numberOfServers; i++)
+            {
+                var peer = new NodePeer();
+                _peers.Add(peer);
+            }
 
             for (int i = 0; i < _numberOfServers; i++)
             {   
