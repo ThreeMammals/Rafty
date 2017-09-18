@@ -51,6 +51,19 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
+        public void ShouldRunInSoloModeAcceptCommandThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
+        {
+            CreateServers(1);
+            AssignNodesToPeers();
+            StartNodes();
+            AssertLeaderElected(0);
+            SendCommandToLeader();
+            AddNewServers(4);
+            AssertLeaderElected(4);
+            AssertCommandAccepted(1, 4);
+        }
+
+        [Fact]
         public void ShouldRunInSoloModeThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
         {
             CreateServers(1);
@@ -61,26 +74,6 @@ namespace Rafty.AcceptanceTests
             AssertLeaderElected(4);
             SendCommandToLeader();
             AssertCommandAccepted(1, 4);
-        }
-
-        private void AddNewServers(int count)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                var peer = new NodePeer();
-                _peers.Add(peer);
-                var log = new InMemoryLog();
-                var fsm = new InMemoryStateMachine();
-                var random = new RandomDelay();
-                var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
-                var peersProvider = new InMemoryPeersProvider(_peers);
-                var node = new Node(fsm, log, random, settings, peersProvider);
-                var server = new Server(log, fsm, node);
-                peer.SetNode(server.Node);
-                var nextIndex = _servers.Count;
-                _servers.TryAdd(nextIndex, server);
-                node.Start();
-            }
         }
 
         [Fact]
@@ -177,6 +170,26 @@ namespace Rafty.AcceptanceTests
             AssertCommandAccepted(1, 4);
             SendCommandToLeader();
             AssertCommandAccepted(2, 4);
+        }
+
+        private void AddNewServers(int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var peer = new NodePeer();
+                _peers.Add(peer);
+                var log = new InMemoryLog();
+                var fsm = new InMemoryStateMachine();
+                var random = new RandomDelay();
+                var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
+                var peersProvider = new InMemoryPeersProvider(_peers);
+                var node = new Node(fsm, log, random, settings, peersProvider);
+                var server = new Server(log, fsm, node);
+                peer.SetNode(server.Node);
+                var nextIndex = _servers.Count;
+                _servers.TryAdd(nextIndex, server);
+                node.Start();
+            }
         }
 
         private void SendCommandToLeader()

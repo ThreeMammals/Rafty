@@ -130,6 +130,20 @@ namespace Rafty.UnitTests
             response.Success.ShouldBe(true);
         }
 
+        [Fact]
+        public void ShouldHandleCommandIfNoPeers()
+        {
+            _peers = new List<IPeer>();
+            var log = new InMemoryLog();
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules);
+            var response = leader.Accept<FakeCommand>(new FakeCommand());
+            log.ExposedForTesting.Count.ShouldBe(1);
+            var fsm = (InMemoryStateMachine)_fsm;
+            fsm.ExposedForTesting.ShouldBe(1);
+            response.Success.ShouldBe(true);
+        }
+
         [Fact(DisplayName = "for each server, index of the next log entry to send to that server(initialized to leader last log index + 1)")]
         public void ShouldInitialiseNextIndex()
         {

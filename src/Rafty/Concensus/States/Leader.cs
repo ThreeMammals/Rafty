@@ -57,6 +57,20 @@ namespace Rafty.Concensus
         public Response<T> Accept<T>(T command)
         {
             var index = AddCommandToLog(command);
+            
+            var peers = _getPeers(CurrentState);
+            
+            if(peers.Count == 0 && PeerStates.Count == 0)
+            {
+                var nextCommitIndex = CurrentState.CommitIndex + 1;
+                if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
+                {
+                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
+                        CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
+                }
+                _fsm.Handle(command);
+                return new Response<T>(true, command);
+            }
 
             SetUpReplication();
             
@@ -161,6 +175,12 @@ namespace Rafty.Concensus
         private void SendAppendEntries()
         {
             var peers = _getPeers(CurrentState);
+
+            if(peers.Count == 0 && PeerStates.Count == 0)
+            {
+                return;
+            }
+
             if(PeerStates.Count != peers.Count)
             {
                 var peersNotInPeerStates = peers.Where(p => !PeerStates.Select(x => x.Peer.Id).Contains(p.Id)).ToList();
