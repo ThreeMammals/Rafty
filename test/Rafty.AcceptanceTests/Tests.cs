@@ -50,18 +50,18 @@ namespace Rafty.AcceptanceTests
             AssertLeaderElected(4);
         }
 
-        // [Fact]
-        // public void ShouldRunInSoloModeThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
-        // {
-        //     CreateServers(1);
-        //     AssignNodesToPeers();
-        //     StartNodes();
-        //     AssertLeaderElected(0);
-        //     AddNewServers(4);
-        //     AssertLeaderElected(4);
-        //     SendCommandToLeader();
-        //     AssertCommandAccepted(1, 4);
-        // }
+        [Fact]
+        public void ShouldRunInSoloModeThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
+        {
+            CreateServers(1);
+            AssignNodesToPeers();
+            StartNodes();
+            AssertLeaderElected(0);
+            AddNewServers(4);
+            AssertLeaderElected(4);
+            SendCommandToLeader();
+            AssertCommandAccepted(1, 4);
+        }
 
         private void AddNewServers(int count)
         {
