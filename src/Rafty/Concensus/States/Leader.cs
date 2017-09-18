@@ -16,7 +16,7 @@ namespace Rafty.Concensus
         private readonly IFiniteStateMachine _fsm;
         private readonly object _lock = new object();
         private bool _handled;
-        private readonly List<IPeer> _peers;
+        Func<CurrentState, List<IPeer>> _getPeers;
         private readonly ILog _log;
         private readonly INode _node;
         private Timer _electionTimer;
@@ -27,7 +27,7 @@ namespace Rafty.Concensus
         public Leader(
             CurrentState currentState, 
             IFiniteStateMachine fsm, 
-            List<IPeer> peers, 
+            Func<CurrentState, List<IPeer>> getPeers, 
             ILog log, 
             INode node, 
             ISettings settings,
@@ -37,7 +37,7 @@ namespace Rafty.Concensus
             _settings = settings;
             _node = node;
             _log = log;
-            _peers = peers;
+            _getPeers = getPeers;
             _fsm = fsm;
             CurrentState = currentState;
             InitialisePeerStates();
@@ -160,6 +160,18 @@ namespace Rafty.Concensus
 
         private void SendAppendEntries()
         {
+            var peers = _getPeers(CurrentState);
+            if(PeerStates.Count != peers.Count)
+            {
+                var peersNotInPeerStates = peers.Where(p => !PeerStates.Select(x => x.Peer.Id).Contains(p.Id)).ToList();
+                
+                peersNotInPeerStates.ForEach(p => {
+                    var matchIndex = new MatchIndex(p, 0);
+                    var nextIndex = new NextIndex(p, _log.LastLogIndex);
+                    PeerStates.Add(new PeerState(p, matchIndex, nextIndex));
+                });
+            }
+
             var appendEntriesResponses = SetUpAppendingEntries();
 
             Parallel.ForEach(PeerStates, peer =>
@@ -224,12 +236,12 @@ namespace Rafty.Concensus
 
             }, null, 0, Convert.ToInt32(_settings.HeartbeatTimeout));
         }
-    
+
         private void InitialisePeerStates()
         {
             PeerStates = new List<PeerState>();
-
-            _peers.ForEach(p => {
+            var peers = _getPeers(CurrentState);
+            peers.ForEach(p => {
                 var matchIndex = new MatchIndex(p, 0);
                 var nextIndex = new NextIndex(p, _log.LastLogIndex);
                 PeerStates.Add(new PeerState(p, matchIndex, nextIndex));
@@ -256,7 +268,8 @@ namespace Rafty.Concensus
 
         private bool ReplicatedToMajority(int commited)
         {
-            return commited >= (_peers.Count) / 2 + 1;
+            var peers = _getPeers(CurrentState);
+            return commited >= (peers.Count) / 2 + 1;
         }
 
         private bool Replicated(PeerState peer, int index)

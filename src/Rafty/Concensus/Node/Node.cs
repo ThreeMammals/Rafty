@@ -64,7 +64,7 @@ namespace Rafty.Concensus
         public void BecomeLeader(CurrentState state)
         {
             State.Stop();
-            State = new Leader(state, _fsm, _getPeers(state), _log, this, _settings, _rules);
+            State = new Leader(state, _fsm, _getPeers, _log, this, _settings, _rules);
         }
 
         public void BecomeFollower(CurrentState state)

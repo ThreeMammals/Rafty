@@ -72,7 +72,7 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true));
             }
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
             bool TestPeers(List<IPeer> peers)
             {
                 var passed = 0;
@@ -104,7 +104,7 @@ namespace Rafty.UnitTests
             }
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules);
             leader.Accept(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
         }
@@ -121,7 +121,7 @@ namespace Rafty.UnitTests
             }
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules);
             var response = leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
 
@@ -139,7 +139,7 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true));
             }
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
     
             leader.PeerStates.ForEach(pS =>
             {
@@ -156,11 +156,52 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true));
             }
             _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             leader.PeerStates.ForEach(pS =>
             {
                 pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(0);
             });
+        }
+
+        [Fact]
+        public void ShouldInitialiseNextAndMatchIndexWhenNewPeerJoins()
+        {
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 1; i++)
+            {
+                _peers.Add(new FakePeer(Guid.NewGuid()));
+            }
+            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
+            var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
+            leader.PeerStates.Count.ShouldBe(1);
+            leader.PeerStates.ForEach(pS =>
+            {
+                pS.NextIndex.NextLogIndexToSendToPeer.ShouldBe(1);
+                pS.MatchIndex.IndexOfHighestKnownReplicatedLog.ShouldBe(0);
+            });
+
+            for (var i = 0; i < 3; i++)
+            {
+                _peers.Add(new FakePeer(Guid.NewGuid()));
+            }
+            
+            bool TestPeerStates()
+            {
+                var passed = 0;
+
+                leader.PeerStates.ForEach(pS =>
+                {
+                    if(leader.PeerStates.Count == 4 && pS.NextIndex.NextLogIndexToSendToPeer == 1 && pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == leader.PeerStates.Count;
+            }
+
+            var result = WaitFor(1000).Until(() => TestPeerStates());
+            result.ShouldBeTrue();
         }
         
         [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex")]
@@ -180,7 +221,7 @@ namespace Rafty.UnitTests
             var logThree = new LogEntry("3", typeof(string), 1);
             _log.Apply(logThree);
             _currentState = new CurrentState(_id, 1, default(Guid), 2, 2, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
             var logs = _log.GetFrom(1);
             logs.Count.ShouldBe(3);
         }
@@ -201,7 +242,7 @@ namespace Rafty.UnitTests
             _log.Apply(logTwo);
             var logThree = new LogEntry("3", typeof(string), 1);
             _log.Apply(logThree);
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
 
             bool FirstTest(List<PeerState> peerState)
             {
@@ -239,7 +280,7 @@ namespace Rafty.UnitTests
             }
             
             _currentState = new CurrentState(_id, 1, default(Guid), 1, 1, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
 
             //send first command, this wont get commited because the guys are replying false
             var task = Task.Run(async () => leader.Accept(new FakeCommand()));
@@ -393,7 +434,7 @@ namespace Rafty.UnitTests
             }
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
             leader.Accept(new FakeCommand());
             leader.Accept(new FakeCommand());
             leader.Accept(new FakeCommand());
@@ -431,7 +472,7 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true, true, true));
             }
             _currentState = new CurrentState(_id, 1, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             bool TestPeerStates(List<PeerState> peerState)
             {
                 var passed = 0;
@@ -466,7 +507,7 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true, true, true));
             }
             _currentState = new CurrentState(_id, 1, default(Guid), 0, 0, default(Guid));
-            var leader = new Leader(_currentState,_fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             var command = new FakeCommand();
             var response = leader.Accept(command);
             response.Success.ShouldBeTrue();
@@ -502,7 +543,7 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true, true, true));
             }
             _currentState = new CurrentState(_id, 1, default(Guid),  0, 0, default(Guid));
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
             bool TestPeerStates(List<PeerState> peerState)
             {
                 var passed = 0;

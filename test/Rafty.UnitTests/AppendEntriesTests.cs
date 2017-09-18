@@ -181,7 +181,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(1)
                .WithLeaderId(Guid.NewGuid())
                .Build();
-            var leader = new Leader(_currentState, _fsm, _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
             var state = leader.Handle(appendEntriesRpc);
             leader.CurrentState.CommitIndex.ShouldBe(1);
             leader.CurrentState.LeaderId.ShouldBe(appendEntriesRpc.LeaderId);
