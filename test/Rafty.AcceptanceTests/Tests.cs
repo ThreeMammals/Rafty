@@ -181,7 +181,7 @@ namespace Rafty.AcceptanceTests
                 var log = new InMemoryLog();
                 var fsm = new InMemoryStateMachine();
                 var random = new RandomDelay();
-                var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
+                var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
                 var peersProvider = new InMemoryPeersProvider(_peers);
                 var node = new Node(fsm, log, random, settings, peersProvider);
                 var server = new Server(log, fsm, node);
@@ -321,14 +321,13 @@ namespace Rafty.AcceptanceTests
             var log = new InMemoryLog();
             var fsm = new InMemoryStateMachine();
             var random = new RandomDelay();
-            var settings = new SettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
+            var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
             var peersProvider = new InMemoryPeersProvider(_peers);
             var node = new Node(fsm, log, random, settings, peersProvider);
             var server = new Server(log, fsm, node);
             _servers.TryAdd(index, server);
         }
 
-        
         private void AssertLeaderElected(int expectedFollowers)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -358,6 +357,7 @@ namespace Rafty.AcceptanceTests
 
             ReportServers();
         }
+        
         private void AssertLeaderElectedAndRemainsLeader()
         {
             var stopwatch = Stopwatch.StartNew();

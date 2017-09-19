@@ -3,10 +3,6 @@ using Rafty.Concensus;
 
 namespace Rafty.Infrastructure
 {
-    public interface IPeersProvider
-    {
-        List<IPeer> Get();
-    }
 
     public class InMemoryPeersProvider : IPeersProvider
     {   

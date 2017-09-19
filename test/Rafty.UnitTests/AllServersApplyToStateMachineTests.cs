@@ -20,13 +20,13 @@ namespace Rafty.UnitTests
         private readonly IRandomDelay _random;
         private readonly INode _node;
         private IFiniteStateMachine _fsm;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
 
         public AllServersApplyToStateMachineTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _peers = new List<IPeer>();
             _log = new InMemoryLog();

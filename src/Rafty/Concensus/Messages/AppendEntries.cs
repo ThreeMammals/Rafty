@@ -18,17 +18,34 @@ namespace Rafty.Concensus
             LeaderCommitIndex = leaderCommitIndex;
         }
 
-        // term leader’s term
+        /// <summary>
+        // Term leader’s term.
+        /// </summary>
         public long Term { get; private set; }
-        // leaderId so follower can redirect clients
+
+        /// <summary>
+        // LeaderId so follower can redirect clients.
+        /// </summary>
         public Guid LeaderId { get; private set; }
-        // prevLogIndex index of log entry immediately preceding new ones
+
+        /// <summary>
+        // PrevLogIndex index of log entry immediately preceding new ones.
+        /// </summary>
         public int PreviousLogIndex { get; private set; }
-        // prevLogTerm term of prevLogIndex entry
+
+        /// <summary>
+        // PrevLogTerm term of prevLogIndex entry.
+        /// </summary>
         public long PreviousLogTerm { get; private set; }
-        // entries[] log entries to store (empty for heartbeat may send more than one for efficiency)
+
+        /// <summary>
+        // Entries[] log entries to store (empty for heartbeat may send more than one for efficiency).
+        /// </summary>
         public List<LogEntry> Entries { get; private set; }
-        // leaderCommit leader’s commitIndex
+
+        /// <summary>
+        // LeaderCommit leader’s commitIndex.
+        /// </summary>
         public int LeaderCommitIndex { get; private set; }
     }
 }

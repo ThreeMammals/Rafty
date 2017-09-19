@@ -8,32 +8,14 @@ namespace Rafty.Concensus
             Term = term;
         }
 
-        //true means candidate received vote
+        /// <summary>
+        // True means candidate received vote.
+        /// </summary>
         public bool VoteGranted { get; private set; }
-        //currentTerm, for candidate to update itself
+
+        /// <summary>
+        // CurrentTerm, for candidate to update itself.
+        /// </summary>
         public long Term {get;private set;}
-    }
-
-    public class RequestVoteResponseBuilder
-    {
-        private bool _voteGranted;
-        private long _term;
-
-        public RequestVoteResponseBuilder WithVoteGranted(bool voteGranted)
-        {
-            _voteGranted = voteGranted;
-            return this;
-        }
-
-        public RequestVoteResponseBuilder WithTerm(long term)
-        {
-            _term = term;
-            return this;
-        }
-
-        public RequestVoteResponse Build()
-        {
-            return new RequestVoteResponse(_voteGranted, _term);
-        }
     }
 }

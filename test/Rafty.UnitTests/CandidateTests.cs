@@ -30,12 +30,12 @@ follower
         private INode _node;
         private readonly Guid _id;
         private CurrentState _currentState;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
         public CandidateTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();

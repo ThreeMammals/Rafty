@@ -23,14 +23,14 @@ namespace Rafty.UnitTests
         private readonly IRandomDelay _random;
         private INode _node;
         private CurrentState _currentState;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
         private IPeersProvider _peersProvider;
 
         public FollowerTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
@@ -68,7 +68,7 @@ namespace Rafty.UnitTests
         {
             _node = new TestingNode();
             var node = (TestingNode)_node;
-            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new SettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(),_rules, _peers));
+            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new InMemorySettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(),_rules, _peers));
             var result = WaitFor(1000).Until(() => node.BecomeCandidateCount > 0);
             result.ShouldBeTrue();
         }
@@ -78,7 +78,7 @@ namespace Rafty.UnitTests
         {
             _node = new TestingNode();
             var node = (TestingNode)_node;
-            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new SettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(), _rules, _peers));
+            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new InMemorySettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(), _rules, _peers));
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             var result = WaitFor(1000).Until(() => node.BecomeCandidateCount > 0);
             result.ShouldBeTrue();

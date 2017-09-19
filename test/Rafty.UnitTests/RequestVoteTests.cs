@@ -23,13 +23,13 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         private List<IPeer> _peers;
         private readonly ILog _log;
         private readonly IRandomDelay _random;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
 
         public RequestVoteTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();

@@ -19,7 +19,7 @@ namespace Rafty.Log
         public List<(int index, LogEntry logEntry)> GetFrom(int index)
         {
             var logsToReturn = new List<(int, LogEntry)>();
-            var take = _log.Count - index;
+
             foreach(var log in _log)
             {
                 if(log.Key >= index)

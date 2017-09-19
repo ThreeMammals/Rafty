@@ -12,13 +12,24 @@ namespace Rafty.Concensus
             LastLogTerm = lastLogTerm;
         }
         
-        //term candidate’s term
+        /// <summary>
+        // Term candidate’s term.
+        /// </summary>
         public long Term {get;private set;}
-        //candidateId candidate requesting vote
+
+        /// <summary>
+        // CandidateId candidate requesting vote.
+        /// </summary>
         public Guid CandidateId {get;private set;}
-        //lastLogIndex index of candidate’s last log entry (§5.4)
+
+        /// <summary>
+        // LastLogIndex index of candidate’s last log entry (§5.4).
+        /// </summary>
         public long LastLogIndex {get;private set;}
-        //lastLogTerm term of candidate’s last log entry (§5.4)        
+
+        /// <summary>
+        // LastLogTerm term of candidate’s last log entry (§5.4).        
+        /// </summary>
         public long LastLogTerm {get;private set;}
     }
 }

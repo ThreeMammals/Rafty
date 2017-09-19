@@ -23,13 +23,13 @@ set currentTerm = T, convert to follower (§5.1)*/
         private List<IPeer> _peers;
         private readonly IRandomDelay _random;
         private readonly INode _node;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
 
         public AllServersConvertToFollowerTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();

@@ -14,7 +14,7 @@ namespace Rafty.Concensus
         private readonly ILog _log;
         private readonly Func<CurrentState, List<IPeer>> _getPeers;
         private readonly IRandomDelay _random;
-        private readonly Settings _settings;
+        private readonly InMemorySettings _settings;
         private IRules _rules;
         private IPeersProvider _peersProvider;
 
@@ -22,7 +22,7 @@ namespace Rafty.Concensus
             IFiniteStateMachine fsm, 
             ILog log, 
             IRandomDelay random, 
-            Settings settings,
+            InMemorySettings settings,
             IPeersProvider peersProvider)
         {
             //dont think rules should be injected at the moment..EEK UNCLE BOB

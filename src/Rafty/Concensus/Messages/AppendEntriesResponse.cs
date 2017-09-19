@@ -8,9 +8,14 @@ namespace Rafty.Concensus
             Success = success;
         }
 
-        // currentTerm, for leader to update itself
+        /// <summary>
+        // CurrentTerm, for leader to update itself.
+        /// </summary>
         public long Term {get;private set;}
-        //true if follower contained entry matching prevLogIndex and prevLogTerm
+
+        /// <summary>
+        // True if follower contained entry matching prevLogIndex and prevLogTerm.
+        /// </summary>
         public bool Success {get;private set;}
     }
 }

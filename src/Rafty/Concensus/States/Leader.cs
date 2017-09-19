@@ -10,12 +10,14 @@ namespace Rafty.Concensus
     using Rafty.Concensus.States;
     using Rafty.FiniteStateMachine;
     using Rafty.Log;
+    using System.Diagnostics;
 
     public sealed class Leader : IState
     {
         private readonly IFiniteStateMachine _fsm;
         private readonly object _lock = new object();
         private bool _handled;
+        private Stopwatch _stopWatch;
         Func<CurrentState, List<IPeer>> _getPeers;
         private readonly ILog _log;
         private readonly INode _node;
@@ -53,6 +55,10 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set; }
 
+        private bool ReplicationTimeout()
+        {
+            return _stopWatch.ElapsedMilliseconds >= _settings.CommandTimeout;
+        }
 
         public Response<T> Accept<T>(T command)
         {
@@ -60,15 +66,9 @@ namespace Rafty.Concensus
             
             var peers = _getPeers(CurrentState);
             
-            if(peers.Count == 0 && PeerStates.Count == 0)
+            if(No(peers))
             {
-                var nextCommitIndex = CurrentState.CommitIndex + 1;
-                if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
-                {
-                    CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
-                        CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
-                }
-                _fsm.Handle(command);
+                ApplyToStateMachineAndUpdateCommitIndex(command);
                 return new Response<T>(true, command);
             }
 
@@ -76,6 +76,11 @@ namespace Rafty.Concensus
             
             while (WaitingForCommandToReplicate())
             {
+                if(ReplicationTimeout())
+                {
+                    return new Response<T>("Unable to replicate command to peers due to timeout.", command);
+                }
+
                 var replicated = 0;
 
                 foreach(var peer in PeerStates)
@@ -176,7 +181,7 @@ namespace Rafty.Concensus
         {
             var peers = _getPeers(CurrentState);
 
-            if(peers.Count == 0 && PeerStates.Count == 0)
+            if(No(peers))
             {
                 return;
             }
@@ -284,6 +289,7 @@ namespace Rafty.Concensus
         private void SetUpReplication()
         {
             _handled = false;
+            _stopWatch = Stopwatch.StartNew();
         }
 
         private bool ReplicatedToMajority(int commited)
@@ -300,6 +306,7 @@ namespace Rafty.Concensus
         private void FinishWaitingForCommandToReplicate()
         {
             _handled = true;
+            _stopWatch.Stop();
         }
 
         private void Wait()
@@ -350,6 +357,27 @@ namespace Rafty.Concensus
         private void SetLeaderId(AppendEntries appendEntries)
         {
             CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, appendEntries.LeaderId);
+        }
+
+        private bool No(List<IPeer> peers)
+        {
+            if(peers.Count == 0 && PeerStates.Count == 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ApplyToStateMachineAndUpdateCommitIndex<T>(T command)
+        {
+            var nextCommitIndex = CurrentState.CommitIndex + 1;
+            if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
+            {
+                CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
+                    CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
+            }
+            _fsm.Handle(command);
         }
     }
 }

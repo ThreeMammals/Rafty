@@ -29,14 +29,14 @@ min(leaderCommit, index of last new entry)
         private readonly ILog _log;
         private List<IPeer> _peers;
         private readonly IRandomDelay _random;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
 
 
         public AppendEntriesTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
              _log = new InMemoryLog();
             _peers = new List<IPeer>();

@@ -12,10 +12,5 @@ namespace Rafty.FiniteStateMachine
         {
             ExposedForTesting++;
         }
-
-        public async Task HandleAsync<T>(T command)
-        {
-            ExposedForTesting++;
-        }
     }
 }

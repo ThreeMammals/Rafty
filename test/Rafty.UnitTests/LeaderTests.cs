@@ -12,32 +12,6 @@ using static Rafty.UnitTests.Wait;
 
 namespace Rafty.UnitTests
 {
-    /*
-    state
-    nextIndex[] for each server, index of the next log entry
-    to send to that server (initialized to leader
-    last log index + 1)
-    matchIndex[] for each server, index of highest log entry
-    known to be replicated on server
-    (initialized to 0, increases monotonically)
-
-    behaviour
-    • Upon election: send initial empty AppendEntries RPCs
-    (heartbeat) to each server; repeat during idle periods to
-    prevent election timeouts (§5.2)
-    • If command received from client: append entry to local log,
-    respond after entry applied to state machine (§5.3)
-    • If last log index ≥ nextIndex for a follower: send
-    AppendEntries RPC with log entries starting at nextIndex
-    • If successful: update nextIndex and matchIndex for
-    follower (§5.3)
-    • If AppendEntries fails because of log inconsistency:
-    decrement nextIndex and retry (§5.3)
-    • If there exists an N such that N > commitIndex, a majority
-    of matchIndex[i] ≥ N, and log[N].term == currentTerm:
-    set commitIndex = N (§5.3, §5.4).
-    */
-
     public class LeaderTests
     {
         private readonly IFiniteStateMachine _fsm;
@@ -47,13 +21,13 @@ namespace Rafty.UnitTests
         private List<IPeer> _peers;
         private readonly ILog _log;
         private readonly IRandomDelay _delay;
-        private Settings _settings;
+        private InMemorySettings _settings;
         private IRules _rules;
 
         public LeaderTests()
         {
             _rules = new Rules();
-            _settings = new SettingsBuilder().Build();
+            _settings = new InMemorySettingsBuilder().Build();
             _delay = new RandomDelay();
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
@@ -63,7 +37,7 @@ namespace Rafty.UnitTests
             _node = new NothingNode();
         }
 
-        [Fact(DisplayName = "Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts (§5.2)")]
+        [Fact()]
         public void ShouldSendEmptyAppendEntriesRpcOnElection()
         {
             _peers = new List<IPeer>();
@@ -92,7 +66,7 @@ namespace Rafty.UnitTests
             result.ShouldBeTrue();
         }
 
-        [Fact(DisplayName = "If command received from client: append entry to local log")]
+        [Fact]
         public void ShouldAppendCommandToLocalLog()
         {
             _peers = new List<IPeer>();
@@ -109,7 +83,7 @@ namespace Rafty.UnitTests
             log.ExposedForTesting.Count.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)")]
+        [Fact]
         public void ShouldApplyCommandToStateMachine()
         {
             _peers = new List<IPeer>();
@@ -144,7 +118,7 @@ namespace Rafty.UnitTests
             response.Success.ShouldBe(true);
         }
 
-        [Fact(DisplayName = "for each server, index of the next log entry to send to that server(initialized to leader last log index + 1)")]
+        [Fact]
         public void ShouldInitialiseNextIndex()
         {
             _peers = new List<IPeer>();
@@ -161,7 +135,7 @@ namespace Rafty.UnitTests
             });
         }
 
-        [Fact(DisplayName = "for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)")]
+        [Fact]
         public void ShouldInitialiseMatchIndex()
         {
             _peers = new List<IPeer>();
@@ -218,7 +192,7 @@ namespace Rafty.UnitTests
             result.ShouldBeTrue();
         }
         
-        [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex")]
+        [Fact]
         public void ShouldSendAppendEntriesStartingAtNextIndex()
         {
             _peers = new List<IPeer>();
@@ -240,7 +214,7 @@ namespace Rafty.UnitTests
             logs.Count.ShouldBe(3);
         }
 
-        [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex If successful: update nextIndex and matchIndex for follower(§5.3)")]
+        [Fact]
         public void ShouldUpdateMatchIndexAndNextIndexIfSuccessful()
         {
             _peers = new List<IPeer>();
@@ -281,7 +255,7 @@ namespace Rafty.UnitTests
             result.ShouldBeTrue();
         }
 
-        [Fact(DisplayName = "If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex If AppendEntries fails because of log inconsistency: decrement nextIndex and retry(§5.3)")]
+        [Fact]
         public void ShouldDecrementNextIndexAndRetry()
         {
             //create peers that will initially return false when asked to append entries...
@@ -436,7 +410,7 @@ namespace Rafty.UnitTests
             result.ShouldBeTrue();
         }
 
-        [Fact(DisplayName = "If there exists an N such that N > commitIndex, a majority of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N(§5.3, §5.4)")]
+        [Fact]
         public void ShouldSetCommitIndex()
         {
             _peers = new List<IPeer>();
@@ -558,6 +532,44 @@ namespace Rafty.UnitTests
             }
             _currentState = new CurrentState(_id, 1, default(Guid),  0, 0, default(Guid));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
+            bool TestPeerStates(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            result.ShouldBeTrue();
+        }
+
+        [Fact]
+        public void ShouldTimeoutAfterXSecondsIfCannotReplicateCommand()
+        {
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 4; i++)
+            {
+                _peers.Add(new FakePeer(false, false, false));
+            }
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0, default(Guid));
+            _settings = new InMemorySettingsBuilder().WithCommandTimeout(1).Build();
+            var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
+            var command = new FakeCommand();
+            var response = leader.Accept(command);
+            response.Success.ShouldBeFalse();
+            response.Error.ShouldBe("Unable to replicate command to peers due to timeout.");
             bool TestPeerStates(List<PeerState> peerState)
             {
                 var passed = 0;
