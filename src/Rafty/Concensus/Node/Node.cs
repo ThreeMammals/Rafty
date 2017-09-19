@@ -21,7 +21,6 @@ namespace Rafty.Concensus
         public Node(
             IFiniteStateMachine fsm, 
             ILog log, 
-            IRandomDelay random, 
             InMemorySettings settings,
             IPeersProvider peersProvider)
         {
@@ -29,7 +28,7 @@ namespace Rafty.Concensus
             _rules = new Rules();
             _fsm = fsm;
             _log = log;
-            _random = random;
+            _random = new RandomDelay();
             _settings = settings;
             _peersProvider = peersProvider;
             _getPeers = state => {

@@ -180,10 +180,10 @@ namespace Rafty.AcceptanceTests
                 _peers.Add(peer);
                 var log = new InMemoryLog();
                 var fsm = new InMemoryStateMachine();
-                var random = new RandomDelay();
+                var set = new InMemorySettings(1000, 3500, 50, 5000);
                 var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
                 var peersProvider = new InMemoryPeersProvider(_peers);
-                var node = new Node(fsm, log, random, settings, peersProvider);
+                var node = new Node(fsm, log, settings, peersProvider);
                 var server = new Server(log, fsm, node);
                 peer.SetNode(server.Node);
                 var nextIndex = _servers.Count;
@@ -320,10 +320,9 @@ namespace Rafty.AcceptanceTests
         {
             var log = new InMemoryLog();
             var fsm = new InMemoryStateMachine();
-            var random = new RandomDelay();
             var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
             var peersProvider = new InMemoryPeersProvider(_peers);
-            var node = new Node(fsm, log, random, settings, peersProvider);
+            var node = new Node(fsm, log, settings, peersProvider);
             var server = new Server(log, fsm, node);
             _servers.TryAdd(index, server);
         }

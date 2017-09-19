@@ -42,7 +42,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void CommitIndexShouldBeInitialisedToMinusOne()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();
             _node.State.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -50,7 +50,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void CurrentTermShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();
             _node.State.CurrentState.CurrentTerm.ShouldBe(0);
         }
@@ -58,7 +58,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void LastAppliedShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();
             _node.State.CurrentState.LastApplied.ShouldBe(0);
         }
@@ -87,7 +87,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
@@ -97,7 +97,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
@@ -109,7 +109,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void ShouldStartAsFollower()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();
             _node.State.ShouldBeOfType<Follower>();
         }
@@ -117,7 +117,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void VotedForShouldBeInitialisedToNone()
         {
-            _node = new Node(_fsm, _log, _random, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider);
             _node.Start();  
             _node.State.CurrentState.VotedFor.ShouldBe(default(Guid));
         }
