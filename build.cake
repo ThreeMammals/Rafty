@@ -17,6 +17,10 @@ var unitTestAssemblies = @"./test/Rafty.UnitTests/Rafty.UnitTests.csproj";
 var artifactsForAcceptanceTestsDir = artifactsDir + Directory("AcceptanceTests");
 var acceptanceTestAssemblies = @"./test/Rafty.AcceptanceTests/Rafty.AcceptanceTests.csproj";
 
+// integration testing
+var artifactsForIntegrationTestsDir = artifactsDir + Directory("IntegrationTests");
+var integrationTestAssemblies = @"./test/Rafty.IntegrationTests/Rafty.IntegrationTests.csproj";
+
 // benchmark testing
 var artifactsForBenchmarkTestsDir = artifactsDir + Directory("BenchmarkTests");
 var benchmarkTestAssemblies = @"./test/Rafty.Benchmarks";
@@ -136,9 +140,23 @@ Task("RunAcceptanceTests")
 		DotNetCoreTest(acceptanceTestAssemblies, settings);
 	});
 
+Task("RunIntegrationTests")
+	.IsDependentOn("Compile")
+	.Does(() =>
+	{
+		var settings = new DotNetCoreTestSettings
+		{
+			Configuration = compileConfig,
+		};
+
+		EnsureDirectoryExists(artifactsForIntegrationTestsDir);
+		DotNetCoreTest(integrationTestAssemblies, settings);
+	});
+
 Task("RunTests")
-	.IsDependentOn("RunUnitTests");
-	//.IsDependentOn("RunAcceptanceTests");
+	.IsDependentOn("RunUnitTests")
+	.IsDependentOn("RunAcceptanceTests")
+	.IsDependentOn("RunIntegrationTests");
 
 Task("CreatePackages")
 	.IsDependentOn("Compile")

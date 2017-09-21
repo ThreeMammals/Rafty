@@ -41,7 +41,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             //_node.Dispose();
         }
 
-        [Fact(DisplayName = "RequestVote - Follower - 1. Reply false if term<currentTerm (§5.1)")]
+        [Fact]
         public void FollowerShouldReplyFalseIfTermIsLessThanCurrentTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, default(Guid));
@@ -52,7 +52,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             requestVoteResponse.Term.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "RequestVote - Follower - 2. Reply false if voted for is not default")]
+        [Fact]
         public void FollowerShouldReplyFalseIfVotedForIsNotDefault()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, default(Guid));
@@ -63,7 +63,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             requestVoteResponse.Term.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "RequestVote - Follower - 2. Reply false if voted for is not candidateId")]
+        [Fact]
         public void FollowerShouldReplyFalseIfVotedForIsNotCandidateId()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, default(Guid));
@@ -74,7 +74,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
             requestVoteResponse.Term.ShouldBe(1);
         }
 
-        [Fact(DisplayName = "RequestVote - Follower - 2. If votedFor is null or candidateId, and candidate’s log is atleast as up - to - date as receiver’s log, grant vote(§5.2, §5.4)")]
+        [Fact]
         public void FollowerShouldGrantVote()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, default(Guid));
