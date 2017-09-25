@@ -1,4 +1,6 @@
-﻿namespace Rafty.Concensus
+﻿using System;
+
+namespace Rafty.Concensus
 {
     public interface INode
     {
@@ -8,7 +10,7 @@
         void BecomeCandidate(CurrentState state);
         AppendEntriesResponse Handle(AppendEntries appendEntries);
         RequestVoteResponse Handle(RequestVote requestVote);
-        void Start();
+        void Start(Guid id);
         void Stop();
         Response<T> Accept<T>(T command);
     }

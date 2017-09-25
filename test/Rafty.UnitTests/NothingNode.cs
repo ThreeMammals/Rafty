@@ -1,3 +1,4 @@
+using System;
 using Rafty.Concensus;
 
 namespace Rafty.UnitTests
@@ -35,7 +36,7 @@ namespace Rafty.UnitTests
             return new RequestVoteResponseBuilder().Build();
         }
 
-        public void Start()
+        public void Start(Guid id)
         {
             throw new System.NotImplementedException();
         }

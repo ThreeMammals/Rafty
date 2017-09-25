@@ -9,19 +9,19 @@ using Rafty.Log;
 namespace Rafty.Concensus
 {
     public class Node : INode
-    {
+    { 
         private readonly IFiniteStateMachine _fsm;
         private readonly ILog _log;
         private readonly Func<CurrentState, List<IPeer>> _getPeers;
         private readonly IRandomDelay _random;
-        private readonly InMemorySettings _settings;
+        private readonly ISettings _settings;
         private IRules _rules;
         private IPeersProvider _peersProvider;
 
         public Node(
             IFiniteStateMachine fsm, 
             ILog log, 
-            InMemorySettings settings,
+            ISettings settings,
             IPeersProvider peersProvider)
         {
             //dont think rules should be injected at the moment..EEK UNCLE BOB
@@ -40,11 +40,11 @@ namespace Rafty.Concensus
 
         public IState State { get; private set; }
 
-        public void Start()
+        public void Start(Guid id)
         {
             if(State?.CurrentState == null)
             {
-                BecomeFollower(new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0, default(Guid)));
+                BecomeFollower(new CurrentState(id, 0, default(Guid), 0, 0, default(Guid)));
             }
             else
             {

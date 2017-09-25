@@ -188,7 +188,7 @@ namespace Rafty.AcceptanceTests
                 peer.SetNode(server.Node);
                 var nextIndex = _servers.Count;
                 _servers.TryAdd(nextIndex, server);
-                node.Start();
+                node.Start(Guid.NewGuid());
             }
         }
 
@@ -258,7 +258,7 @@ namespace Rafty.AcceptanceTests
         private void BringPreviousLeaderBackToLife()
         {
              //now we need to start that old node up..
-            _previousLeader.Value.Node.Start();
+            _previousLeader.Value.Node.Start(_previousLeader.Value.Node.State.CurrentState.Id);
             _servers.TryAdd(_previousLeader.Key, _previousLeader.Value);
         }
 
@@ -429,7 +429,7 @@ namespace Rafty.AcceptanceTests
             _output.WriteLine("start the nodes");
             foreach(var server in _servers)
             {
-                server.Value.Node.Start();
+                server.Value.Node.Start(Guid.NewGuid());
             }
         }
     }
