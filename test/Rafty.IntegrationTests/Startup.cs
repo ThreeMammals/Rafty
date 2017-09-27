@@ -39,11 +39,12 @@ namespace Rafty.IntegrationTests
         {
             var settings = new InMemorySettings(1000, 3500, 50, 5000);
             services.AddSingleton<ILog, InMemoryLog>();
-            services.AddSingleton<IFiniteStateMachine, InMemoryStateMachine>();
+            services.AddSingleton<IFiniteStateMachine, FileFsm>();
             services.AddSingleton<ISettings>(settings);
             services.AddSingleton<IPeersProvider, FilePeersProvider>();
             services.AddSingleton<INode, Node>();
             services.Configure<FilePeers>(Configuration);
+            services.AddLogging();
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
@@ -55,8 +56,9 @@ namespace Rafty.IntegrationTests
             var baseSchemeUrlAndPort = webHostBuilder.GetSetting(WebHostDefaults.ServerUrlsKey);
             var node = (INode)app.ApplicationServices.GetService(typeof(INode));
             var nodeId = (NodeId)app.ApplicationServices.GetService(typeof(NodeId));
-            node.Start(nodeId.Id);
+            var logger = loggerFactory.CreateLogger<Startup>();
 
+            node.Start(nodeId.Id);
             app.Run(async context =>
                 {
                     var n = (INode)context.RequestServices.GetService(typeof(INode));
@@ -64,6 +66,7 @@ namespace Rafty.IntegrationTests
                     {
                         var reader = new StreamReader(context.Request.Body);
                         var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(reader.ReadToEnd());
+                        logger.LogInformation(new EventId(1), null, $"{baseSchemeUrlAndPort}/appendentries called state is {n.State.GetType().FullName}");
                         var appendEntriesResponse = n.Handle(appendEntries);
                         var json = JsonConvert.SerializeObject(appendEntriesResponse);
                         await context.Response.WriteAsync(json);
@@ -74,7 +77,8 @@ namespace Rafty.IntegrationTests
                     if (context.Request.Path == "/requestvote")
                     {
                         var reader = new StreamReader(context.Request.Body);
-                        var requestVote = JsonConvert.DeserializeObject<AppendEntries>(reader.ReadToEnd());
+                        var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd());
+                         logger.LogInformation(new EventId(2), null, $"{baseSchemeUrlAndPort}/requestvote called state is {n.State.GetType().FullName}");
                         var requestVoteResponse = n.Handle(requestVote);
                         var json = JsonConvert.SerializeObject(requestVoteResponse);
                         await context.Response.WriteAsync(json);
@@ -86,6 +90,7 @@ namespace Rafty.IntegrationTests
                     {
                         var reader = new StreamReader(context.Request.Body);
                         var command = JsonConvert.DeserializeObject<AppendEntries>(reader.ReadToEnd());
+                        logger.LogInformation(new EventId(3), null, $"{baseSchemeUrlAndPort}/command called state is {n.State.GetType().FullName}");
                         var commandResponse = n.Accept(command);
                         var json = JsonConvert.SerializeObject(commandResponse);
                         await context.Response.WriteAsync(json);
@@ -173,15 +178,23 @@ namespace Rafty.IntegrationTests
 
         public AppendEntriesResponse Request(AppendEntries appendEntries)
         {
-            var json = JsonConvert.SerializeObject(appendEntries);
-            var content = new StringContent(json);
-            var response = _httpClient.PostAsync($"{_hostAndPort}/appendEntries", content).GetAwaiter().GetResult();
-            if(response.IsSuccessStatusCode)
+            try
             {
-                return JsonConvert.DeserializeObject<AppendEntriesResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+                var json = JsonConvert.SerializeObject(appendEntries);
+                var content = new StringContent(json);
+                var response = _httpClient.PostAsync($"{_hostAndPort}/appendEntries", content).GetAwaiter().GetResult();
+                if(response.IsSuccessStatusCode)
+                {
+                    return JsonConvert.DeserializeObject<AppendEntriesResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+                }
+                else
+                {
+                    return new AppendEntriesResponse(appendEntries.Term, false);
+                }
             }
-            else
+            catch(Exception ex)
             {
+                Console.WriteLine(ex);
                 return new AppendEntriesResponse(appendEntries.Term, false);
             }
         }
@@ -199,6 +212,21 @@ namespace Rafty.IntegrationTests
             {
                 return new Response<T>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult(), command);
             }
+        }
+    }
+
+    public class FileFsm : IFiniteStateMachine
+    {
+        private Guid _id;
+        public FileFsm(NodeId nodeId)
+        {
+            _id = nodeId.Id;
+        }
+        
+        public void Handle<T>(T command)
+        {
+            var json = JsonConvert.SerializeObject(command);
+            File.AppendAllText(_id.ToString(), json);
         }
     }
 }

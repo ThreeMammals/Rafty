@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Rafty.Concensus;
+using Shouldly;
 using Xunit;
 
 namespace Rafty.IntegrationTests
@@ -24,7 +27,7 @@ namespace Rafty.IntegrationTests
         }
         public void Dispose()
         {
-            foreach(var builder in _builders)
+            foreach (var builder in _builders)
             {
                 builder.Dispose();
             }
@@ -36,17 +39,29 @@ namespace Rafty.IntegrationTests
             var bytes = File.ReadAllText("peers.json");
             var peers = JsonConvert.DeserializeObject<FilePeers>(bytes);
 
-            foreach(var peer in peers.Peers)
+            foreach (var peer in peers.Peers)
             {
                 GivenAServerIsRunning(peer.HostAndPort, peer.Id);
             }
-            
+
             var stopWatch = Stopwatch.StartNew();
-            while(stopWatch.ElapsedMilliseconds < 10000)
+            while (stopWatch.ElapsedMilliseconds < 25000)
             {
 
             }
-            //now try sending a command and see if it gets replicated?
+
+            var p = peers.Peers.First();
+            var command = new FakeCommand("WHATS UP DOC?");
+            var json = JsonConvert.SerializeObject(command);
+            var httpContent = new StringContent(json);
+            using(var httpClient = new HttpClient())
+            {
+                var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
+                response.EnsureSuccessStatusCode();
+                var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var result = JsonConvert.DeserializeObject<Response<FakeCommand>>(content);
+                result.Success.ShouldBeTrue();
+            }
         }
 
         private void GivenAServerIsRunning(string url, string id)
@@ -57,17 +72,28 @@ namespace Rafty.IntegrationTests
             webHostBuilder.UseUrls(url)
                 .UseKestrel()
                 .UseContentRoot(Directory.GetCurrentDirectory())
-                .ConfigureServices(x => {
+                .ConfigureServices(x =>
+                {
                     x.AddSingleton(webHostBuilder);
                     x.AddSingleton(new NodeId(guid));
                 })
                 .UseStartup<Startup>();
 
-              var builder = webHostBuilder.Build();
-              builder.Start();
+            var builder = webHostBuilder.Build();
+            builder.Start();
 
-              _webHostBuilders.Add(webHostBuilder);
-              _builders.Add(builder);
+            _webHostBuilders.Add(webHostBuilder);
+            _builders.Add(builder);
         }
+    }
+
+    public class FakeCommand
+    {
+        public FakeCommand(string value)
+        {
+            this.Value = value;
+
+        }
+        public string Value { get; private set; }
     }
 }
