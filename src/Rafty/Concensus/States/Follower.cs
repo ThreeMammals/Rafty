@@ -120,7 +120,7 @@ namespace Rafty.Concensus
                 return leader.Request(command);
             }
             
-            return new Response<T>("Please retry command later. Unable to find leader.", command);
+            return new ErrorResponse<T>("Please retry command later. Unable to find leader.", command);
         }
 
         public void Stop()

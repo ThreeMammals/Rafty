@@ -98,7 +98,7 @@ namespace Rafty.UnitTests
         public Response<T> Request<T>(T command)
         {
             ReceivedCommands++;
-            return new Response<T>(true, command);
+            return new OkResponse<T>(command);
         }
     }
 }

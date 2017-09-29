@@ -229,8 +229,8 @@ follower
             _node = new NothingNode();
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var response = candidate.Accept(new FakeCommand());
-            response.Success.ShouldBeFalse();
-            response.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");
+            var error = (ErrorResponse<FakeCommand>)response;
+            error.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");
         }
     }
 }

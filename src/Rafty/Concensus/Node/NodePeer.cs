@@ -58,7 +58,7 @@ namespace Rafty.AcceptanceTests
             }
             catch(Exception e)
             {
-                return new Response<T>("Unable to send command to node.", command);
+                return new ErrorResponse<T>("Unable to send command to node.", command);
             }
         }
     }

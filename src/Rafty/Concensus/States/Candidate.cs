@@ -140,7 +140,7 @@ namespace Rafty.Concensus
 
         public Response<T> Accept<T>(T command)
         {
-           return new Response<T>("Please retry command later. Currently electing new a new leader.", command);
+           return new ErrorResponse<T>("Please retry command later. Currently electing new a new leader.", command);
         }
 
         public void Stop()

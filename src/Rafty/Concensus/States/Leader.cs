@@ -25,6 +25,7 @@ namespace Rafty.Concensus
         private readonly ISettings _settings;
         public long SendAppendEntriesCount;
         private IRules _rules;
+        private bool _appendingEntries;
 
         public Leader(
             CurrentState currentState, 
@@ -69,7 +70,7 @@ namespace Rafty.Concensus
             if(No(peers))
             {
                 ApplyToStateMachineAndUpdateCommitIndex(command);
-                return new Response<T>(true, command);
+                return new OkResponse<T>(command);
             }
 
             SetUpReplication();
@@ -78,7 +79,7 @@ namespace Rafty.Concensus
             {
                 if(ReplicationTimeout())
                 {
-                    return new Response<T>("Unable to replicate command to peers due to timeout.", command);
+                    return new ErrorResponse<T>("Unable to replicate command to peers due to timeout.", command);
                 }
 
                 var replicated = 0;
@@ -101,7 +102,7 @@ namespace Rafty.Concensus
                 Wait();
             }
 
-            return new Response<T>(_handled, command);
+            return new OkResponse<T>(command);
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
@@ -179,10 +180,18 @@ namespace Rafty.Concensus
 
         private void SendAppendEntries()
         {
+            if(_appendingEntries == true)
+            {
+                return;
+            }
+
+            _appendingEntries = true;
+
             var peers = _getPeers(CurrentState);
 
             if(No(peers))
             {
+                _appendingEntries = false;
                 return;
             }
 
@@ -217,10 +226,12 @@ namespace Rafty.Concensus
                 CurrentState = new CurrentState(CurrentState.Id, response.newTerm, 
                         CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 _node.BecomeFollower(CurrentState);
+                _appendingEntries = false;
                 return;
             }
 
             UpdateCommitIndex();
+            _appendingEntries = false;
         }
 
         private (bool conainsGreaterTerm, long newTerm) DoesResponseContainsGreaterTerm(ConcurrentBag<AppendEntriesResponse> appendEntriesResponses)

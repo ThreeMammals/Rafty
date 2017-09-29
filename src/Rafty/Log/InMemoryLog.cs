@@ -4,6 +4,7 @@ namespace Rafty.Log
 {
     using System;
     using System.Collections.Generic;
+    using Rafty.Infrastructure;
 
     public class InMemoryLog : ILog
     {
@@ -67,7 +68,6 @@ namespace Rafty.Log
             {
                 _log.Add(1, logEntry);
                 return 1;
-
             }
             else
             {

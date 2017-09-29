@@ -5,11 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Rafty.Concensus;
+using Rafty.Infrastructure;
 using Shouldly;
 using Xunit;
 
@@ -19,11 +21,13 @@ namespace Rafty.IntegrationTests
     {
         private List<IWebHost> _builders;
         private List<IWebHostBuilder> _webHostBuilders;
+        private List<Thread> _threads;
 
         public Tests()
         {
             _webHostBuilders = new List<IWebHostBuilder>();
             _builders = new List<IWebHost>();
+            _threads = new List<Thread>();
         }
         public void Dispose()
         {
@@ -41,11 +45,13 @@ namespace Rafty.IntegrationTests
 
             foreach (var peer in peers.Peers)
             {
-                GivenAServerIsRunning(peer.HostAndPort, peer.Id);
+                var thread = new Thread(() => GivenAServerIsRunning(peer.HostAndPort, peer.Id));
+                thread.Start();
+                _threads.Add(thread);
             }
 
             var stopWatch = Stopwatch.StartNew();
-            while (stopWatch.ElapsedMilliseconds < 25000)
+            while (stopWatch.ElapsedMilliseconds < 20000)
             {
 
             }
@@ -59,8 +65,14 @@ namespace Rafty.IntegrationTests
                 var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
                 response.EnsureSuccessStatusCode();
                 var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                var result = JsonConvert.DeserializeObject<Response<FakeCommand>>(content);
-                result.Success.ShouldBeTrue();
+                var result = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
+                result.Command.Value.ShouldBe(command.Value);
+            }
+
+            foreach (var peer in peers.Peers)
+            {
+                var fsmData = File.ReadAllText(peer.Id.ToString());
+                fsmData.ShouldNotBeNullOrEmpty();
             }
         }
 
@@ -85,15 +97,5 @@ namespace Rafty.IntegrationTests
             _webHostBuilders.Add(webHostBuilder);
             _builders.Add(builder);
         }
-    }
-
-    public class FakeCommand
-    {
-        public FakeCommand(string value)
-        {
-            this.Value = value;
-
-        }
-        public string Value { get; private set; }
     }
 }

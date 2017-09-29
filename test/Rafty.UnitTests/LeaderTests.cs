@@ -101,7 +101,7 @@ namespace Rafty.UnitTests
 
             var fsm = (InMemoryStateMachine)_fsm;
             fsm.ExposedForTesting.ShouldBe(1);
-            response.Success.ShouldBe(true);
+            response.ShouldBeOfType<OkResponse<FakeCommand>>();
         }
 
         [Fact]
@@ -115,7 +115,7 @@ namespace Rafty.UnitTests
             log.ExposedForTesting.Count.ShouldBe(1);
             var fsm = (InMemoryStateMachine)_fsm;
             fsm.ExposedForTesting.ShouldBe(1);
-            response.Success.ShouldBe(true);
+            response.ShouldBeOfType<OkResponse<FakeCommand>>();
         }
 
         [Fact]
@@ -498,7 +498,7 @@ namespace Rafty.UnitTests
             var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             var command = new FakeCommand();
             var response = leader.Accept(command);
-            response.Success.ShouldBeTrue();
+            response.ShouldBeOfType<OkResponse<FakeCommand>>();
             bool TestPeerStates(List<PeerState> peerState)
             {
                 var passed = 0;
@@ -568,8 +568,8 @@ namespace Rafty.UnitTests
             var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             var command = new FakeCommand();
             var response = leader.Accept(command);
-            response.Success.ShouldBeFalse();
-            response.Error.ShouldBe("Unable to replicate command to peers due to timeout.");
+            var error = (ErrorResponse<FakeCommand>)response;
+            error.Error.ShouldBe("Unable to replicate command to peers due to timeout.");
             bool TestPeerStates(List<PeerState> peerState)
             {
                 var passed = 0;
