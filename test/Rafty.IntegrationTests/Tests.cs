@@ -22,6 +22,7 @@ namespace Rafty.IntegrationTests
         private List<IWebHost> _builders;
         private List<IWebHostBuilder> _webHostBuilders;
         private List<Thread> _threads;
+        private FilePeers _peers;
 
         public Tests()
         {
@@ -33,17 +34,23 @@ namespace Rafty.IntegrationTests
         {
             foreach (var builder in _builders)
             {
-                builder.Dispose();
+                builder?.Dispose();
             }
+
+            foreach (var peer in _peers.Peers)
+            {
+                File.Delete(peer.Id.ToString());
+            }
+
         }
 
         [Fact]
         public void ShouldDoSomething()
         {
             var bytes = File.ReadAllText("peers.json");
-            var peers = JsonConvert.DeserializeObject<FilePeers>(bytes);
+            _peers = JsonConvert.DeserializeObject<FilePeers>(bytes);
 
-            foreach (var peer in peers.Peers)
+            foreach (var peer in _peers.Peers)
             {
                 var thread = new Thread(() => GivenAServerIsRunning(peer.HostAndPort, peer.Id));
                 thread.Start();
@@ -56,7 +63,7 @@ namespace Rafty.IntegrationTests
 
             }
 
-            var p = peers.Peers.First();
+            var p = _peers.Peers.First();
             var command = new FakeCommand("WHATS UP DOC?");
             var json = JsonConvert.SerializeObject(command);
             var httpContent = new StringContent(json);
@@ -69,7 +76,7 @@ namespace Rafty.IntegrationTests
                 result.Command.Value.ShouldBe(command.Value);
             }
 
-            foreach (var peer in peers.Peers)
+            foreach (var peer in _peers.Peers)
             {
                 var fsmData = File.ReadAllText(peer.Id.ToString());
                 fsmData.ShouldNotBeNullOrEmpty();
