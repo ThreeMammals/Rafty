@@ -39,7 +39,7 @@ namespace Rafty.IntegrationTests
 
             foreach (var peer in _peers.Peers)
             {
-                File.Delete(peer.Id.ToString());
+                File.Delete(peer.Id);
             }
 
         }
@@ -76,10 +76,17 @@ namespace Rafty.IntegrationTests
                 result.Command.Value.ShouldBe(command.Value);
             }
 
+            while (stopWatch.ElapsedMilliseconds < 10000)
+            {
+
+            }
+
             foreach (var peer in _peers.Peers)
             {
-                var fsmData = File.ReadAllText(peer.Id.ToString());
+                var fsmData = File.ReadAllText(peer.Id);
                 fsmData.ShouldNotBeNullOrEmpty();
+                var result = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
+                result.Value.ShouldBe(command.Value);
             }
         }
 

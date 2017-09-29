@@ -23,8 +23,8 @@ namespace Rafty.Concensus
         private readonly INode _node;
         private Timer _electionTimer;
         private bool _requestVoteResponseWithGreaterTerm;
-        private ISettings _settings;
-        private IRules _rules;
+        private readonly ISettings _settings;
+        private readonly IRules _rules;
 
         public Candidate(
             CurrentState currentState, 
@@ -96,7 +96,7 @@ namespace Rafty.Concensus
 
             var commitIndexAndLastApplied = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
-            ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
+            ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied);
 
             SetLeaderId(appendEntries);
             
@@ -266,7 +266,7 @@ namespace Rafty.Concensus
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }
         
-        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
+        private void ApplyToStateMachine(int commitIndex, int lastApplied)
         {
             while (commitIndex > lastApplied)
             {

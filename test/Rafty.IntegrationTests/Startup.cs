@@ -43,17 +43,15 @@ namespace Rafty.IntegrationTests
             services.AddLogging();
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IApplicationLifetime applicationLifetime)
         {
+            applicationLifetime.ApplicationStopping.Register(() => OnShutdown(app));
             loggerFactory.AddConsole(Configuration.GetSection("Logging"));
-            var peersProvider = (IPeersProvider)app.ApplicationServices.GetService(typeof(IPeersProvider));
-            var peers = peersProvider.Get();
             var webHostBuilder = (IWebHostBuilder)app.ApplicationServices.GetService(typeof(IWebHostBuilder));
             var baseSchemeUrlAndPort = webHostBuilder.GetSetting(WebHostDefaults.ServerUrlsKey);
             var node = (INode)app.ApplicationServices.GetService(typeof(INode));
             var nodeId = (NodeId)app.ApplicationServices.GetService(typeof(NodeId));
             var logger = loggerFactory.CreateLogger<Startup>();
-            var log = (ILog)app.ApplicationServices.GetService(typeof(ILog));
             node.Start(nodeId.Id);
 
             app.Run(async context =>
@@ -95,6 +93,12 @@ namespace Rafty.IntegrationTests
                         return;
                     }
                 });
+        }
+
+        private void OnShutdown(IApplicationBuilder app)
+        {
+            var node = (INode)app.ApplicationServices.GetService(typeof(INode));
+            node.Stop();
         }
     }
 }
