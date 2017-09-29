@@ -82,7 +82,7 @@ namespace Rafty.Concensus
             return State.Handle(requestVote);
         }
 
-        public Response<T> Accept<T>(T command)
+        public Response<T> Accept<T>(T command) where T : ICommand
         {
             return State.Accept(command);
         }

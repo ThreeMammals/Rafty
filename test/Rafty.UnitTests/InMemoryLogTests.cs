@@ -18,7 +18,7 @@ namespace Rafty.UnitTests
         public void ShouldApplyLog()
         {
             var log = new InMemoryLog();
-            var index = log.Apply(new LogEntry("test", typeof(string), 1));
+            var index = log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             index.ShouldBe(1);
         }
 
@@ -26,7 +26,7 @@ namespace Rafty.UnitTests
         public void ShouldSetLastLogIndex()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             log.LastLogIndex.ShouldBe(1);
         }
 
@@ -34,7 +34,7 @@ namespace Rafty.UnitTests
         public void ShouldSetLastLogTerm()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             log.LastLogTerm.ShouldBe(1);
         }
 
@@ -42,7 +42,7 @@ namespace Rafty.UnitTests
         public void ShouldGetTermAtIndex()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             log.GetTermAtIndex(1).ShouldBe(1);
         }
 
@@ -50,8 +50,8 @@ namespace Rafty.UnitTests
         public void ShouldDeleteConflict()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.DeleteConflictsFromThisLog(1, new LogEntry("test", typeof(string), 2));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2));
             log.ExposedForTesting.Count.ShouldBe(0);
         }
 
@@ -59,8 +59,8 @@ namespace Rafty.UnitTests
         public void ShouldNotDeleteConflict()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.DeleteConflictsFromThisLog(1, new LogEntry("test", typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1));
             log.ExposedForTesting.Count.ShouldBe(1);
         }
 
@@ -68,10 +68,10 @@ namespace Rafty.UnitTests
         public void ShouldDeleteConflictAndSubsequentLogs()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.DeleteConflictsFromThisLog(1, new LogEntry("test", typeof(string), 2));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2));
             log.ExposedForTesting.Count.ShouldBe(0);
         }
 
@@ -79,12 +79,12 @@ namespace Rafty.UnitTests
         public void ShouldDeleteConflictAndSubsequentLogsFromMidPoint()
         {
             var log = new InMemoryLog();
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.Apply(new LogEntry("test", typeof(string), 1));
-            log.DeleteConflictsFromThisLog(4, new LogEntry("test", typeof(string), 2));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2));
             log.ExposedForTesting.Count.ShouldBe(3);
             log.ExposedForTesting[1].Term.ShouldBe(1);
             log.ExposedForTesting[2].Term.ShouldBe(1);

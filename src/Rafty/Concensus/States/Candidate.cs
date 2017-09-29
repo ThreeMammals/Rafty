@@ -139,7 +139,7 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        public Response<T> Accept<T>(T command)
+        public Response<T> Accept<T>(T command) where T : ICommand
         {
            return new ErrorResponse<T>("Please retry command later. Currently electing new a new leader.", command);
         }

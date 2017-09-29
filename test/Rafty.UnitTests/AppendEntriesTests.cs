@@ -59,7 +59,7 @@ min(leaderCommit, index of last new entry)
         public void ShouldReplyFalseIfLogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesRpcPrevLogTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 2, default(Guid), 0, 0, default(Guid));
-            _log.Apply(new LogEntry("", typeof(string), 2));
+            _log.Apply(new LogEntry(new FakeCommand(""), typeof(string), 2));
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(1).WithPreviousLogTerm(1).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
             var appendEntriesResponse = follower.Handle(appendEntriesRpc);
@@ -71,11 +71,11 @@ min(leaderCommit, index of last new entry)
         public void ShouldDeleteExistingEntryIfItConflictsWithNewOne()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 2, 0, default(Guid));
-            _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1));
-            _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1));
-            _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 2"), typeof(string), 1));
             var appendEntriesRpc = new AppendEntriesBuilder()
-                .WithEntry(new LogEntry("term 2 commit index 2", typeof(string),2))
+                .WithEntry(new LogEntry(new FakeCommand("term 2 commit index 2"), typeof(string),2))
                 .WithTerm(2)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
@@ -90,11 +90,11 @@ min(leaderCommit, index of last new entry)
         public void ShouldDeleteExistingEntryIfItConflictsWithNewOneAndAppendNewEntries()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0, default(Guid));
-            _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1));
-            _log.Apply(new LogEntry("term 1 commit index 1", typeof(string), 1));
-            _log.Apply(new LogEntry("term 1 commit index 2", typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 2"), typeof(string), 1));
             var appendEntriesRpc = new AppendEntriesBuilder()
-                .WithEntry(new LogEntry("term 2 commit index 2", typeof(string), 2))
+                .WithEntry(new LogEntry(new FakeCommand("term 2 commit index 2"), typeof(string), 2))
                 .WithTerm(2)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
@@ -110,9 +110,9 @@ min(leaderCommit, index of last new entry)
         public void ShouldAppendAnyEntriesNotInTheLog()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0, default(Guid));
-            _log.Apply(new LogEntry("term 1 commit index 0", typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1));
             var appendEntriesRpc = new AppendEntriesBuilder()
-                .WithEntry(new LogEntry("term 1 commit index 1", typeof(string), 1))
+                .WithEntry(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1))
                 .WithTerm(1)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
@@ -130,7 +130,7 @@ min(leaderCommit, index of last new entry)
         public void FollowerShouldSetCommitIndexIfLeaderCommitGreaterThanCommitIndex()
         {
             _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 0, 0, default(Guid));
-            var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
+            var log = new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1);
             _log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
@@ -150,7 +150,7 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0, default(Guid));
             //assume log applied by node?
-            var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
+            var log = new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1);
             _log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
@@ -171,7 +171,7 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0, default(Guid));
             //assume log applied by node?
-            var log = new LogEntry("term 1 commit index 0", typeof(string), 1);
+            var log = new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1);
             _log.Apply(log);
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)

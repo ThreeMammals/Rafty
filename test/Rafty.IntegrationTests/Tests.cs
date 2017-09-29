@@ -45,7 +45,7 @@ namespace Rafty.IntegrationTests
         }
 
         [Fact]
-        public void ShouldDoSomething()
+        public void ShouldPersistCommandToFiveServers()
         {
             var bytes = File.ReadAllText("peers.json");
             _peers = JsonConvert.DeserializeObject<FilePeers>(bytes);

@@ -1,5 +1,6 @@
 using System;
 using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
 
 namespace Rafty.UnitTests
 {
@@ -39,7 +40,7 @@ namespace Rafty.UnitTests
             return _appendEntriesResponse;
         }
 
-        public Response<T> Request<T>(T command)
+        public Response<T> Request<T>(T command) where T : ICommand
         {
             throw new NotImplementedException();
         }

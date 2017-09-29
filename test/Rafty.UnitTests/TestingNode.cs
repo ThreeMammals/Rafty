@@ -1,3 +1,5 @@
+using Rafty.FiniteStateMachine;
+
 namespace Rafty.UnitTests
 {
     using System;
@@ -56,7 +58,7 @@ namespace Rafty.UnitTests
             throw new NotImplementedException();
         }
 
-        public Response<T> Accept<T>(T command)
+        public Response<T> Accept<T>(T command) where T : ICommand
         {
             throw new NotImplementedException();
         }

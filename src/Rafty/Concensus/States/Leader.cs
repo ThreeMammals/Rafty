@@ -61,7 +61,7 @@ namespace Rafty.Concensus
             return _stopWatch.ElapsedMilliseconds >= _settings.CommandTimeout;
         }
 
-        public Response<T> Accept<T>(T command)
+        public Response<T> Accept<T>(T command) where T : ICommand
         {
             var index = AddCommandToLog(command);
             
@@ -286,7 +286,7 @@ namespace Rafty.Concensus
             });
         }
 
-        private int AddCommandToLog<T>(T command)
+        private int AddCommandToLog<T>(T command) where T : ICommand
         {
             var log = new LogEntry(command, command.GetType(), CurrentState.CurrentTerm);
             var index = _log.Apply(log);

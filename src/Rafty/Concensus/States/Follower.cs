@@ -112,7 +112,7 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        public Response<T> Accept<T>(T command)
+        public Response<T> Accept<T>(T command) where T : ICommand
         {
             var leader = _peers.FirstOrDefault(x => x.Id == CurrentState.LeaderId);
             if(leader != null)

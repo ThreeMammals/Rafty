@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using Newtonsoft.Json;
 using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
 
 namespace Rafty.IntegrationTests
 {
@@ -60,7 +61,7 @@ namespace Rafty.IntegrationTests
             }
         }
 
-        public Response<T> Request<T>(T command)
+        public Response<T> Request<T>(T command) where T : ICommand
         {
             var json = JsonConvert.SerializeObject(command);
             var content = new StringContent(json);

@@ -1,3 +1,5 @@
+using Rafty.FiniteStateMachine;
+
 namespace Rafty.UnitTests
 {
     using System;
@@ -95,7 +97,7 @@ namespace Rafty.UnitTests
             return response;
         }
 
-        public Response<T> Request<T>(T command)
+        public Response<T> Request<T>(T command) where T : ICommand
         {
             ReceivedCommands++;
             return new OkResponse<T>(command);

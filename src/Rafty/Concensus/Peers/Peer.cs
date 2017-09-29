@@ -1,3 +1,5 @@
+using Rafty.FiniteStateMachine;
+
 namespace Rafty.Concensus
 {
     using System;
@@ -16,7 +18,7 @@ namespace Rafty.Concensus
             throw new NotImplementedException();
         }
 
-        public Response<T> Request<T>(T command)
+        public Response<T> Request<T>(T command) where T : ICommand
         {
             throw new NotImplementedException();
         }

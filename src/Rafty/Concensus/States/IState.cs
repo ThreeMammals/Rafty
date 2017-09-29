@@ -1,3 +1,5 @@
+using Rafty.FiniteStateMachine;
+
 namespace Rafty.Concensus
 {
     public interface IState
@@ -5,7 +7,7 @@ namespace Rafty.Concensus
         CurrentState CurrentState { get; }
         AppendEntriesResponse Handle(AppendEntries appendEntries);
         RequestVoteResponse Handle(RequestVote requestVote);
-        Response<T> Accept<T>(T command);
+        Response<T> Accept<T>(T command) where T : ICommand;
         void Stop();
     }
 }

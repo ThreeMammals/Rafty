@@ -1,5 +1,6 @@
 using System;
 using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
 
 namespace Rafty.UnitTests
 {
@@ -46,7 +47,7 @@ namespace Rafty.UnitTests
             throw new System.NotImplementedException();
         }
 
-        public Response<T> Accept<T>(T command)
+        public Response<T> Accept<T>(T command) where T : ICommand
         {
             throw new System.NotImplementedException();
         }

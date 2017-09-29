@@ -1,4 +1,5 @@
 using System;
+using Rafty.FiniteStateMachine;
 
 namespace Rafty.Concensus
 {
@@ -22,6 +23,6 @@ namespace Rafty.Concensus
         /// <summary>
         // This will make a command request ot the given peer. You must implement the transport.
         /// </summary>
-        Response<T> Request<T>(T command);
+        Response<T> Request<T>(T command) where T : ICommand;
     }
 }

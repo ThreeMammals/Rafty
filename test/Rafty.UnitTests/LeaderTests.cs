@@ -202,11 +202,11 @@ namespace Rafty.UnitTests
             }
 
             //add 3 logs
-            var logOne = new LogEntry("1", typeof(string), 1);
+            var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
             _log.Apply(logOne);
-            var logTwo = new LogEntry("2", typeof(string), 1);
+            var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
             _log.Apply(logTwo);
-            var logThree = new LogEntry("3", typeof(string), 1);
+            var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
             _log.Apply(logThree);
             _currentState = new CurrentState(_id, 1, default(Guid), 2, 2, default(Guid));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
@@ -224,11 +224,11 @@ namespace Rafty.UnitTests
             }
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(Guid), 2, 2, default(Guid));
-            var logOne = new LogEntry("1", typeof(string), 1);
+            var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
             _log.Apply(logOne);
-            var logTwo = new LogEntry("2", typeof(string), 1);
+            var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
             _log.Apply(logTwo);
-            var logThree = new LogEntry("3", typeof(string), 1);
+            var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
             _log.Apply(logThree);
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
 

@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using Rafty.Concensus;
+using Rafty.FiniteStateMachine;
 
 namespace Rafty.AcceptanceTests
 {
@@ -50,7 +51,7 @@ namespace Rafty.AcceptanceTests
             }
         }
 
-        public Response<T> Request<T>(T command)
+        public Response<T> Request<T>(T command) where T : ICommand
         {
             try
             {
