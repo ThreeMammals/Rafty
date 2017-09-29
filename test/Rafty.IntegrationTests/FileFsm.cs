@@ -3,6 +3,7 @@ using System.IO;
 using Newtonsoft.Json;
 using Rafty.FiniteStateMachine;
 using Rafty.Infrastructure;
+using Rafty.Log;
 
 namespace Rafty.IntegrationTests
 {
@@ -14,9 +15,9 @@ namespace Rafty.IntegrationTests
             _id = nodeId.Id;
         }
         
-        public void Handle<T>(T command)
+        public void Handle(LogEntry log)
         {
-            var json = JsonConvert.SerializeObject(command);
+            var json = JsonConvert.SerializeObject(log.CommandData);
             File.AppendAllText(_id.ToString(), json);
         }
     }

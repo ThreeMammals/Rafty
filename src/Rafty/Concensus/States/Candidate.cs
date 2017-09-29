@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Rafty.Concensus.States;
 using Rafty.FiniteStateMachine;
 using Rafty.Log;
@@ -272,7 +273,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                _fsm.Handle(log.CommandData);
+                _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm,

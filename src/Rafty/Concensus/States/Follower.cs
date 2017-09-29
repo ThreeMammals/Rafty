@@ -159,7 +159,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                _fsm.Handle(log.CommandData);
+                _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,

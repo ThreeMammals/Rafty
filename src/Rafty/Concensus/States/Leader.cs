@@ -69,7 +69,8 @@ namespace Rafty.Concensus
             
             if(No(peers))
             {
-                ApplyToStateMachineAndUpdateCommitIndex(command);
+                var log = _log.Get(index);
+                ApplyToStateMachineAndUpdateCommitIndex(log);
                 return new OkResponse<T>(command);
             }
 
@@ -93,7 +94,8 @@ namespace Rafty.Concensus
 
                     if (ReplicatedToMajority(replicated))
                     {
-                        _fsm.Handle(command);
+                        var log = _log.Get(index);
+                        _fsm.Handle(log);
                         FinishWaitingForCommandToReplicate();
                         break;
                     }
@@ -286,8 +288,7 @@ namespace Rafty.Concensus
 
         private int AddCommandToLog<T>(T command)
         {
-            var json = JsonConvert.SerializeObject(command);
-            var log = new LogEntry(json, command.GetType(), CurrentState.CurrentTerm);
+            var log = new LogEntry(command, command.GetType(), CurrentState.CurrentTerm);
             var index = _log.Apply(log);
             return index;
         }
@@ -358,7 +359,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                _fsm.Handle(log.CommandData);
+                _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
@@ -380,7 +381,7 @@ namespace Rafty.Concensus
             return false;
         }
 
-        private void ApplyToStateMachineAndUpdateCommitIndex<T>(T command)
+        private void ApplyToStateMachineAndUpdateCommitIndex(LogEntry log)
         {
             var nextCommitIndex = CurrentState.CommitIndex + 1;
             if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
@@ -388,7 +389,7 @@ namespace Rafty.Concensus
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
                     CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
             }
-            _fsm.Handle(command);
+            _fsm.Handle(log);
         }
     }
 }

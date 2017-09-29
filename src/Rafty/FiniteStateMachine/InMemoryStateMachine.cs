@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Rafty.FiniteStateMachine;
+using Rafty.Log;
 
 namespace Rafty.FiniteStateMachine
 {
@@ -8,7 +9,7 @@ namespace Rafty.FiniteStateMachine
     {
         public int ExposedForTesting {get;private set;}
 
-        public void Handle<T>(T command)
+        public void Handle(LogEntry log)
         {
             ExposedForTesting++;
         }

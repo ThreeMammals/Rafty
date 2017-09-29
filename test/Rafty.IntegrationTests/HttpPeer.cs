@@ -37,6 +37,10 @@ namespace Rafty.IntegrationTests
         {
             try
             {
+/*                if (appendEntries.Entries.Count > 0)
+                {
+                    var asd = JsonConvert.SerializeObject(appendEntries);
+                }*/
                 var json = JsonConvert.SerializeObject(appendEntries);
                 var content = new StringContent(json);
                 var response = _httpClient.PostAsync($"{_hostAndPort}/appendEntries", content).GetAwaiter().GetResult();
