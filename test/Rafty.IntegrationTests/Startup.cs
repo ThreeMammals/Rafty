@@ -54,13 +54,18 @@ namespace Rafty.IntegrationTests
             var logger = loggerFactory.CreateLogger<Startup>();
             node.Start(nodeId.Id);
 
+            var jsonSerializerSettings = new JsonSerializerSettings() { 
+                TypeNameHandling = TypeNameHandling.All
+            };
+
             app.Run(async context =>
                 {
                     var n = (INode)context.RequestServices.GetService(typeof(INode));
                     if(context.Request.Path == "/appendentries")
                     {
                         var reader = new StreamReader(context.Request.Body);
-                        var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(reader.ReadToEnd());
+                        var content = reader.ReadToEnd();
+                        var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(content, jsonSerializerSettings);
                         logger.LogInformation(new EventId(1), null, $"{baseSchemeUrlAndPort}/appendentries called, my state is {n.State.GetType().FullName}");
                         var appendEntriesResponse = n.Handle(appendEntries);
                         var json = JsonConvert.SerializeObject(appendEntriesResponse);
@@ -72,7 +77,7 @@ namespace Rafty.IntegrationTests
                     if (context.Request.Path == "/requestvote")
                     {
                         var reader = new StreamReader(context.Request.Body);
-                        var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd());
+                        var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd(), jsonSerializerSettings);
                          logger.LogInformation(new EventId(2), null, $"{baseSchemeUrlAndPort}/requestvote called, my state is {n.State.GetType().FullName}");
                         var requestVoteResponse = n.Handle(requestVote);
                         var json = JsonConvert.SerializeObject(requestVoteResponse);
@@ -84,7 +89,7 @@ namespace Rafty.IntegrationTests
                     if(context.Request.Path == "/command")
                     {
                         var reader = new StreamReader(context.Request.Body);
-                        var command = JsonConvert.DeserializeObject<FakeCommand>(reader.ReadToEnd());
+                        var command = JsonConvert.DeserializeObject<FakeCommand>(reader.ReadToEnd(), jsonSerializerSettings);
                         logger.LogInformation(new EventId(3), null, $"{baseSchemeUrlAndPort}/command called, my state is {n.State.GetType().FullName}");
                         var commandResponse = n.Accept(command);
                         var json = JsonConvert.SerializeObject(commandResponse);

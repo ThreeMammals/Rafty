@@ -30,6 +30,7 @@ namespace Rafty.IntegrationTests
             _builders = new List<IWebHost>();
             _threads = new List<Thread>();
         }
+
         public void Dispose()
         {
             foreach (var builder in _builders)
@@ -41,7 +42,6 @@ namespace Rafty.IntegrationTests
             {
                 File.Delete(peer.Id);
             }
-
         }
 
         [Fact]
@@ -76,6 +76,7 @@ namespace Rafty.IntegrationTests
                 result.Command.Value.ShouldBe(command.Value);
             }
 
+            stopWatch = Stopwatch.StartNew();
             while (stopWatch.ElapsedMilliseconds < 10000)
             {
 
