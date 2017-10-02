@@ -8,7 +8,7 @@ using Rafty.FiniteStateMachine;
 using Rafty.Log;
 using Shouldly;
 using Xunit;
-using static Rafty.UnitTests.Wait;
+using static Rafty.Infrastructure.Wait;
 
 namespace Rafty.UnitTests
 {

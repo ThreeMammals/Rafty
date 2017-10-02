@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Threading;
 using Castle.Components.DictionaryAdapter;
-using static Rafty.UnitTests.Wait;
+using static Rafty.Infrastructure.Wait;
 
 namespace Rafty.UnitTests
 {

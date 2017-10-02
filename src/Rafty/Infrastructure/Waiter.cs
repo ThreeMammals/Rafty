@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Text;
 using Rafty.Concensus;
 
-namespace Rafty.UnitTests
+namespace Rafty.Infrastructure
 {
     public class Wait
     {
