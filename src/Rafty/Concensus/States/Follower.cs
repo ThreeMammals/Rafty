@@ -48,6 +48,11 @@ namespace Rafty.Concensus
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
         {
+            // if(appendEntries.Entries.Count > 0)
+            // {
+            //     Console.WriteLine($"id {CurrentState.Id} received ae with logs");
+            // }
+
             var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
 
             if(response.shouldReturn)
@@ -159,6 +164,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
+                //Console.WriteLine($"Follower applying to state machine, id {CurrentState.Id}");
                 _fsm.Handle(log);
             }
 

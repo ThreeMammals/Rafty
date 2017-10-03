@@ -273,6 +273,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
+                Console.WriteLine($"Candidate applying to state machine, id {CurrentState.Id}");
                 _fsm.Handle(log);
             }
 

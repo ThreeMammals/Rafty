@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Builder;
@@ -46,7 +47,7 @@ namespace Rafty.IntegrationTests
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IApplicationLifetime applicationLifetime)
         {
             applicationLifetime.ApplicationStopping.Register(() => OnShutdown(app));
-            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
+            //loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             var webHostBuilder = (IWebHostBuilder)app.ApplicationServices.GetService(typeof(IWebHostBuilder));
             var baseSchemeUrlAndPort = webHostBuilder.GetSetting(WebHostDefaults.ServerUrlsKey);
             var node = (INode)app.ApplicationServices.GetService(typeof(INode));
@@ -60,42 +61,57 @@ namespace Rafty.IntegrationTests
 
             app.Run(async context =>
                 {
-                    var n = (INode)context.RequestServices.GetService(typeof(INode));
-                    if(context.Request.Path == "/appendentries")
+                    try
                     {
-                        var reader = new StreamReader(context.Request.Body);
-                        var content = reader.ReadToEnd();
-                        var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(content, jsonSerializerSettings);
-                        logger.LogInformation(new EventId(1), null, $"{baseSchemeUrlAndPort}/appendentries called, my state is {n.State.GetType().FullName}");
-                        var appendEntriesResponse = n.Handle(appendEntries);
-                        var json = JsonConvert.SerializeObject(appendEntriesResponse);
-                        await context.Response.WriteAsync(json);
-                        reader.Dispose();
-                        return;
-                    }
+                        var n = (INode)context.RequestServices.GetService(typeof(INode));
+                        if(context.Request.Path == "/appendentries")
+                        {
+                            var reader = new StreamReader(context.Request.Body);
+                            var content = reader.ReadToEnd();
+                            var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(content, jsonSerializerSettings);
+                            logger.LogInformation(new EventId(1), null, $"{baseSchemeUrlAndPort}/appendentries called, my state is {n.State.GetType().FullName}");
+                            var appendEntriesResponse = n.Handle(appendEntries);
+                            var json = JsonConvert.SerializeObject(appendEntriesResponse);
+                            if(appendEntries.Entries.Count > 0 && appendEntriesResponse.Success == false)
+                            {
+                                Console.WriteLine($"server id is {n.State.CurrentState.Id}");
+                                Console.WriteLine($"server term is {n.State.CurrentState.CurrentTerm}");
+                                Console.WriteLine($"server state is {n.State.GetType().FullName}");
+                                Console.WriteLine($"the other leader is {appendEntries.LeaderId}");
 
-                    if (context.Request.Path == "/requestvote")
-                    {
-                        var reader = new StreamReader(context.Request.Body);
-                        var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd(), jsonSerializerSettings);
-                         logger.LogInformation(new EventId(2), null, $"{baseSchemeUrlAndPort}/requestvote called, my state is {n.State.GetType().FullName}");
-                        var requestVoteResponse = n.Handle(requestVote);
-                        var json = JsonConvert.SerializeObject(requestVoteResponse);
-                        await context.Response.WriteAsync(json);
-                        reader.Dispose();
-                        return;
-                    }
+                            }
+                            await context.Response.WriteAsync(json);
+                            reader.Dispose();
+                            return;
+                        }
 
-                    if(context.Request.Path == "/command")
+                        if (context.Request.Path == "/requestvote")
+                        {
+                            var reader = new StreamReader(context.Request.Body);
+                            var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd(), jsonSerializerSettings);
+                            logger.LogInformation(new EventId(2), null, $"{baseSchemeUrlAndPort}/requestvote called, my state is {n.State.GetType().FullName}");
+                            var requestVoteResponse = n.Handle(requestVote);
+                            var json = JsonConvert.SerializeObject(requestVoteResponse);
+                            await context.Response.WriteAsync(json);
+                            reader.Dispose();
+                            return;
+                        }
+
+                        if(context.Request.Path == "/command")
+                        {
+                            var reader = new StreamReader(context.Request.Body);
+                            var command = JsonConvert.DeserializeObject<FakeCommand>(reader.ReadToEnd(), jsonSerializerSettings);
+                            logger.LogInformation(new EventId(3), null, $"{baseSchemeUrlAndPort}/command called, my state is {n.State.GetType().FullName}");
+                            var commandResponse = n.Accept(command);
+                            var json = JsonConvert.SerializeObject(commandResponse);
+                            await context.Response.WriteAsync(json);
+                            reader.Dispose();
+                            return;
+                        }
+                    }
+                    catch(Exception exception)
                     {
-                        var reader = new StreamReader(context.Request.Body);
-                        var command = JsonConvert.DeserializeObject<FakeCommand>(reader.ReadToEnd(), jsonSerializerSettings);
-                        logger.LogInformation(new EventId(3), null, $"{baseSchemeUrlAndPort}/command called, my state is {n.State.GetType().FullName}");
-                        var commandResponse = n.Accept(command);
-                        var json = JsonConvert.SerializeObject(commandResponse);
-                        await context.Response.WriteAsync(json);
-                        reader.Dispose();
-                        return;
+                        Console.WriteLine(exception);
                     }
                 });
         }

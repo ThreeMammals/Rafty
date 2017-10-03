@@ -4,10 +4,6 @@
 			"HostAndPort": "http://localhost:5000"
 		},
 		{
-			"Id": "41f54603-9898-4850-ae40-29b40630110e",
-			"HostAndPort": "http://localhost:5001"
-		},
-		{
 			"Id": "51e4ef33-52ad-4cb8-b571-5aa791adeda8",
 			"HostAndPort": "http://localhost:5002"
 		},
@@ -18,6 +14,10 @@
 		{
 			"Id": "9a589455-24b4-46fe-a243-49e7fbf1c028",
 			"HostAndPort": "http://localhost:5004"
+		},
+		{
+			"Id": "41f54603-9898-4850-ae40-29b40630110e",
+			"HostAndPort": "http://localhost:5001"
 		}
 	]
 }

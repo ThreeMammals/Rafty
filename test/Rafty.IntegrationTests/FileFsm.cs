@@ -17,8 +17,15 @@ namespace Rafty.IntegrationTests
         
         public void Handle(LogEntry log)
         {
-            var json = JsonConvert.SerializeObject(log.CommandData);
-            File.AppendAllText(_id.ToString(), json);
+            try
+            {
+                var json = JsonConvert.SerializeObject(log.CommandData);
+                File.AppendAllText(_id.ToString(), json);
+            }
+            catch(Exception exception)
+            {
+                Console.WriteLine(exception);
+            }
         }
     }
 }

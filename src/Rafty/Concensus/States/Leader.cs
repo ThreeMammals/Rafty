@@ -95,6 +95,7 @@ namespace Rafty.Concensus
                     if (ReplicatedToMajority(replicated))
                     {
                         var log = _log.Get(index);
+                        //Console.WriteLine($"Leader applying to state machine after replicated to majority, id {CurrentState.Id}");
                         _fsm.Handle(log);
                         FinishWaitingForCommandToReplicate();
                         break;
@@ -359,6 +360,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
+                Console.WriteLine($"Leader applying to state machine because received ae with higher term, id {CurrentState.Id}");
                 _fsm.Handle(log);
             }
 
@@ -389,6 +391,8 @@ namespace Rafty.Concensus
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, 
                     CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
             }
+
+            Console.WriteLine($"Leader applying to state machine because no peers, id {CurrentState.Id}");
             _fsm.Handle(log);
         }
     }

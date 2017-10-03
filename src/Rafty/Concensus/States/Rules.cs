@@ -16,7 +16,6 @@ namespace Rafty.Concensus.States
 
     public class Rules : IRules
     {
-
         // todo - consolidate with candidate and pass in as function
         public (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote, CurrentState currentState)
         {

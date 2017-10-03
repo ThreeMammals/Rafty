@@ -94,7 +94,7 @@ namespace Rafty.IntegrationTests
         {
             //dirty sleep to make sure we have a leader
             var stopwatch = Stopwatch.StartNew();
-            while(stopwatch.ElapsedMilliseconds < 20000)
+            while(stopwatch.ElapsedMilliseconds < 10000)
             {
 
             }
@@ -113,10 +113,24 @@ namespace Rafty.IntegrationTests
                 var result = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
                 result.Command.Value.ShouldBe(command.Value);
             }
+
+            //dirty sleep to make sure command replicated...
+            var stopwatch = Stopwatch.StartNew();
+            while(stopwatch.ElapsedMilliseconds < 10000)
+            {
+
+            }
         }
 
         private void ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand command)
         {
+            //dirty sleep to give a chance to replicate...
+            var stopwatch = Stopwatch.StartNew();
+            while(stopwatch.ElapsedMilliseconds < 2000)
+            {
+
+            }
+            
              bool CommandCalledOnAllStateMachines()
             {
                 try
@@ -124,7 +138,8 @@ namespace Rafty.IntegrationTests
                     var passed = 0;
                     foreach (var peer in _peers.Peers)
                     {
-                        var fsmData = File.ReadAllText(peer.Id);
+                        string fsmData;
+                        fsmData = File.ReadAllText(peer.Id);
                         fsmData.ShouldNotBeNullOrEmpty();
                         var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
                         fakeCommand.Value.ShouldBe(command.Value);
@@ -135,6 +150,7 @@ namespace Rafty.IntegrationTests
                 }
                 catch(Exception e)
                 {
+                    //Console.WriteLine(e);
                     return false;
                 }
             }
