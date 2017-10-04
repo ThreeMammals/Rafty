@@ -238,5 +238,11 @@ follower
         {
             throw new Exception("Candidate log index match needs a test to make sure follower...");
         }
+
+        [Fact]
+        public void ShouldNotWinELectionIfVotedForAnotherNode()
+        {
+            throw new Exception("so we know that 2f started election first adn received two votes, one of them was from another node that also took part in the election because it received two votes. How can this happen? The main issue is surely that after voting in term 2 for another node 51 has still completed its election and made itself leader..");
+        }
     }
 }
