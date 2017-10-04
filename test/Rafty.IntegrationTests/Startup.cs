@@ -72,14 +72,14 @@ namespace Rafty.IntegrationTests
                             logger.LogInformation(new EventId(1), null, $"{baseSchemeUrlAndPort}/appendentries called, my state is {n.State.GetType().FullName}");
                             var appendEntriesResponse = n.Handle(appendEntries);
                             var json = JsonConvert.SerializeObject(appendEntriesResponse);
-                            if(appendEntries.Entries.Count > 0 && appendEntriesResponse.Success == false)
-                            {
-                                Console.WriteLine($"server id is {n.State.CurrentState.Id}");
-                                Console.WriteLine($"server term is {n.State.CurrentState.CurrentTerm}");
-                                Console.WriteLine($"server state is {n.State.GetType().FullName}");
-                                Console.WriteLine($"the other leader is {appendEntries.LeaderId}");
+                            // if(appendEntries.Entries.Count > 0 && appendEntriesResponse.Success == false)
+                            // {
+                            //     Console.WriteLine($"server id is {n.State.CurrentState.Id}");
+                            //     Console.WriteLine($"server term is {n.State.CurrentState.CurrentTerm}");
+                            //     Console.WriteLine($"server state is {n.State.GetType().FullName}");
+                            //     Console.WriteLine($"the other leader is {appendEntries.LeaderId}");
 
-                            }
+                            // }
                             await context.Response.WriteAsync(json);
                             reader.Dispose();
                             return;
@@ -91,6 +91,10 @@ namespace Rafty.IntegrationTests
                             var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd(), jsonSerializerSettings);
                             logger.LogInformation(new EventId(2), null, $"{baseSchemeUrlAndPort}/requestvote called, my state is {n.State.GetType().FullName}");
                             var requestVoteResponse = n.Handle(requestVote);
+                            if(requestVoteResponse.VoteGranted)
+                            {
+                                Console.WriteLine($"server id: {n.State.CurrentState.Id} candidate id: {requestVote.CandidateId} voted for:  {n.State.CurrentState.VotedFor} state {n.State.GetType().FullName} term {n.State.CurrentState.CurrentTerm}");
+                            }
                             var json = JsonConvert.SerializeObject(requestVoteResponse);
                             await context.Response.WriteAsync(json);
                             reader.Dispose();

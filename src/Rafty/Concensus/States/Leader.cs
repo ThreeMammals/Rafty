@@ -271,6 +271,7 @@ namespace Rafty.Concensus
             _electionTimer?.Dispose();
             _electionTimer = new Timer(x =>
             {
+                Console.WriteLine($"leader id: {CurrentState.Id} voted for candidate: {CurrentState.VotedFor} term : {CurrentState.CurrentTerm}");
                 SendAppendEntries();
 
             }, null, 0, Convert.ToInt32(_settings.HeartbeatTimeout));
@@ -360,7 +361,7 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                Console.WriteLine($"Leader applying to state machine because received ae with higher term, id {CurrentState.Id}");
+                //Console.WriteLine($"Leader applying to state machine because received ae with higher term, id {CurrentState.Id}");
                 _fsm.Handle(log);
             }
 
@@ -392,7 +393,7 @@ namespace Rafty.Concensus
                     CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
             }
 
-            Console.WriteLine($"Leader applying to state machine because no peers, id {CurrentState.Id}");
+            //Console.WriteLine($"Leader applying to state machine because no peers, id {CurrentState.Id}");
             _fsm.Handle(log);
         }
     }

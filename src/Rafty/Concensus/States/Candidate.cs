@@ -235,7 +235,12 @@ namespace Rafty.Concensus
         private async Task RequestVote(IPeer peer, BlockingCollection<RequestVoteResponse> requestVoteResponses) 
         {
             var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
-
+            if(requestVoteResponse.VoteGranted)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"peer: {peer.Id} term: {requestVoteResponse.Term} voted for {CurrentState.Id} in term {CurrentState.CurrentTerm}");
+                Console.ForegroundColor = ConsoleColor.Black;
+            }
             requestVoteResponses.Add(requestVoteResponse);
         }
 
@@ -273,7 +278,6 @@ namespace Rafty.Concensus
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                Console.WriteLine($"Candidate applying to state machine, id {CurrentState.Id}");
                 _fsm.Handle(log);
             }
 
@@ -296,6 +300,8 @@ namespace Rafty.Concensus
         {
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
+                //Console.BackgroundColor = ConsoleColor.Black;
+                //Console.WriteLine($"candidate {CurrentState.Id} setting voted for {requestVote.CandidateId}");
                 CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
                     CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 _node.BecomeFollower(CurrentState);
@@ -311,7 +317,7 @@ namespace Rafty.Concensus
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
-
+                _node.BecomeFollower(CurrentState);
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 
@@ -365,7 +371,7 @@ namespace Rafty.Concensus
 
         private bool WonElection()
         {
-            return _becomeLeader && !_requestVoteResponseWithGreaterTerm;
+            return _becomeLeader && !_requestVoteResponseWithGreaterTerm && CurrentState.VotedFor == CurrentState.Id;
         }
     }
 }

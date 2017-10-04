@@ -232,5 +232,11 @@ follower
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");
         }
+
+        [Fact]
+        public void ShouldBecomeFollowerIfVotesForCandidate()
+        {
+            throw new Exception("Candidate log index match needs a test to make sure follower...");
+        }
     }
 }
