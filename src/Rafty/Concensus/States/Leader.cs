@@ -271,7 +271,7 @@ namespace Rafty.Concensus
             _electionTimer?.Dispose();
             _electionTimer = new Timer(x =>
             {
-                Console.WriteLine($"leader id: {CurrentState.Id} voted for candidate: {CurrentState.VotedFor} term : {CurrentState.CurrentTerm}");
+                //Console.WriteLine($"leader id: {CurrentState.Id} voted for candidate: {CurrentState.VotedFor} term : {CurrentState.CurrentTerm}");
                 SendAppendEntries();
 
             }, null, 0, Convert.ToInt32(_settings.HeartbeatTimeout));

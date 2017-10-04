@@ -93,7 +93,7 @@ namespace Rafty.IntegrationTests
                             var requestVoteResponse = n.Handle(requestVote);
                             if(requestVoteResponse.VoteGranted)
                             {
-                                Console.WriteLine($"server id: {n.State.CurrentState.Id} candidate id: {requestVote.CandidateId} voted for:  {n.State.CurrentState.VotedFor} state {n.State.GetType().FullName} term {n.State.CurrentState.CurrentTerm}");
+                                //Console.WriteLine($"server id: {n.State.CurrentState.Id} candidate id: {requestVote.CandidateId} voted for:  {n.State.CurrentState.VotedFor} state {n.State.GetType().FullName} term {n.State.CurrentState.CurrentTerm}");
                             }
                             var json = JsonConvert.SerializeObject(requestVoteResponse);
                             await context.Response.WriteAsync(json);

@@ -237,9 +237,9 @@ namespace Rafty.Concensus
             var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
             if(requestVoteResponse.VoteGranted)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"peer: {peer.Id} term: {requestVoteResponse.Term} voted for {CurrentState.Id} in term {CurrentState.CurrentTerm}");
-                Console.ForegroundColor = ConsoleColor.Black;
+                //Console.ForegroundColor = ConsoleColor.Red;
+                //Console.WriteLine($"peer: {peer.Id} term: {requestVoteResponse.Term} voted for {CurrentState.Id} in term {CurrentState.CurrentTerm}");
+                //Console.ForegroundColor = ConsoleColor.Black;
             }
             requestVoteResponses.Add(requestVoteResponse);
         }

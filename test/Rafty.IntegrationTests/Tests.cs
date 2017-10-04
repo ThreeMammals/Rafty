@@ -94,7 +94,7 @@ namespace Rafty.IntegrationTests
         {
             //dirty sleep to make sure we have a leader
             var stopwatch = Stopwatch.StartNew();
-            while(stopwatch.ElapsedMilliseconds < 10000)
+            while(stopwatch.ElapsedMilliseconds < 20000)
             {
 
             }
@@ -112,6 +112,9 @@ namespace Rafty.IntegrationTests
                 var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 var result = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
                 result.Command.Value.ShouldBe(command.Value);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"command response {content}");
+                Console.ForegroundColor = ConsoleColor.Black;
             }
 
             //dirty sleep to make sure command replicated...
