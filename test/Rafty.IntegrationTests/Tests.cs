@@ -112,9 +112,6 @@ namespace Rafty.IntegrationTests
                 var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 var result = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
                 result.Command.Value.ShouldBe(command.Value);
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"command response {content}");
-                Console.ForegroundColor = ConsoleColor.Black;
             }
 
             //dirty sleep to make sure command replicated...
@@ -153,7 +150,6 @@ namespace Rafty.IntegrationTests
                 }
                 catch(Exception e)
                 {
-                    //Console.WriteLine(e);
                     return false;
                 }
             }

@@ -13,19 +13,19 @@ namespace Rafty.Concensus
 {
     public sealed class Candidate : IState
     {
-        private int _votesThisElection;
-        private readonly object _lock = new object();
         private readonly IFiniteStateMachine _fsm;
         private readonly List<IPeer> _peers;
         private readonly ILog _log;
         private readonly IRandomDelay _random;
+        private readonly ISettings _settings;
+        private readonly INode _node;
+        private readonly IRules _rules;
         private bool _becomeLeader;
         private bool _electioneering;
-        private readonly INode _node;
         private Timer _electionTimer;
         private bool _requestVoteResponseWithGreaterTerm;
-        private readonly ISettings _settings;
-        private readonly IRules _rules;
+        private int _votesThisElection;
+        private readonly object _lock = new object();
 
         public Candidate(
             CurrentState currentState, 
@@ -58,7 +58,7 @@ namespace Rafty.Concensus
             if (No(_peers))
             {
                 StopElectioneering();
-                _node.BecomeLeader(CurrentState);
+                BecomeLeader();
                 return;
             }
 
@@ -68,11 +68,11 @@ namespace Rafty.Concensus
 
             if (WonElection())
             {
-                _node.BecomeLeader(CurrentState);
+                BecomeLeader();
                 return;
             }
 
-            _node.BecomeFollower(CurrentState);
+            BecomeFollower();
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
@@ -164,13 +164,13 @@ namespace Rafty.Concensus
         {
             var receivedResponses = 0;
 
-            var votingCount = new List<Task>();
+            var countedVotes = new List<Task>();
 
             foreach (var requestVoteResponse in requestVoteResponses.GetConsumingEnumerable())
             {
                 var countedVote = CountVote(requestVoteResponse);
 
-                votingCount.Add(countedVote);
+                countedVotes.Add(countedVote);
 
                 receivedResponses++;
 
@@ -180,7 +180,7 @@ namespace Rafty.Concensus
                 }
             }
 
-            Task.WaitAll(votingCount.ToArray());
+            Task.WaitAll(countedVotes.ToArray());
         }
 
         private bool ReceivedMaximumResponses(int receivedResponses)
@@ -203,7 +203,7 @@ namespace Rafty.Concensus
 
                     if (HasMajority())
                     {
-                        BecomeLeader();
+                        ShouldBecomeLeader();
                     }
                 }
             }
@@ -227,7 +227,7 @@ namespace Rafty.Concensus
             return _votesThisElection >= (_peers.Count + 1) / 2 + 1;
         }
 
-        private void BecomeLeader()
+        private void ShouldBecomeLeader()
         {
             _becomeLeader = true;
         }
@@ -235,12 +235,6 @@ namespace Rafty.Concensus
         private async Task RequestVote(IPeer peer, BlockingCollection<RequestVoteResponse> requestVoteResponses) 
         {
             var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
-            if(requestVoteResponse.VoteGranted)
-            {
-                //Console.ForegroundColor = ConsoleColor.Red;
-                //Console.WriteLine($"peer: {peer.Id} term: {requestVoteResponse.Term} voted for {CurrentState.Id} in term {CurrentState.CurrentTerm}");
-                //Console.ForegroundColor = ConsoleColor.Black;
-            }
             requestVoteResponses.Add(requestVoteResponse);
         }
 
@@ -248,7 +242,7 @@ namespace Rafty.Concensus
         {
             if (NotElecting())
             {
-                _node.BecomeCandidate(CurrentState);
+                BecomeCandidate();
             }
             else
             {
@@ -292,7 +286,7 @@ namespace Rafty.Concensus
                 CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term, CurrentState.VotedFor,
                     CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
 
-                _node.BecomeFollower(CurrentState);
+                BecomeFollower();
             }
         }
 
@@ -300,11 +294,9 @@ namespace Rafty.Concensus
         {
             if (requestVote.Term > CurrentState.CurrentTerm)
             {
-                //Console.BackgroundColor = ConsoleColor.Black;
-                //Console.WriteLine($"candidate {CurrentState.Id} setting voted for {requestVote.CandidateId}");
                 CurrentState = new CurrentState(CurrentState.Id, requestVote.Term, requestVote.CandidateId,
                     CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
-                _node.BecomeFollower(CurrentState);
+                BecomeFollower();
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 
@@ -317,7 +309,7 @@ namespace Rafty.Concensus
                 requestVote.LastLogTerm == _log.LastLogTerm)
             {
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
-                _node.BecomeFollower(CurrentState);
+                BecomeFollower();
                 return (new RequestVoteResponse(true, CurrentState.CurrentTerm), true);
             }
 
@@ -362,16 +354,31 @@ namespace Rafty.Concensus
             
             var votes = GetVotes(requestVoteResponses);
 
-            var checkVotes = CountVotes(requestVoteResponses);
+            var countVotes = CountVotes(requestVoteResponses);
 
             Task.WaitAll(votes.ToArray());
 
-            checkVotes.Wait();
+            countVotes.Wait();
         }
 
         private bool WonElection()
         {
             return _becomeLeader && !_requestVoteResponseWithGreaterTerm && CurrentState.VotedFor == CurrentState.Id;
+        }
+
+        private void BecomeLeader()
+        {
+            _node.BecomeLeader(CurrentState);
+        }
+
+        private void BecomeFollower()
+        {
+            _node.BecomeFollower(CurrentState);
+        }
+
+        private void BecomeCandidate()
+        {
+            _node.BecomeCandidate(CurrentState);
         }
     }
 }
