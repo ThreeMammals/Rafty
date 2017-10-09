@@ -90,5 +90,14 @@ namespace Rafty.UnitTests
             log.ExposedForTesting[2].Term.ShouldBe(1);
             log.ExposedForTesting[3].Term.ShouldBe(1);
         }
+
+        [Fact]
+        public void ShouldRemoveFromLog()
+        {
+            var log = new InMemoryLog();
+            var index = log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            log.Remove(index);
+            log.Count.ShouldBe(0);
+        }
     }
 }

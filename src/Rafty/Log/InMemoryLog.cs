@@ -141,5 +141,10 @@ namespace Rafty.Log
 
             throw new Exception("Nothing in log..");
         }
+
+        public void Remove(int indexOfCommand)
+        {
+            _log.Remove(indexOfCommand);
+        }
     }
 }

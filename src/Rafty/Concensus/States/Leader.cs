@@ -15,16 +15,16 @@ namespace Rafty.Concensus
     public sealed class Leader : IState
     {
         private readonly IFiniteStateMachine _fsm;
-        private readonly object _lock = new object();
-        private bool _handled;
-        private Stopwatch _stopWatch;
         Func<CurrentState, List<IPeer>> _getPeers;
         private readonly ILog _log;
         private readonly INode _node;
-        private Timer _electionTimer;
         private readonly ISettings _settings;
-        public long SendAppendEntriesCount;
         private IRules _rules;
+        private readonly object _lock = new object();
+        private bool _handled;
+        private Stopwatch _stopWatch;
+        private Timer _electionTimer;
+        public long SendAppendEntriesCount;
         private bool _appendingEntries;
 
         public Leader(
@@ -47,64 +47,29 @@ namespace Rafty.Concensus
             ResetElectionTimer();
         }
 
+        public List<PeerState> PeerStates { get; private set; }
+
+        public CurrentState CurrentState { get; private set; }
+
         public void Stop()
         {
             _electionTimer.Dispose();
         }
 
-        public List<PeerState> PeerStates { get; private set; }
-
-        public CurrentState CurrentState { get; private set; }
-
-        private bool ReplicationTimeout()
-        {
-            return _stopWatch.ElapsedMilliseconds >= _settings.CommandTimeout;
-        }
-
         public Response<T> Accept<T>(T command) where T : ICommand
         {
-            var index = AddCommandToLog(command);
+            var indexOfCommand = AddCommandToLog(command);
             
             var peers = _getPeers(CurrentState);
             
             if(No(peers))
             {
-                var log = _log.Get(index);
+                var log = _log.Get(indexOfCommand);
                 ApplyToStateMachineAndUpdateCommitIndex(log);
-                return new OkResponse<T>(command);
+                return Ok(command);
             }
 
-            SetUpReplication();
-            
-            while (WaitingForCommandToReplicate())
-            {
-                if(ReplicationTimeout())
-                {
-                    return new ErrorResponse<T>("Unable to replicate command to peers due to timeout.", command);
-                }
-
-                var replicated = 0;
-
-                foreach(var peer in PeerStates)
-                {
-                    if(Replicated(peer, index))
-                    {
-                        replicated++;
-                    }
-
-                    if (ReplicatedToMajority(replicated))
-                    {
-                        var log = _log.Get(index);
-                        _fsm.Handle(log);
-                        FinishWaitingForCommandToReplicate();
-                        break;
-                    }
-                }
-
-                Wait();
-            }
-
-            return new OkResponse<T>(command);
+            return Replicate(command, indexOfCommand);
         }
 
         public AppendEntriesResponse Handle(AppendEntries appendEntries)
@@ -391,6 +356,70 @@ namespace Rafty.Concensus
             }
 
             _fsm.Handle(log);
+        }
+
+        private OkResponse<T> Ok<T>(T command)
+        {
+            return new OkResponse<T>(command);
+        }
+
+        private ErrorResponse<T> UnableDueToTimeout<T>(T command, int indexOfCommand)
+        {
+            DecrementIndexesOfAnyPeersCommandReplicatedTo(indexOfCommand);
+            _log.Remove(indexOfCommand);
+            _appendingEntries = false;
+            return new ErrorResponse<T>("Unable to replicate command to peers due to timeout.", command);
+        }
+
+        private void DecrementIndexesOfAnyPeersCommandReplicatedTo(int indexOfCommand)
+        {
+            var peersThatHaveLogReplicated = PeerStates.Where(x => x.MatchIndex.IndexOfHighestKnownReplicatedLog == indexOfCommand).ToList();
+            peersThatHaveLogReplicated.ForEach(p => {
+                var currentMatchIndex = p.MatchIndex.IndexOfHighestKnownReplicatedLog - 1;
+                var currentNextIndex = p.NextIndex.NextLogIndexToSendToPeer - 1;
+                p.UpdateMatchIndex(currentMatchIndex);
+                p.UpdateNextIndex(currentNextIndex);
+            });
+        }
+
+        private Response<T> Replicate<T>(T command, int indexOfCommand)
+        {
+            SetUpReplication();
+            
+            while (WaitingForCommandToReplicate())
+            {
+                if(ReplicationTimeout())
+                {
+                    return UnableDueToTimeout(command, indexOfCommand);
+                }
+
+                var replicated = 0;
+
+                foreach(var peer in PeerStates)
+                {
+                    if(Replicated(peer, indexOfCommand))
+                    {
+                        replicated++;
+                    }
+
+                    if (ReplicatedToMajority(replicated))
+                    {
+                        var log = _log.Get(indexOfCommand);
+                        _fsm.Handle(log);
+                        FinishWaitingForCommandToReplicate();
+                        break;
+                    }
+                }
+
+                Wait();
+            }
+
+            return Ok(command);
+        }
+
+        private bool ReplicationTimeout()
+        {
+            return _stopWatch.ElapsedMilliseconds >= _settings.CommandTimeout;
         }
     }
 }

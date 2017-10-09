@@ -590,6 +590,49 @@ namespace Rafty.UnitTests
                 return passed == peerState.Count * 2;
             }
             var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            _log.Count.ShouldBe(0);
+            result.ShouldBeTrue();
+        }
+
+        [Fact]
+        public void ShouldTimeoutAfterXSecondsIfCannotReplicateCommandAndRollbackIndexes()
+        {
+            _peers = new List<IPeer>();
+            for (var i = 0; i < 3; i++)
+            {
+                _peers.Add(new FakePeer(false, false, false));
+            }
+
+            _peers.Add(new FakePeer(true, true, true));
+
+            _currentState = new CurrentState(_id, 1, default(Guid), 0, 0, default(Guid));
+            _settings = new InMemorySettingsBuilder().WithCommandTimeout(1).Build();
+            var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
+            var command = new FakeCommand();
+            var response = leader.Accept(command);
+            var error = (ErrorResponse<FakeCommand>)response;
+            error.Error.ShouldBe("Unable to replicate command to peers due to timeout.");
+            bool TestPeerStates(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 0)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 1)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
+            _log.Count.ShouldBe(0);
             result.ShouldBeTrue();
         }
     }

@@ -22,5 +22,7 @@ namespace Rafty.Log
         void DeleteConflictsFromThisLog(int index, LogEntry logEntry);
         //This returns a count of the logs
         int Count { get; }
+        //This removes the command at the index passed in.
+        void Remove(int indexOfCommand);
     }
 } 
