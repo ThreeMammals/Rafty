@@ -9,13 +9,13 @@ namespace Rafty.UnitTests
 
     public class FileLogTests : IDisposable
     {
-        private SqlLite _log;
+        private SqlLiteLog _log;
         private string _path;
 
         public FileLogTests()
         {
             _path = $"{Guid.NewGuid().ToString()}.db";
-            _log = new SqlLite(_path);
+            _log = new SqlLiteLog(_path);
         }
 
         [Fact]
