@@ -3,6 +3,7 @@ namespace Rafty.UnitTests
     using System;
     using System.IO;
     using Log;
+    using Rafty.Infrastructure;
     using Rafty.IntegrationTests;
     using Shouldly;
     using Xunit;
@@ -10,12 +11,12 @@ namespace Rafty.UnitTests
     public class FileLogTests : IDisposable
     {
         private SqlLiteLog _log;
-        private string _path;
+        private Guid _id;
 
         public FileLogTests()
         {
-            _path = $"{Guid.NewGuid().ToString()}.db";
-            _log = new SqlLiteLog(_path);
+            _id = Guid.NewGuid();
+            _log = new SqlLiteLog(new NodeId(_id));
         }
 
         [Fact]
@@ -97,6 +98,18 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
+        public void ShouldGetFrom()
+        {
+            _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            var logs = _log.GetFrom(3);
+            logs.Count.ShouldBe(3);
+        }
+
+        [Fact]
         public void ShouldRemoveFromLog()
         {
             var index = _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
@@ -105,7 +118,7 @@ namespace Rafty.UnitTests
         }
         public void Dispose()
         {
-            File.Delete(_path);
+            File.Delete($"{_id.ToString()}.db");
         }
     }
 }

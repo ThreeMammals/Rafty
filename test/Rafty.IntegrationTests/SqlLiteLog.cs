@@ -3,6 +3,8 @@ using Rafty.Log;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 using System;
+using Rafty.Infrastructure;
+using System.Collections.Generic;
 
 namespace Rafty.IntegrationTests
 {
@@ -11,9 +13,9 @@ namespace Rafty.IntegrationTests
         private string _path;
         private readonly object _lock = new object();
 
-        public SqlLiteLog(string path)
+        public SqlLiteLog(NodeId nodeId)
         {
-            _path = path;
+            _path = $"{nodeId.Id.ToString()}.db";
             if(!File.Exists(_path))
             {
                 lock(_lock)
@@ -40,21 +42,24 @@ namespace Rafty.IntegrationTests
         {
             get
             {
-                var result = 1;
-                using(var connection = new SqliteConnection($"Data Source={_path};"))
+                lock(_lock)
                 {
-                    connection.Open();
-                    var sql = @"select id from logs order by id desc limit 1";
-                    using(var command = new SqliteCommand(sql, connection))
+                    var result = 1;
+                    using(var connection = new SqliteConnection($"Data Source={_path};"))
                     {
-                        var index = Convert.ToInt32(command.ExecuteScalar());
-                        if(index > result)
+                        connection.Open();
+                        var sql = @"select id from logs order by id desc limit 1";
+                        using(var command = new SqliteCommand(sql, connection))
                         {
-                            result = index;
+                            var index = Convert.ToInt32(command.ExecuteScalar());
+                            if(index > result)
+                            {
+                                result = index;
+                            }
                         }
                     }
+                    return result;
                 }
-                return result;
             }
         }
 
@@ -62,25 +67,28 @@ namespace Rafty.IntegrationTests
         {
             get
             {
-                long result = 0;
-                using(var connection = new SqliteConnection($"Data Source={_path};"))
+                lock(_lock)
                 {
-                    connection.Open();
-                    var sql = @"select data from logs order by id desc limit 1";
-                    using(var command = new SqliteCommand(sql, connection))
+                    long result = 0;
+                    using(var connection = new SqliteConnection($"Data Source={_path};"))
                     {
-                        var data = Convert.ToString(command.ExecuteScalar());
-                        var jsonSerializerSettings = new JsonSerializerSettings() { 
-                            TypeNameHandling = TypeNameHandling.All
-                        };
-                        var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
-                        if(log != null && log.Term > result)
+                        connection.Open();
+                        var sql = @"select data from logs order by id desc limit 1";
+                        using(var command = new SqliteCommand(sql, connection))
                         {
-                            result = log.Term;
+                            var data = Convert.ToString(command.ExecuteScalar());
+                            var jsonSerializerSettings = new JsonSerializerSettings() { 
+                                TypeNameHandling = TypeNameHandling.All
+                            };
+                            var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
+                            if(log != null && log.Term > result)
+                            {
+                                result = log.Term;
+                            }
                         }
                     }
+                    return result;
                 }
-                return result;
             }
         }
 
@@ -88,21 +96,24 @@ namespace Rafty.IntegrationTests
         {
             get 
             {
-                var result = 0;
-                using(var connection = new SqliteConnection($"Data Source={_path};"))
+                lock(_lock)
                 {
-                    connection.Open();
-                    var sql = @"select count(id) from logs";
-                    using(var command = new SqliteCommand(sql, connection))
+                    var result = 0;
+                    using(var connection = new SqliteConnection($"Data Source={_path};"))
                     {
-                        var index = Convert.ToInt32(command.ExecuteScalar());
-                        if(index > result)
+                        connection.Open();
+                        var sql = @"select count(id) from logs";
+                        using(var command = new SqliteCommand(sql, connection))
                         {
-                            result = index;
+                            var index = Convert.ToInt32(command.ExecuteScalar());
+                            if(index > result)
+                            {
+                                result = index;
+                            }
                         }
                     }
+                    return result;
                 }
-                return result;
             }
         }
 
@@ -150,7 +161,7 @@ namespace Rafty.IntegrationTests
                             TypeNameHandling = TypeNameHandling.All
                         };
                         var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
-                        if(logEntry.Term != log.Term)
+                        if(logEntry != null && log != null && logEntry.Term != log.Term)
                         {
                             //todo - sql injection dont copy this..
                             var deleteSql = $"delete from logs where id >= {index};";
@@ -166,52 +177,87 @@ namespace Rafty.IntegrationTests
 
         public LogEntry Get(int index)
         {
-            using(var connection = new SqliteConnection($"Data Source={_path};"))
+            lock(_lock)
             {
-                connection.Open();
-                //todo - sql injection dont copy this..
-                var sql = $"select data from logs where id = {index}";
-                using(var command = new SqliteCommand(sql, connection))
+                using(var connection = new SqliteConnection($"Data Source={_path};"))
                 {
-                    var data = Convert.ToString(command.ExecuteScalar());
-                    var jsonSerializerSettings = new JsonSerializerSettings() { 
-                        TypeNameHandling = TypeNameHandling.All
-                    };
-                    var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
-                    return log;
+                    connection.Open();
+                    //todo - sql injection dont copy this..
+                    var sql = $"select data from logs where id = {index}";
+                    using(var command = new SqliteCommand(sql, connection))
+                    {
+                        var data = Convert.ToString(command.ExecuteScalar());
+                        var jsonSerializerSettings = new JsonSerializerSettings() { 
+                            TypeNameHandling = TypeNameHandling.All
+                        };
+                        var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
+                        return log;
+                    }
                 }
             }
         }
 
         public System.Collections.Generic.List<(int index, LogEntry logEntry)> GetFrom(int index)
         {
-            throw new System.NotImplementedException();
+            lock(_lock)
+            {
+                var logsToReturn = new List<(int, LogEntry)>();
+
+                using(var connection = new SqliteConnection($"Data Source={_path};"))
+                {
+                    connection.Open();
+                    //todo - sql injection dont copy this..
+                    var sql = $"select id, data from logs where id >= {index}";
+                    using(var command = new SqliteCommand(sql, connection))
+                    {
+                        using(var reader = command.ExecuteReader())
+                        {
+                            while(reader.Read())
+                            {
+                                var id = Convert.ToInt32(reader[0]);
+                                var data = (string)reader[1];
+                                var jsonSerializerSettings = new JsonSerializerSettings() { 
+                                    TypeNameHandling = TypeNameHandling.All
+                                };
+                                var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
+                                logsToReturn.Add((id, log));
+
+                            }
+                        }
+                    }
+                }
+
+                return logsToReturn;
+            }
+          
         }
 
         public long GetTermAtIndex(int index)
         {
-            long result = 0;
-            using(var connection = new SqliteConnection($"Data Source={_path};"))
+            lock(_lock)
             {
-                connection.Open();
-                //todo - sql injection dont copy this..
-                var sql = $"select data from logs where id = {index}";
-                using(var command = new SqliteCommand(sql, connection))
+                long result = 0;
+                using(var connection = new SqliteConnection($"Data Source={_path};"))
                 {
-                    var data = Convert.ToString(command.ExecuteScalar());
-                    var jsonSerializerSettings = new JsonSerializerSettings() { 
-                        TypeNameHandling = TypeNameHandling.All
-                    };
-                    var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
-                    if(log.Term > result)
+                    connection.Open();
+                    //todo - sql injection dont copy this..
+                    var sql = $"select data from logs where id = {index}";
+                    using(var command = new SqliteCommand(sql, connection))
                     {
-                        result = log.Term;
+                        var data = Convert.ToString(command.ExecuteScalar());
+                        var jsonSerializerSettings = new JsonSerializerSettings() { 
+                            TypeNameHandling = TypeNameHandling.All
+                        };
+                        var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
+                        if(log != null && log.Term > result)
+                        {
+                            result = log.Term;
+                        }
                     }
                 }
+                return result;
             }
-            return result;
         }
-
         public void Remove(int indexOfCommand)
         {
             lock(_lock)
