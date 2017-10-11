@@ -166,11 +166,11 @@ Task("CreatePackages")
 		EnsureDirectoryExists(packagesDir);
 		CopyFiles("./src/**/Rafty.*.nupkg", packagesDir);
 
-		GenerateReleaseNotes();
+		//GenerateReleaseNotes();
 
         System.IO.File.WriteAllLines(artifactsFile, new[]{
             "nuget:Rafty." + buildVersion + ".nupkg",
-            "releaseNotes:releasenotes.md"
+            //"releaseNotes:releasenotes.md"
         });
 
 		if (AppVeyor.IsRunningOnAppVeyor)
