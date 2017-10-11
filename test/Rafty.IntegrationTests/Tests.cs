@@ -42,6 +42,7 @@ namespace Rafty.IntegrationTests
             foreach (var peer in _peers.Peers)
             {
                 File.Delete(peer.Id);
+                File.Delete($"{peer.Id.ToString()}.db");
             }
         }
 

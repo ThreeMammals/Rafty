@@ -1,6 +1,6 @@
 # Rafty
 
-Rafty is an implementation of the Raft concensus algorythm written using C# and .NET core. Rafty is the algorythm only and does not provide useful implementation of the transport between nodes, the state machine or log. Instead Rafty provides interfaces that you will need to implement. I reccomend at least 5 nodes in your cluster for Rafty to operate optimally and this is basically all I've tested....
+Rafty is an implementation of the Raft concensus algorythm [see here..](https://raft.github.io/) written using C# and .NET core. Rafty is the algorythm only and does not provide useful implementation of the transport between nodes, the state machine or log. Instead Rafty provides interfaces that you will need to implement. I reccomend at least 5 nodes in your cluster for Rafty to operate optimally and this is basically all I've tested....
 
 Rafty was built to allow Ocelot (another project of mine) to run in a cluster without a database or relying on another piece of software to persist state. This will also allow me to turn Ocelot into a service discovery provider and key value store so its pretty nice....if it works!
 

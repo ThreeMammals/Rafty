@@ -8,12 +8,12 @@ namespace Rafty.UnitTests
     using Shouldly;
     using Xunit;
 
-    public class FileLogTests : IDisposable
+    public class SqlLiteLogTests : IDisposable
     {
         private SqlLiteLog _log;
         private Guid _id;
 
-        public FileLogTests()
+        public SqlLiteLogTests()
         {
             _id = Guid.NewGuid();
             _log = new SqlLiteLog(new NodeId(_id));
