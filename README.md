@@ -1,6 +1,6 @@
 # Rafty
 
-Rafty is an implementation of the Raft concensus algorythm [see here..](https://raft.github.io/) written using C# and .NET core. Rafty is the algorythm only and does not provide useful implementation of the transport between nodes, the state machine or log. Instead Rafty provides interfaces that you will need to implement. I reccomend at least 5 nodes in your cluster for Rafty to operate optimally and this is basically all I've tested....
+Rafty is an implementation of the Raft concensus algorythm [see here](https://raft.github.io/) created using C# and .NET core. Rafty is the algorythm only and does not provide useful implementation of the transport between nodes, the state machine or log. Instead Rafty provides interfaces that you will need to implement. I reccomend at least 5 nodes in your cluster for Rafty to operate optimally and this is basically all I've tested....
 
 Rafty was built to allow Ocelot (another project of mine) to run in a cluster without a database or relying on another piece of software to persist state. This will also allow me to turn Ocelot into a service discovery provider and key value store so its pretty nice....if it works!
 
@@ -8,7 +8,7 @@ Rafty was built to allow Ocelot (another project of mine) to run in a cluster wi
 
 Bring the rafty package into your project using nuget.
 
-Install-Package Rafty
+```Install-Package Rafty```
 
 This will make all the raft code available to you!
 
@@ -52,10 +52,14 @@ So in order to get Rafty really running the IPeerProvider needs to return peers.
 Finally you need to expose the INode interface to some kind of HTTP. I would advise just a plain old .net core web api type thing. These are the methods you need to expose and the transport in your IPeer should hit these URLS (hope that makes some sense). You can look at NodePeer to see how I do this in memory.
 
 ```csharp
-AppendEntriesResponse Handle(AppendEntries appendEntries);
-RequestVoteResponse Handle(RequestVote requestVote);
-Response<T> Accept<T>(T command);
+AppendEntriesResponse Request(AppendEntries appendEntries);
+RequestVoteResponse Request(RequestVote requestVote);
+Response<T> Request<T>(T command);
 ```
+
+## Further help..
+
+The Acceptance and Integration tests will be helpful for anyone who wants to use Rafty.
 
 ## Future
 
