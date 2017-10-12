@@ -7,7 +7,7 @@ namespace Rafty.FiniteStateMachine
     public interface IFiniteStateMachine
     {
         /// <summary>
-        //This will apply the given log to the state machine.
+        /// This will apply the given log to the state machine.
         /// </summary>
         void Handle(LogEntry log);
     }
