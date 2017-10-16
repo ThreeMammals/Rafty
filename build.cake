@@ -220,23 +220,48 @@ Task("UpdateVersionInfo")
         AppVeyor.UpdateBuildVersion(releaseTag);
     });
 
+
 Task("DownloadGitHubReleaseArtifacts")
     .IsDependentOn("UpdateVersionInfo")
     .Does(() =>
     {
-        EnsureDirectoryExists(packagesDir);
+		try
+		{
+			Information("DownloadGitHubReleaseArtifacts");
 
-		var releaseUrl = tagsUrl + releaseTag;
-        var assets_url = ParseJson(GetResource(releaseUrl))
-            .GetValue("assets_url")
-			.Value<string>();
+			EnsureDirectoryExists(packagesDir);
 
-        foreach(var asset in DeserializeJson<JArray>(GetResource(assets_url)))
-        {
-			var file = packagesDir + File(asset.Value<string>("name"));
-			Information("Downloading " + file);
-            DownloadFile(asset.Value<string>("browser_download_url"), file);
-        }
+			Information("Directory exists...");
+
+			var releaseUrl = tagsUrl + releaseTag;
+
+			Information("Release url " + releaseUrl);
+
+			var releaseJson = Newtonsoft.Json.Linq.JObject.Parse(GetResource(releaseUrl));            
+
+        	//todo - remove when publish working..var assets_url = ParseJson(GetResource(releaseUrl))
+			var assets_url = releaseJson.GetValue("assets_url").Value<string>();
+
+			Information("Assets url " + assets_url);
+
+			foreach(var asset in DeserializeJson<JArray>(GetResource(assets_url)))
+			{
+				Information("In the loop..");
+
+				var file = packagesDir + File(asset.Value<string>("name"));
+
+				Information("Downloading " + file);
+				
+				DownloadFile(asset.Value<string>("browser_download_url"), file);
+			}
+
+			Information("Out of the loop...");
+		}
+		catch(Exception exception)
+		{
+			Information("There was an exception " + exception);
+			throw;
+		}
     });
 
 Task("ReleasePackagesToStableFeed")
