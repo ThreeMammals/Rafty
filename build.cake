@@ -220,7 +220,6 @@ Task("UpdateVersionInfo")
         AppVeyor.UpdateBuildVersion(releaseTag);
     });
 
-
 Task("DownloadGitHubReleaseArtifacts")
     .IsDependentOn("UpdateVersionInfo")
     .Does(() =>
@@ -237,14 +236,19 @@ Task("DownloadGitHubReleaseArtifacts")
 
 			Information("Release url " + releaseUrl);
 
-			var releaseJson = Newtonsoft.Json.Linq.JObject.Parse(GetResource(releaseUrl));            
+			//var releaseJson = Newtonsoft.Json.Linq.JObject.Parse(GetResource(releaseUrl));            
 
-        	//todo - remove when publish working..var assets_url = ParseJson(GetResource(releaseUrl))
-			var assets_url = releaseJson.GetValue("assets_url").Value<string>();
+        	var assets_url = Newtonsoft.Json.Linq.JObject.Parse(GetResource(releaseUrl))
+				.GetValue("assets_url")
+				.Value<string>();
 
 			Information("Assets url " + assets_url);
 
-			foreach(var asset in DeserializeJson<JArray>(GetResource(assets_url)))
+			var assets = GetResource(assets_url);
+
+			Information("Assets " + assets_url);
+
+			foreach(var asset in Newtonsoft.Json.JsonConvert.DeserializeObject<JArray>(assets))
 			{
 				Information("In the loop..");
 
@@ -345,22 +349,35 @@ private void PublishPackages(string feedApiKey, string codeFeedUrl, string symbo
             });
 }
 
+
 /// gets the resource from the specified url
 private string GetResource(string url)
 {
-	Information("Getting resource from " + url);
+	try
+	{
+		Information("Getting resource from " + url);
 
-    var assetsRequest = System.Net.WebRequest.CreateHttp(url);
-    assetsRequest.Method = "GET";
-    assetsRequest.Accept = "application/vnd.github.v3+json";
-    assetsRequest.UserAgent = "BuildScript";
+		var assetsRequest = System.Net.WebRequest.CreateHttp(url);
+		assetsRequest.Method = "GET";
+		assetsRequest.Accept = "application/vnd.github.v3+json";
+		assetsRequest.UserAgent = "BuildScript";
 
-    using (var assetsResponse = assetsRequest.GetResponse())
-    {
-        var assetsStream = assetsResponse.GetResponseStream();
-        var assetsReader = new StreamReader(assetsStream);
-        return assetsReader.ReadToEnd();
-    }
+		using (var assetsResponse = assetsRequest.GetResponse())
+		{
+			var assetsStream = assetsResponse.GetResponseStream();
+			var assetsReader = new StreamReader(assetsStream);
+			var response =  assetsReader.ReadToEnd();
+
+			Information("Response is " + response);
+			
+			return response;
+		}
+	}
+	catch(Exception exception)
+	{
+		Information("There was an exception " + exception);
+		throw;
+	}
 }
 
 private bool ShouldPublishToUnstableFeed()
