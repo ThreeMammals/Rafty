@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="Moq" Version="4.7.63" />
+	  <PackageReference Include="Moq" Version="4.7.63" />
     <PackageReference Include="Shouldly" Version="2.8.3" />
     <PackageReference Include="TestStack.BDDfy" Version="4.3.2" />
     <PackageReference Include="xunit" Version="2.2.0" />
