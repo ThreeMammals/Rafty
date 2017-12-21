@@ -12,7 +12,7 @@ namespace Rafty.IntegrationTests
         private HttpClient _httpClient;
         private JsonSerializerSettings _jsonSerializerSettings;
 
-        public HttpPeer(string hostAndPort, string id, HttpClient httpClient)
+        public HttpPeer(string hostAndPort, HttpClient httpClient)
         {
             Id  = hostAndPort;
             _hostAndPort = hostAndPort;

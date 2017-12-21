@@ -41,8 +41,8 @@ namespace Rafty.IntegrationTests
 
             foreach (var peer in _peers.Peers)
             {
-                File.Delete(peer.Id);
-                File.Delete($"{peer.Id.ToString()}.db");
+                File.Delete(peer.HostAndPort.Replace("/", "").Replace(":", ""));
+                File.Delete($"{peer.HostAndPort.Replace("/", "").Replace(":", "")}.db");
             }
         }
 
@@ -56,10 +56,8 @@ namespace Rafty.IntegrationTests
             ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
 
-        private void GivenAServerIsRunning(string url, string id)
+        private void GivenAServerIsRunning(string url)
         {
-            var guid = Guid.Parse(id);
-
             IWebHostBuilder webHostBuilder = new WebHostBuilder();
             webHostBuilder.UseUrls(url)
                 .UseKestrel()
@@ -85,7 +83,7 @@ namespace Rafty.IntegrationTests
 
             foreach (var peer in _peers.Peers)
             {
-                var thread = new Thread(() => GivenAServerIsRunning(peer.HostAndPort, peer.Id));
+                var thread = new Thread(() => GivenAServerIsRunning(peer.HostAndPort));
                 thread.Start();
                 _threads.Add(thread);
             }
@@ -140,7 +138,7 @@ namespace Rafty.IntegrationTests
                     foreach (var peer in _peers.Peers)
                     {
                         string fsmData;
-                        fsmData = File.ReadAllText(peer.Id);
+                        fsmData = File.ReadAllText(peer.HostAndPort.Replace("/", "").Replace(":", ""));
                         fsmData.ShouldNotBeNullOrEmpty();
                         var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
                         fakeCommand.Value.ShouldBe(command.Value);
