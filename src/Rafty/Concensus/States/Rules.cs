@@ -19,7 +19,7 @@ namespace Rafty.Concensus.States
         // todo - consolidate with candidate and pass in as function
         public (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote, CurrentState currentState)
         {
-            if (currentState.VotedFor == currentState.Id || currentState.VotedFor != default(Guid))
+            if (currentState.VotedFor == currentState.Id || currentState.VotedFor != default(string))
             {
                 return (new RequestVoteResponse(false, currentState.CurrentTerm), true);
             }

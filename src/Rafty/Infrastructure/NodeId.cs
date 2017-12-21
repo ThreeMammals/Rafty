@@ -4,11 +4,11 @@ namespace Rafty.Infrastructure
 {
     public class NodeId
     {
-        public NodeId(Guid id)
+        public NodeId(string id)
         {
             Id = id;
         }
 
-        public Guid Id {get;private set;}
+        public string Id {get;private set;}
     }
 }

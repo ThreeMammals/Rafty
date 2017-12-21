@@ -44,7 +44,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact]
         public void FollowerShouldReplyFalseIfTermIsLessThanCurrentTerm()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, default(Guid));
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
             var requestVoteResponse = follower.Handle(requestVoteRpc);
@@ -55,7 +55,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact]
         public void FollowerShouldReplyFalseIfVotedForIsNotDefault()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, default(Guid));
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
             var requestVoteResponse = follower.Handle(requestVoteRpc);
@@ -66,8 +66,8 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact]
         public void FollowerShouldReplyFalseIfVotedForIsNotCandidateId()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, Guid.NewGuid(), 1, 0, default(Guid));
-            var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid()).WithTerm(0).Build();
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), 1, 0, default(string));
+            var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid().ToString()).WithTerm(0).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
             var requestVoteResponse = follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
@@ -77,7 +77,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         [Fact]
         public void FollowerShouldGrantVote()
         {
-            _currentState = new CurrentState(Guid.NewGuid(), 1, default(Guid), 1, 0, default(Guid));
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(1).WithLastLogTerm(0).WithTerm(1).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
             var requestVoteResponse = follower.Handle(requestVoteRpc);

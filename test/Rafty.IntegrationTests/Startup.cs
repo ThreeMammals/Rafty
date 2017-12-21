@@ -53,7 +53,7 @@ namespace Rafty.IntegrationTests
             var node = (INode)app.ApplicationServices.GetService(typeof(INode));
             var nodeId = (NodeId)app.ApplicationServices.GetService(typeof(NodeId));
             var logger = loggerFactory.CreateLogger<Startup>();
-            node.Start(nodeId.Id);
+            node.Start(nodeId.Id.ToString());
 
             var jsonSerializerSettings = new JsonSerializerSettings() { 
                 TypeNameHandling = TypeNameHandling.All

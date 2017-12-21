@@ -4,7 +4,7 @@ namespace Rafty.Concensus
 {
     public sealed class RequestVote
     {
-        public RequestVote(long term, Guid candidateId, long lastLogIndex, long lastLogTerm)
+        public RequestVote(long term, string candidateId, long lastLogIndex, long lastLogTerm)
         {
             Term = term;
             CandidateId = candidateId;
@@ -20,7 +20,7 @@ namespace Rafty.Concensus
         /// <summary>
         // CandidateId candidate requesting vote.
         /// </summary>
-        public Guid CandidateId {get;private set;}
+        public string CandidateId {get;private set;}
 
         /// <summary>
         // LastLogIndex index of candidate’s last log entry (§5.4).

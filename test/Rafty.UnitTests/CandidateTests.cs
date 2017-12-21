@@ -28,7 +28,7 @@ follower
         private List<IPeer> _peers;
         private IRandomDelay _random;
         private INode _node;
-        private readonly Guid _id;
+        private readonly string _id;
         private CurrentState _currentState;
         private InMemorySettings _settings;
         private IRules _rules;
@@ -40,9 +40,9 @@ follower
             _log = new InMemoryLog();
             _peers = new List<IPeer>();
             _fsm = new InMemoryStateMachine();
-            _id = Guid.NewGuid();
+            _id = Guid.NewGuid().ToString();
             _node = new NothingNode();
-            _currentState = new CurrentState(_id, 0, default(Guid), 0, 0, default(Guid));
+            _currentState = new CurrentState(_id, 0, default(string), 0, 0, default(string));
         }
 
         [Fact]
@@ -211,13 +211,13 @@ follower
         public void ShouldVoteForNewCandidateInAnotherTermsElection()
         {
             _node = new NothingNode();
-            _currentState = new CurrentState(Guid.NewGuid(), 0, default(Guid), 0, 0, default(Guid));
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
-            var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
             var requestVoteResponse = candidate.Handle(requestVote);
             candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
             requestVoteResponse.VoteGranted.ShouldBeTrue();
-            requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid()).WithLastLogIndex(1).Build();
+            requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
             requestVoteResponse = candidate.Handle(requestVote);
             requestVoteResponse.VoteGranted.ShouldBeTrue();
             candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);

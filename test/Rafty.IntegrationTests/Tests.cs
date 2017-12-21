@@ -67,7 +67,7 @@ namespace Rafty.IntegrationTests
                 .ConfigureServices(x =>
                 {
                     x.AddSingleton(webHostBuilder);
-                    x.AddSingleton(new NodeId(guid));
+                    x.AddSingleton(new NodeId(url));
                 })
                 .UseStartup<Startup>();
 

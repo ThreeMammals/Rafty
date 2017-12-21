@@ -48,7 +48,7 @@ namespace Rafty.UnitTests
             return State.Handle(requestVote);
         }
 
-        public void Start(Guid id)
+        public void Start(string id)
         {
             throw new NotImplementedException();
         }

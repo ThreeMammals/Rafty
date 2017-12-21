@@ -13,14 +13,14 @@ namespace Rafty.UnitTests
         private readonly bool _appendEntryTwo;
         private bool _appendEntryThree;
         private int _term = 1;
-        private Guid _id;
+        private string _id;
         public int ReceivedCommands;
 
         public FakePeer()
         {
         }
 
-        public FakePeer(Guid id)
+        public FakePeer(string id)
         {
             _id = id;
         }
@@ -30,7 +30,7 @@ namespace Rafty.UnitTests
             _term = term;
         }
 
-        public FakePeer(int term, Guid id)
+        public FakePeer(int term, string id)
         {
             _term = term;
             _id = id;
@@ -66,7 +66,7 @@ namespace Rafty.UnitTests
 
         public List<AppendEntriesResponse> AppendEntriesResponses { get; } = new List<AppendEntriesResponse>();
 
-        public Guid Id => _id;
+        public string Id => _id;
 
         public RequestVoteResponse Request(RequestVote requestVote)
         {

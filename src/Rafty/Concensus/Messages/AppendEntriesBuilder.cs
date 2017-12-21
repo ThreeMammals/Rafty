@@ -8,7 +8,7 @@ namespace Rafty.Concensus
     {
         private List<LogEntry> _entries;
         private int _leaderCommitIndex;
-        private Guid _leaderId;
+        private string _leaderId;
         private int _previousLogIndex;
         private long _previousLogTerm;
         private long _term;
@@ -19,7 +19,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public AppendEntriesBuilder WithLeaderId(Guid leaderId)
+        public AppendEntriesBuilder WithLeaderId(string leaderId)
         {
             _leaderId = leaderId;
             return this;

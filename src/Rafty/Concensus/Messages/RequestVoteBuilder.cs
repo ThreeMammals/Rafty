@@ -5,7 +5,7 @@ namespace Rafty.Concensus
     public class RequestVoteBuilder
     {
         private long _term;
-        private Guid _candidateId;
+        private string _candidateId;
         private long _lastLogIndex;
         private long _lastLogTerm;
 
@@ -15,7 +15,7 @@ namespace Rafty.Concensus
             return this;
         }
 
-        public RequestVoteBuilder WithCandidateId(Guid candidateId)
+        public RequestVoteBuilder WithCandidateId(string candidateId)
         {
             _candidateId = candidateId;
             return this;
