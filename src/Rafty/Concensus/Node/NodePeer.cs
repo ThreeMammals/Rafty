@@ -9,7 +9,7 @@ namespace Rafty.AcceptanceTests
     {
         private Node _node;
 
-        public Guid Id 
+        public string Id 
         {
             get 
             {
@@ -18,7 +18,7 @@ namespace Rafty.AcceptanceTests
                     return _node.State.CurrentState.Id;
                 }
                 
-                return default(Guid);
+                return default(string);
             }
         }
 

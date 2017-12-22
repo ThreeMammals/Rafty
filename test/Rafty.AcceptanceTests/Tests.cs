@@ -188,7 +188,7 @@ namespace Rafty.AcceptanceTests
                 peer.SetNode(server.Node);
                 var nextIndex = _servers.Count;
                 _servers.TryAdd(nextIndex, server);
-                node.Start(Guid.NewGuid());
+                node.Start(Guid.NewGuid().ToString());
             }
         }
 
@@ -361,7 +361,7 @@ namespace Rafty.AcceptanceTests
         {
             var stopwatch = Stopwatch.StartNew();
             var passed = false;
-            var leaderId = default(Guid);
+            var leaderId = default(string);
             while(stopwatch.Elapsed.TotalSeconds < 25)
             {
                 Thread.Sleep(1000);
@@ -373,7 +373,7 @@ namespace Rafty.AcceptanceTests
                     if (leader.Count == 1 && followers.Count == 4)
                     {
                         //if the leader id hasnt been set set it...
-                        if(leaderId == default(Guid))
+                        if(leaderId == default(string))
                         {
                             leaderId = leader[0].State.CurrentState.Id;
                         }
@@ -429,7 +429,7 @@ namespace Rafty.AcceptanceTests
             _output.WriteLine("start the nodes");
             foreach(var server in _servers)
             {
-                server.Value.Node.Start(Guid.NewGuid());
+                server.Value.Node.Start(Guid.NewGuid().ToString());
             }
         }
     }

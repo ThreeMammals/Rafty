@@ -11,7 +11,7 @@ namespace Rafty.Concensus
         void BecomeCandidate(CurrentState state);
         AppendEntriesResponse Handle(AppendEntries appendEntries);
         RequestVoteResponse Handle(RequestVote requestVote);
-        void Start(Guid id);
+        void Start(string id);
         void Stop();
         Response<T> Accept<T>(T command) where T : ICommand;
     }

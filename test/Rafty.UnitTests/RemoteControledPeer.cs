@@ -13,10 +13,10 @@ namespace Rafty.UnitTests
 
         public RemoteControledPeer()
         {
-            Id = Guid.NewGuid();
+            Id = Guid.NewGuid().ToString();
         }
 
-        public Guid Id { get; }
+        public string Id { get; }
 
         public void SetRequestVoteResponse(RequestVoteResponse requestVoteResponse)
         {

@@ -9,7 +9,7 @@ namespace Rafty.IntegrationTests
 {
     public class FileFsm : IFiniteStateMachine
     {
-        private Guid _id;
+        private string _id;
         public FileFsm(NodeId nodeId)
         {
             _id = nodeId.Id;
@@ -20,7 +20,7 @@ namespace Rafty.IntegrationTests
             try
             {
                 var json = JsonConvert.SerializeObject(log.CommandData);
-                File.AppendAllText(_id.ToString(), json);
+                File.AppendAllText(_id.Replace("/","").Replace(":","").ToString(), json);
             }
             catch(Exception exception)
             {

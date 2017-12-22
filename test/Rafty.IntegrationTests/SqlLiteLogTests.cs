@@ -11,11 +11,11 @@ namespace Rafty.UnitTests
     public class SqlLiteLogTests : IDisposable
     {
         private SqlLiteLog _log;
-        private Guid _id;
+        private string _id;
 
         public SqlLiteLogTests()
         {
-            _id = Guid.NewGuid();
+            _id = Guid.NewGuid().ToString();
             _log = new SqlLiteLog(new NodeId(_id));
         }
 

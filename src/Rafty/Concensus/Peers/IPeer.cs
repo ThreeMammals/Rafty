@@ -8,7 +8,7 @@ namespace Rafty.Concensus
         /// <summary>
         /// This will return the peers ID.
         /// </summary>
-        Guid Id {get;}
+        string Id {get;}
 
         /// <summary>
         /// This will make a requestvote request to the given peer. You must implement the transport.

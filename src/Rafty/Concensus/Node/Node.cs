@@ -40,11 +40,11 @@ namespace Rafty.Concensus
 
         public IState State { get; private set; }
 
-        public void Start(Guid id)
+        public void Start(string id)
         {
             if(State?.CurrentState == null)
             {
-                BecomeFollower(new CurrentState(id, 0, default(Guid), 0, 0, default(Guid)));
+                BecomeFollower(new CurrentState(id, 0, default(string), 0, 0, default(string)));
             }
             else
             {

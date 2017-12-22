@@ -15,7 +15,7 @@ namespace Rafty.IntegrationTests
 
         public SqlLiteLog(NodeId nodeId)
         {
-            _path = $"{nodeId.Id.ToString()}.db";
+            _path = $"{nodeId.Id.Replace("/","").Replace(":","").ToString()}.db";
             if(!File.Exists(_path))
             {
                 lock(_lock)
