@@ -236,7 +236,7 @@ _Pvt_Extensions
 # FAKE - F# Make
 .fake/
 !tools/packages.config
-
+tools/
 
 # MacOS
 .DS_Store
