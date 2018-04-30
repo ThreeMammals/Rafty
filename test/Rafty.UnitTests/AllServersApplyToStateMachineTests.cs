@@ -53,7 +53,7 @@ namespace Rafty.UnitTests
             var appendEntriesResponse = follower.Handle(appendEntries);
             follower.CurrentState.CurrentTerm.ShouldBe(1);
             follower.CurrentState.LastApplied.ShouldBe(1);
-            fsm.ExposedForTesting.ShouldBe(1);
+            fsm.HandledLogEntries.ShouldBe(1);
         }
 
         [Fact] 
@@ -75,7 +75,7 @@ namespace Rafty.UnitTests
             var appendEntriesResponse = candidate.Handle(appendEntries);
             candidate.CurrentState.CurrentTerm.ShouldBe(1);
             candidate.CurrentState.LastApplied.ShouldBe(1);
-            fsm.ExposedForTesting.ShouldBe(1);
+            fsm.HandledLogEntries.ShouldBe(1);
             var node = (NothingNode) _node;
             node.BecomeFollowerCount.ShouldBe(1);
         }
@@ -100,7 +100,7 @@ namespace Rafty.UnitTests
             var appendEntriesResponse = leader.Handle(appendEntries);
             leader.CurrentState.CurrentTerm.ShouldBe(1);
             leader.CurrentState.LastApplied.ShouldBe(1);
-            fsm.ExposedForTesting.ShouldBe(1);
+            fsm.HandledLogEntries.ShouldBe(1);
         }
     }
 }

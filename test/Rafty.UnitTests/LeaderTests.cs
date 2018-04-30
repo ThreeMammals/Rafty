@@ -100,7 +100,7 @@ namespace Rafty.UnitTests
             log.ExposedForTesting.Count.ShouldBe(1);
 
             var fsm = (InMemoryStateMachine)_fsm;
-            fsm.ExposedForTesting.ShouldBe(1);
+            fsm.HandledLogEntries.ShouldBe(1);
             response.ShouldBeOfType<OkResponse<FakeCommand>>();
         }
 
@@ -114,7 +114,7 @@ namespace Rafty.UnitTests
             var response = leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
             var fsm = (InMemoryStateMachine)_fsm;
-            fsm.ExposedForTesting.ShouldBe(1);
+            fsm.HandledLogEntries.ShouldBe(1);
             response.ShouldBeOfType<OkResponse<FakeCommand>>();
         }
 

@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -20,9 +17,9 @@ namespace Rafty.IntegrationTests
 {
     public class Tests : IDisposable
     {
-        private List<IWebHost> _builders;
-        private List<IWebHostBuilder> _webHostBuilders;
-        private List<Thread> _threads;
+        private readonly List<IWebHost> _builders;
+        private readonly List<IWebHostBuilder> _webHostBuilders;
+        private readonly List<Thread> _threads;
         private FilePeers _peers;
 
         public Tests()
@@ -32,26 +29,11 @@ namespace Rafty.IntegrationTests
             _threads = new List<Thread>();
         }
 
-        public void Dispose()
-        {
-            foreach (var builder in _builders)
-            {
-                builder?.Dispose();
-            }
-
-            foreach (var peer in _peers.Peers)
-            {
-                File.Delete(peer.HostAndPort.Replace("/", "").Replace(":", ""));
-                File.Delete($"{peer.HostAndPort.Replace("/", "").Replace(":", "")}.db");
-            }
-        }
-
         [Fact]
         public void ShouldPersistCommandToFiveServers()
         {
             var command = new FakeCommand("WHATS UP DOC?");
             GivenFiveServersAreRunning();
-            GivenALeaderIsElected();
             WhenISendACommandIntoTheCluster(command);
             ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
@@ -89,72 +71,66 @@ namespace Rafty.IntegrationTests
             }
         }
 
-        private void GivenALeaderIsElected()
-        {
-            //dirty sleep to make sure we have a leader
-            var stopwatch = Stopwatch.StartNew();
-            while(stopwatch.ElapsedMilliseconds < 20000)
-            {
-
-            }
-        }
-
         private void WhenISendACommandIntoTheCluster(FakeCommand command)
         {
-            var p = _peers.Peers.First();
-            var json = JsonConvert.SerializeObject(command);
-            var httpContent = new StringContent(json);
-            using(var httpClient = new HttpClient())
+            bool SendCommand()
             {
-                var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
-                response.EnsureSuccessStatusCode();
-                var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                var result = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
-                result.Command.Value.ShouldBe(command.Value);
+                var p = _peers.Peers.First();
+                var json = JsonConvert.SerializeObject(command);
+                var httpContent = new StringContent(json);
+                using (var httpClient = new HttpClient())
+                {
+                    var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
+                    response.EnsureSuccessStatusCode();
+                    var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    var error = JsonConvert.DeserializeObject<ErrorResponse<FakeCommand>>(content);
+                    if (!string.IsNullOrEmpty(error.Error))
+                    {
+                        return false;
+                    }
+                    var ok = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
+                    ok.Command.Value.ShouldBe(command.Value);
+                    return true;
+                }
             }
 
-            //dirty sleep to make sure command replicated...
-            var stopwatch = Stopwatch.StartNew();
-            while(stopwatch.ElapsedMilliseconds < 10000)
-            {
-
-            }
+            var leaderElectedAndCommandReceived = WaitFor(20000).Until(SendCommand);
+            leaderElectedAndCommandReceived.ShouldBeTrue();
         }
 
         private void ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand command)
         {
-            //dirty sleep to give a chance to replicate...
-            var stopwatch = Stopwatch.StartNew();
-            while(stopwatch.ElapsedMilliseconds < 2000)
+            bool CommandCalledOnAllStateMachines()
             {
-
-            }
-            
-             bool CommandCalledOnAllStateMachines()
-            {
-                try
+                var passed = 0;
+                foreach (var peer in _peers.Peers)
                 {
-                    var passed = 0;
-                    foreach (var peer in _peers.Peers)
-                    {
-                        string fsmData;
-                        fsmData = File.ReadAllText(peer.HostAndPort.Replace("/", "").Replace(":", ""));
-                        fsmData.ShouldNotBeNullOrEmpty();
-                        var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
-                        fakeCommand.Value.ShouldBe(command.Value);
-                        passed++;
-                    }
+                    var fsmData = File.ReadAllText(peer.HostAndPort.Replace("/", "").Replace(":", ""));
+                    fsmData.ShouldNotBeNullOrEmpty();
+                    var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
+                    fakeCommand.Value.ShouldBe(command.Value);
+                    passed++;
+                }
 
-                    return passed == 5;
-                }
-                catch(Exception e)
-                {
-                    return false;
-                }
+                return passed == 5;
             }
 
-            var commandOnAllStateMachines = WaitFor(20000).Until(() => CommandCalledOnAllStateMachines());
+            var commandOnAllStateMachines = WaitFor(20000).Until(CommandCalledOnAllStateMachines);
             commandOnAllStateMachines.ShouldBeTrue();   
+        }
+
+        public void Dispose()
+        {
+            foreach (var builder in _builders)
+            {
+                builder?.Dispose();
+            }
+
+            foreach (var peer in _peers.Peers)
+            {
+                File.Delete(peer.HostAndPort.Replace("/", "").Replace(":", ""));
+                File.Delete($"{peer.HostAndPort.Replace("/", "").Replace(":", "")}.db");
+            }
         }
     }
 }
