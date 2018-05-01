@@ -75,22 +75,29 @@ namespace Rafty.IntegrationTests
         {
             bool SendCommand()
             {
-                var p = _peers.Peers.First();
-                var json = JsonConvert.SerializeObject(command);
-                var httpContent = new StringContent(json);
-                using (var httpClient = new HttpClient())
+                try
                 {
-                    var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
-                    response.EnsureSuccessStatusCode();
-                    var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                    var error = JsonConvert.DeserializeObject<ErrorResponse<FakeCommand>>(content);
-                    if (!string.IsNullOrEmpty(error.Error))
+                    var p = _peers.Peers.First();
+                    var json = JsonConvert.SerializeObject(command);
+                    var httpContent = new StringContent(json);
+                    using (var httpClient = new HttpClient())
                     {
-                        return false;
+                        var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
+                        response.EnsureSuccessStatusCode();
+                        var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                        var error = JsonConvert.DeserializeObject<ErrorResponse<FakeCommand>>(content);
+                        if (!string.IsNullOrEmpty(error.Error))
+                        {
+                            return false;
+                        }
+                        var ok = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
+                        ok.Command.Value.ShouldBe(command.Value);
+                        return true;
                     }
-                    var ok = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);
-                    ok.Command.Value.ShouldBe(command.Value);
-                    return true;
+                }
+                catch(Exception e)
+                {
+                    return false;
                 }
             }
 
