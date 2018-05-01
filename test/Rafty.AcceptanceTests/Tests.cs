@@ -257,7 +257,6 @@ namespace Rafty.AcceptanceTests
 
         private void BringPreviousLeaderBackToLife()
         {
-             //now we need to start that old node up..
             _previousLeader.Value.Node.Start(_previousLeader.Value.Node.State.CurrentState.Id);
             _servers.TryAdd(_previousLeader.Key, _previousLeader.Value);
         }
@@ -333,9 +332,10 @@ namespace Rafty.AcceptanceTests
         {
             bool LeaderElected()
             {
-                Thread.Sleep(1000);
+                Thread.Sleep(50);
                 var leader = _servers.Select(x => x.Value.Node).Where(x => x.State is Leader).ToList();
                 var followers = _servers.Select(x => x.Value.Node).Where(x => x.State is Follower).ToList();
+
                 if (leader.Count > 0)
                 {
                     if (leader.Count == 1 && followers.Count == expectedFollowers)
@@ -362,9 +362,9 @@ namespace Rafty.AcceptanceTests
             var stopwatch = Stopwatch.StartNew();
             var passed = false;
             var leaderId = default(string);
+
             while(stopwatch.Elapsed.TotalSeconds < 25)
             {
-                Thread.Sleep(1000);
                 var leader = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Leader)).ToList();
                 var candidate = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Candidate)).ToList();
                 var followers = _servers.Select(x => x.Value.Node).Where(x => x.State.GetType() == typeof(Follower)).ToList();
