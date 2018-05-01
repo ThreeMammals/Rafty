@@ -396,7 +396,7 @@ namespace Rafty.AcceptanceTests
         }
     }
 
-    public class FakeCommand : ICommand
+    class FakeCommand : ICommand
     {
         public string Value => "FakeCommand";
     }
