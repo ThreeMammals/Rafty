@@ -21,12 +21,10 @@ namespace Rafty.AcceptanceTests
         private readonly ConcurrentDictionary<int, Server> _servers;
         private readonly List<IPeer> _peers;
         private int _numberOfServers;
-        private readonly ITestOutputHelper _output;
         private KeyValuePair<int, Server> _previousLeader;
 
-        public Tests(ITestOutputHelper output)
+        public Tests()
         {
-            _output = output;
             _servers = new ConcurrentDictionary<int, Server>();
             _peers = new List<IPeer>();
         }
@@ -201,52 +199,65 @@ namespace Rafty.AcceptanceTests
 
         private void SendCommandToFollower()
         {
-            var followerServer = _servers.First(x => x.Value.Node.State is Follower);
-            var command = new FakeCommand();
-            followerServer.Value.Node.Accept(command);
+            bool SendCommand()
+            {
+                var followerServer = _servers.First(x => x.Value.Node.State is Follower);
+                var command = new FakeCommand();
+                var response = followerServer.Value.Node.Accept(command);
+                if (response is ErrorResponse<FakeCommand>)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+           
+            var sentCommand = WaitFor(25000).Until(SendCommand);
+            sentCommand.ShouldBeTrue();
         }
 
         private void AssertCommandAccepted(int expectedReplicatedCount, int expectedFollowers)
         {
-            bool IsReplicated(KeyValuePair<int, Server> server)
+            bool IsReplicatedToLeader(KeyValuePair<int, Server> server)
             {
-                var serverFsm = server.Value.Fsm;
-                return serverFsm.HandledLogEntries == expectedReplicatedCount;
+                return server.Value.Log.Count == expectedReplicatedCount && 
+                server.Value.Fsm.HandledLogEntries == expectedReplicatedCount;
             }
 
             var leaderServer = GetLeader();
-            var appliedToLeaderFsm = WaitFor(25000).Until(() => IsReplicated(leaderServer));
+            var appliedToLeaderFsm = WaitFor(25000).Until(() => IsReplicatedToLeader(leaderServer));
+            appliedToLeaderFsm.ShouldBeTrue();
 
-            if (!appliedToLeaderFsm)
+            bool IsReplicatedToFollowers() 
             {
-                var leader = (Leader)leaderServer.Value.Node.State;
-                _output.WriteLine($"Leader SendAppendEntriesCount {leader.SendAppendEntriesCount}");
-                var inMemoryLog = leaderServer.Value.Log;
-                var inMemoryStateMachine = leaderServer.Value.Fsm;
-                _output.WriteLine($"Leader log count {inMemoryLog.Count}");
-                _output.WriteLine($"Leader fsm count {inMemoryStateMachine.HandledLogEntries}");
-                throw new Exception("Command was not applied to leader state machine..");
-            }
-
-            var log = leaderServer.Value.Log;
-            var fsm = leaderServer.Value.Fsm;
-            log.Count.ShouldBe(expectedReplicatedCount);
-            fsm.HandledLogEntries.ShouldBe(expectedReplicatedCount);
-
-            var followers = _servers
+                var followers = _servers
                 .Select(x => x.Value)
                 .Where(x => x.Node.State is Follower)
                 .ToList();
 
-            followers.Count.ShouldBe(expectedFollowers);
+                if(followers.Count != expectedFollowers)
+                {
+                    return false;
+                }
 
-            foreach(var follower in followers)
-            {
-                var followerLog = follower.Log;
-                var followerFsm = follower.Fsm;
-                followerLog.Count.ShouldBe(expectedReplicatedCount);
-                followerFsm.HandledLogEntries.ShouldBe(expectedReplicatedCount);
+                foreach(var follower in followers)
+                {
+                    if(follower.Log.Count != expectedReplicatedCount)
+                    {
+                        return false;
+                    }
+
+                    if(follower.Fsm.HandledLogEntries != expectedReplicatedCount)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
+
+            var appliedToFollowersFsm = WaitFor(25000).Until(IsReplicatedToFollowers);
+            appliedToFollowersFsm.ShouldBeTrue();
         }
 
         private KeyValuePair<int, Server> GetLeader()
@@ -265,7 +276,6 @@ namespace Rafty.AcceptanceTests
         {
             bool LeaderElected()
             {
-
                 var leader = _servers.FirstOrDefault(x => x.Value.Node.State is Leader);
                 return leader.Value != null;
             }
@@ -281,40 +291,7 @@ namespace Rafty.AcceptanceTests
                 throw new Exception("Could not remove leader..");
             }
 
-            _output.WriteLine($"Id - {leaderServer.Value.Node.State.CurrentState.Id}");
-            _output.WriteLine($"Term - {leaderServer.Value.Node.State.CurrentState.CurrentTerm}");
-            _output.WriteLine($"VotedFor - {leaderServer.Value.Node.State.CurrentState.VotedFor}");
-            _output.WriteLine("leader dies...");
             _previousLeader = leaderServer;
-        }
-
-        private void ReportServers()
-        {
-            var leader = _servers.Select(x => x.Value.Node).Single(x => x.State is Leader);
-            _output.WriteLine("Leader");
-            _output.WriteLine($"Id {leader.State.CurrentState.Id}");
-            _output.WriteLine($"Term {leader.State.CurrentState.CurrentTerm}");
-            _output.WriteLine($"VotedFor {leader.State.CurrentState.VotedFor}");
-
-            var candidates = _servers.Select(x => x.Value.Node).Where(x => x.State is Candidate).ToList();
-            _output.WriteLine($"Candidates {candidates.Count}");
-            foreach(var candidate in candidates)
-            {
-                _output.WriteLine("Candidate");
-                _output.WriteLine($"Id {candidate.State.CurrentState.Id}");
-                _output.WriteLine($"Term {candidate.State.CurrentState.CurrentTerm}");
-                _output.WriteLine($"VotedFor {candidate.State.CurrentState.VotedFor}");
-            }
-
-            var followers = _servers.Select(x => x.Value.Node).Where(x => x.State is Follower).ToList();
-            _output.WriteLine($"Followers {followers.Count}");
-            foreach(var follower in followers)
-            {
-                _output.WriteLine("Follower");
-                _output.WriteLine($"Id {follower.State.CurrentState.Id}");
-                _output.WriteLine($"Term {follower.State.CurrentState.CurrentTerm}");
-                _output.WriteLine($"VotedFor {follower.State.CurrentState.VotedFor}");
-            }
         }
 
         private void StartServer(int index)
@@ -332,7 +309,6 @@ namespace Rafty.AcceptanceTests
         {
             bool LeaderElected()
             {
-                Thread.Sleep(50);
                 var leader = _servers.Select(x => x.Value.Node).Where(x => x.State is Leader).ToList();
                 var followers = _servers.Select(x => x.Value.Node).Where(x => x.State is Follower).ToList();
 
@@ -347,20 +323,14 @@ namespace Rafty.AcceptanceTests
                 return false;
             }
 
-            var passed = WaitFor(20000).Until(LeaderElected);
-
-            ReportServers();
-
-            if (!passed)
-            {
-                throw new Exception("A leader was not elected in 25 seconds");
-            }
+            var leaderElected = WaitFor(20000).Until(LeaderElected);
+            leaderElected.ShouldBeTrue();
         }
         
         private void AssertLeaderElectedAndRemainsLeader()
         {
             var stopwatch = Stopwatch.StartNew();
-            var passed = false;
+            var leaderElectedAndRemainsLeader = false;
             var leaderId = default(string);
 
             while(stopwatch.Elapsed.TotalSeconds < 25)
@@ -383,18 +353,12 @@ namespace Rafty.AcceptanceTests
                         {
                             throw new Exception("A new leader has been elected but this should not have happened...");
                         }
-                        passed = true;
+                        leaderElectedAndRemainsLeader = true;
                     }
                 }
             }
 
-            if (!passed)
-            {
-                ReportServers();
-                throw new Exception("A leader was not elected in 25 seconds");
-            }
-
-            ReportServers();
+            leaderElectedAndRemainsLeader.ShouldBeTrue();
         }
 
         private void CreateServers(int numberOfServers)
@@ -415,7 +379,6 @@ namespace Rafty.AcceptanceTests
 
         private void AssignNodesToPeers()
         {
-            _output.WriteLine("set the node for each peer");
             for (int i = 0; i < _numberOfServers; i++)
             {
                 var peer = (NodePeer)_peers[i];
@@ -426,7 +389,6 @@ namespace Rafty.AcceptanceTests
 
         private void StartNodes()
         {
-            _output.WriteLine("start the nodes");
             foreach(var server in _servers)
             {
                 server.Value.Node.Start(Guid.NewGuid().ToString());
