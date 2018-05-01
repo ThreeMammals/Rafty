@@ -8,6 +8,6 @@ namespace Rafty.Concensus
             Error = error;
         }
 
-        public string Error {get;private set;}
+        public string Error { get; private set; }
     }
 }
