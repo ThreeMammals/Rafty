@@ -7,6 +7,8 @@ using Rafty.Concensus;
 
 namespace Rafty.Infrastructure
 {
+    using System.Threading.Tasks;
+
     public class Wait
     {
         public static Waiter WaitFor(int milliSeconds)
@@ -31,6 +33,22 @@ namespace Rafty.Infrastructure
             while (stopwatch.ElapsedMilliseconds < _milliSeconds)
             {
                 if (condition.Invoke())
+                {
+                    passed = true;
+                    break;
+                }
+            }
+
+            return passed;
+        }
+
+        public async Task<bool> Until(Func<Task<bool>> condition)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var passed = false;
+            while (stopwatch.ElapsedMilliseconds < _milliSeconds)
+            {
+                if (await condition.Invoke())
                 {
                     passed = true;
                     break;

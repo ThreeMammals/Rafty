@@ -9,7 +9,8 @@ namespace Rafty.IntegrationTests
 {
     public class FileFsm : IFiniteStateMachine
     {
-        private string _id;
+        private readonly string _id;
+
         public FileFsm(NodeId nodeId)
         {
             _id = nodeId.Id;

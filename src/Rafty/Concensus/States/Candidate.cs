@@ -75,7 +75,7 @@ namespace Rafty.Concensus
             BecomeFollower();
         }
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
             var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
 
@@ -106,7 +106,7 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
         
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {
             var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
 
@@ -139,7 +139,7 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
            return new ErrorResponse<T>("Please retry command later. Currently electing new a new leader.", command);
         }
@@ -234,7 +234,7 @@ namespace Rafty.Concensus
 
         private async Task RequestVote(IPeer peer, BlockingCollection<RequestVoteResponse> requestVoteResponses) 
         {
-            var requestVoteResponse = peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
+            var requestVoteResponse = await peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
             requestVoteResponses.Add(requestVoteResponse);
         }
 

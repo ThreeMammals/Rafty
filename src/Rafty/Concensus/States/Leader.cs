@@ -56,7 +56,7 @@ namespace Rafty.Concensus
             _electionTimer.Dispose();
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
             var indexOfCommand = AddCommandToLog(command);
             
@@ -72,7 +72,7 @@ namespace Rafty.Concensus
             return Replicate(command, indexOfCommand);
         }
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
             if (appendEntries.Term > CurrentState.CurrentTerm)
             {
@@ -90,7 +90,7 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, false);
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {    
             var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
 
@@ -109,9 +109,9 @@ namespace Rafty.Concensus
             return responses;
         }
 
-        private AppendEntriesResponse GetAppendEntriesResponse(PeerState p, List<(int, LogEntry logEntry)> logsToSend)
+        private async Task<AppendEntriesResponse> GetAppendEntriesResponse(PeerState p, List<(int, LogEntry logEntry)> logsToSend)
         {
-            var appendEntriesResponse = p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.logEntry).ToList(), CurrentState.CommitIndex));
+            var appendEntriesResponse = await p.Peer.Request(new AppendEntries(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm, logsToSend.Select(x => x.logEntry).ToList(), CurrentState.CommitIndex));
             return appendEntriesResponse;
         }
 
@@ -175,16 +175,18 @@ namespace Rafty.Concensus
 
             var appendEntriesResponses = SetUpAppendingEntries();
 
-            Parallel.ForEach(PeerStates, peer =>
+            async Task Do(PeerState peer)
             {
                 var logsToSend = GetLogsForPeer(peer.NextIndex);
-              
-                var appendEntriesResponse = GetAppendEntriesResponse(peer, logsToSend);
+
+                var appendEntriesResponse = await GetAppendEntriesResponse(peer, logsToSend);
 
                 appendEntriesResponses.Add(appendEntriesResponse);
-                
+
                 UpdateIndexes(peer, logsToSend, appendEntriesResponse);
-            });
+            }
+
+            Parallel.ForEach(PeerStates, async peer => await Do(peer));
 
             var response = DoesResponseContainsGreaterTerm(appendEntriesResponses);
 

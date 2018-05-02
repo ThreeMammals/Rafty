@@ -46,7 +46,7 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set;}
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
             var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
 
@@ -77,7 +77,7 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {
             var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
 
@@ -112,12 +112,12 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
             var leader = _peers.FirstOrDefault(x => x.Id == CurrentState.LeaderId);
             if(leader != null)
             {
-                return leader.Request(command);
+                return await leader.Request(command);
             }
             
             return new ErrorResponse<T>("Please retry command later. Unable to find leader.", command);

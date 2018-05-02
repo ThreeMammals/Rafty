@@ -6,6 +6,8 @@ using Rafty.FiniteStateMachine;
 
 namespace Rafty.IntegrationTests
 {
+    using System.Threading.Tasks;
+
     public class HttpPeer : IPeer
     {
         private string _hostAndPort;
@@ -24,14 +26,14 @@ namespace Rafty.IntegrationTests
 
         public string Id {get; private set;}
 
-        public RequestVoteResponse Request(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Request(RequestVote requestVote)
         {
             var json = JsonConvert.SerializeObject(requestVote, _jsonSerializerSettings);
             var content = new StringContent(json);
-            var response = _httpClient.PostAsync($"{_hostAndPort}/requestvote", content).GetAwaiter().GetResult();
+            var response = await _httpClient.PostAsync($"{_hostAndPort}/requestvote", content);
             if(response.IsSuccessStatusCode)
             {
-                return JsonConvert.DeserializeObject<RequestVoteResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+                return JsonConvert.DeserializeObject<RequestVoteResponse>(await response.Content.ReadAsStringAsync());
             }
             else
             {
@@ -39,16 +41,16 @@ namespace Rafty.IntegrationTests
             }
         }
 
-        public AppendEntriesResponse Request(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Request(AppendEntries appendEntries)
         {
             try
             {
                 var json = JsonConvert.SerializeObject(appendEntries, _jsonSerializerSettings);
                 var content = new StringContent(json);
-                var response = _httpClient.PostAsync($"{_hostAndPort}/appendEntries", content).GetAwaiter().GetResult();
+                var response = await _httpClient.PostAsync($"{_hostAndPort}/appendEntries", content);
                 if(response.IsSuccessStatusCode)
                 {
-                    return JsonConvert.DeserializeObject<AppendEntriesResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+                    return JsonConvert.DeserializeObject<AppendEntriesResponse>(await response.Content.ReadAsStringAsync());
                 }
                 else
                 {
@@ -62,18 +64,18 @@ namespace Rafty.IntegrationTests
             }
         }
 
-        public Response<T> Request<T>(T command) where T : ICommand
+        public async Task<Response<T>> Request<T>(T command) where T : ICommand
         {
             var json = JsonConvert.SerializeObject(command, _jsonSerializerSettings);
             var content = new StringContent(json);
-            var response = _httpClient.PostAsync($"{_hostAndPort}/command", content).GetAwaiter().GetResult();
+            var response = await _httpClient.PostAsync($"{_hostAndPort}/command", content);
             if(response.IsSuccessStatusCode)
             {
-                return JsonConvert.DeserializeObject<OkResponse<T>>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+                return JsonConvert.DeserializeObject<OkResponse<T>>(await response.Content.ReadAsStringAsync());
             }
             else 
             {
-                return new ErrorResponse<T>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult(), command);
+                return new ErrorResponse<T>(await response.Content.ReadAsStringAsync(), command);
             }
         }
     }

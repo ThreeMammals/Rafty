@@ -4,6 +4,8 @@ using Rafty.FiniteStateMachine;
 
 namespace Rafty.UnitTests
 {
+    using System.Threading.Tasks;
+
     public class NothingNode : INode
     {
         public IState State { get; }
@@ -27,12 +29,12 @@ namespace Rafty.UnitTests
             BecomeCandidateCount++;
         }
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
             return new AppendEntriesResponseBuilder().Build();
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {
             return new RequestVoteResponseBuilder().Build();
         }
@@ -47,7 +49,7 @@ namespace Rafty.UnitTests
             throw new System.NotImplementedException();
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
             throw new System.NotImplementedException();
         }

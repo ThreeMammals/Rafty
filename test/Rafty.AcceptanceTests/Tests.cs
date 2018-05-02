@@ -16,6 +16,8 @@ using static Rafty.Infrastructure.Wait;
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 namespace Rafty.AcceptanceTests
 {
+    using System.Threading.Tasks;
+
     public class Tests
     {
         private readonly ConcurrentDictionary<int, Server> _servers;
@@ -127,13 +129,13 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
-        public void FollowerShouldForwardCommandToLeaderThenPersistToFollowersAndApplyToStateMachine()
+        public async Task FollowerShouldForwardCommandToLeaderThenPersistToFollowersAndApplyToStateMachine()
         {
             CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
-            SendCommandToFollower();
+            await SendCommandToFollower();
             AssertCommandAccepted(1, 4);
         }
 
@@ -197,13 +199,13 @@ namespace Rafty.AcceptanceTests
             leaderServer.Value.Node.Accept(command);
         }
 
-        private void SendCommandToFollower()
+        private async Task SendCommandToFollower()
         {
-            bool SendCommand()
+            async Task<bool> SendCommand()
             {
                 var followerServer = _servers.First(x => x.Value.Node.State is Follower);
                 var command = new FakeCommand();
-                var response = followerServer.Value.Node.Accept(command);
+                var response = await followerServer.Value.Node.Accept(command);
                 if (response is ErrorResponse<FakeCommand>)
                 {
                     return false;
@@ -212,7 +214,7 @@ namespace Rafty.AcceptanceTests
                 return true;
             }
            
-            var sentCommand = WaitFor(25000).Until(SendCommand);
+            var sentCommand = await WaitFor(25000).Until(async () => await SendCommand());
             sentCommand.ShouldBeTrue();
         }
 
@@ -256,7 +258,7 @@ namespace Rafty.AcceptanceTests
                 return true;
             }
 
-            var appliedToFollowersFsm = WaitFor(25000).Until(IsReplicatedToFollowers);
+            var appliedToFollowersFsm = WaitFor(25000).Until(() => IsReplicatedToFollowers());
             appliedToFollowersFsm.ShouldBeTrue();
         }
 
@@ -280,7 +282,7 @@ namespace Rafty.AcceptanceTests
                 return leader.Value != null;
             }
 
-            var leaderElectedAndCommandReceived = WaitFor(20000).Until(LeaderElected);
+            var leaderElectedAndCommandReceived = WaitFor(20000).Until(() => LeaderElected());
             leaderElectedAndCommandReceived.ShouldBeTrue();
 
             var leaderServer = GetLeader();
@@ -323,7 +325,7 @@ namespace Rafty.AcceptanceTests
                 return false;
             }
 
-            var leaderElected = WaitFor(20000).Until(LeaderElected);
+            var leaderElected = WaitFor(20000).Until(() => LeaderElected());
             leaderElected.ShouldBeTrue();
         }
         
