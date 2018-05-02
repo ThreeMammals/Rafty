@@ -84,18 +84,18 @@ namespace Rafty.Concensus
                 return response.appendEntriesResponse;
             }
 
-            response = _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
+            response = await _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
 
             if(response.shouldReturn)
             {
                 return response.appendEntriesResponse;
             }
           
-            _rules.DeleteAnyConflictsInLog(appendEntries, _log);
+            await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
 
-            _rules.ApplyEntriesToLog(appendEntries, _log);
+            await _rules.ApplyEntriesToLog(appendEntries, _log);
 
-            var commitIndexAndLastApplied = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
+            var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
             await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied);
 
@@ -129,7 +129,7 @@ namespace Rafty.Concensus
                 return response.requestVoteResponse;
             }
 
-            response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
+            response = await LastLogIndexAndLastLogTermMatchesThis(requestVote);
 
             if(response.shouldReturn)
             {
@@ -234,7 +234,7 @@ namespace Rafty.Concensus
 
         private async Task RequestVote(IPeer peer, BlockingCollection<RequestVoteResponse> requestVoteResponses) 
         {
-            var requestVoteResponse = await peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, _log.LastLogIndex, _log.LastLogTerm));
+            var requestVoteResponse = await peer.Request(new RequestVote(CurrentState.CurrentTerm, CurrentState.Id, await _log.LastLogIndex(), await _log.LastLogTerm()));
             requestVoteResponses.Add(requestVoteResponse);
         }
 
@@ -271,7 +271,7 @@ namespace Rafty.Concensus
             while (commitIndex > lastApplied)
             {
                 lastApplied++;
-                var log = _log.Get(lastApplied);
+                var log = await _log.Get(lastApplied);
                 await _fsm.Handle(log);
             }
 
@@ -303,10 +303,10 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
+        private async Task<(RequestVoteResponse requestVoteResponse, bool shouldReturn)> LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
         {
-             if (requestVote.LastLogIndex == _log.LastLogIndex &&
-                requestVote.LastLogTerm == _log.LastLogTerm)
+             if (requestVote.LastLogIndex == await _log.LastLogIndex() &&
+                requestVote.LastLogTerm == await _log.LastLogTerm())
             {
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 BecomeFollower();

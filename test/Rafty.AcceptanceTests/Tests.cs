@@ -61,7 +61,7 @@ namespace Rafty.AcceptanceTests
             await SendCommandToLeader();
             AddNewServers(4);
             AssertLeaderElected(4);
-            AssertCommandAccepted(1, 4);
+            await AssertCommandAccepted(1, 4);
         }
 
         [Fact]
@@ -74,7 +74,7 @@ namespace Rafty.AcceptanceTests
             AddNewServers(4);
             AssertLeaderElected(4);
             await SendCommandToLeader();
-            AssertCommandAccepted(1, 4);
+            await AssertCommandAccepted(1, 4);
         }
 
         [Fact]
@@ -125,7 +125,7 @@ namespace Rafty.AcceptanceTests
             StartNodes();
             AssertLeaderElected(4);
             await SendCommandToLeader();
-            AssertCommandAccepted(1, 4);
+            await AssertCommandAccepted(1, 4);
         }
 
         [Fact]
@@ -136,7 +136,7 @@ namespace Rafty.AcceptanceTests
             StartNodes();
             AssertLeaderElected(4);
             await SendCommandToFollower();
-            AssertCommandAccepted(1, 4);
+            await AssertCommandAccepted(1, 4);
         }
 
         [Fact]
@@ -147,13 +147,13 @@ namespace Rafty.AcceptanceTests
             StartNodes();
             AssertLeaderElected(4);
             await SendCommandToLeader();
-            AssertCommandAccepted(1, 4);
+            await AssertCommandAccepted(1, 4);
             await SendCommandToLeader();
-            AssertCommandAccepted(2, 4);
+            await AssertCommandAccepted(2, 4);
             await SendCommandToLeader();
-            AssertCommandAccepted(3, 4);
+            await AssertCommandAccepted(3, 4);
             await SendCommandToLeader();
-            AssertCommandAccepted(4, 4);
+            await AssertCommandAccepted(4, 4);
         }
 
         [Fact]
@@ -165,12 +165,12 @@ namespace Rafty.AcceptanceTests
             KillTheLeader();
             AssertLeaderElected(3);
             await SendCommandToLeader();
-            AssertCommandAccepted(1, 3);
+            await AssertCommandAccepted(1, 3);
             BringPreviousLeaderBackToLife();
             AssertLeaderElected(4);
-            AssertCommandAccepted(1, 4);
+            await AssertCommandAccepted(1, 4);
             await SendCommandToLeader();
-            AssertCommandAccepted(2, 4);
+            await AssertCommandAccepted(2, 4);
         }
 
         private void AddNewServers(int count)
@@ -218,19 +218,19 @@ namespace Rafty.AcceptanceTests
             sentCommand.ShouldBeTrue();
         }
 
-        private void AssertCommandAccepted(int expectedReplicatedCount, int expectedFollowers)
+        private async Task AssertCommandAccepted(int expectedReplicatedCount, int expectedFollowers)
         {
-            bool IsReplicatedToLeader(KeyValuePair<int, Server> server)
+            async Task<bool> IsReplicatedToLeader(KeyValuePair<int, Server> server)
             {
-                return server.Value.Log.Count == expectedReplicatedCount && 
+                return await server.Value.Log.Count() == expectedReplicatedCount && 
                 server.Value.Fsm.HandledLogEntries == expectedReplicatedCount;
             }
 
             var leaderServer = GetLeader();
-            var appliedToLeaderFsm = WaitFor(25000).Until(() => IsReplicatedToLeader(leaderServer));
+            var appliedToLeaderFsm = await WaitFor(25000).Until(() => IsReplicatedToLeader(leaderServer));
             appliedToLeaderFsm.ShouldBeTrue();
 
-            bool IsReplicatedToFollowers() 
+            async Task<bool> IsReplicatedToFollowers() 
             {
                 var followers = _servers
                 .Select(x => x.Value)
@@ -244,7 +244,7 @@ namespace Rafty.AcceptanceTests
 
                 foreach(var follower in followers)
                 {
-                    if(follower.Log.Count != expectedReplicatedCount)
+                    if(await follower.Log.Count() != expectedReplicatedCount)
                     {
                         return false;
                     }
@@ -258,7 +258,7 @@ namespace Rafty.AcceptanceTests
                 return true;
             }
 
-            var appliedToFollowersFsm = WaitFor(25000).Until(() => IsReplicatedToFollowers());
+            var appliedToFollowersFsm = await WaitFor(25000).Until(() => IsReplicatedToFollowers());
             appliedToFollowersFsm.ShouldBeTrue();
         }
 

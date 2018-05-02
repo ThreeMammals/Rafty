@@ -198,7 +198,7 @@ namespace Rafty.UnitTests
         }
         
         [Fact]
-        public void ShouldSendAppendEntriesStartingAtNextIndex()
+        public async Task ShouldSendAppendEntriesStartingAtNextIndex()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -208,19 +208,19 @@ namespace Rafty.UnitTests
 
             //add 3 logs
             var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
-            _log.Apply(logOne);
+            await _log.Apply(logOne);
             var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
-            _log.Apply(logTwo);
+            await _log.Apply(logTwo);
             var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
-            _log.Apply(logThree);
+            await _log.Apply(logThree);
             _currentState = new CurrentState(_id, 1, default(string), 2, 2, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
-            var logs = _log.GetFrom(1);
+            var logs = await _log.GetFrom(1);
             logs.Count.ShouldBe(3);
         }
 
         [Fact]
-        public void ShouldUpdateMatchIndexAndNextIndexIfSuccessful()
+        public async Task ShouldUpdateMatchIndexAndNextIndexIfSuccessful()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -230,11 +230,11 @@ namespace Rafty.UnitTests
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(string), 2, 2, default(string));
             var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
-            _log.Apply(logOne);
+            await _log.Apply(logOne);
             var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
-            _log.Apply(logTwo);
+            await _log.Apply(logTwo);
             var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
-            _log.Apply(logThree);
+            await _log.Apply(logThree);
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
 
             bool FirstTest(List<PeerState> peerState)
@@ -595,7 +595,7 @@ namespace Rafty.UnitTests
                 return passed == peerState.Count * 2;
             }
             var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
-            _log.Count.ShouldBe(0);
+            _log.Count().Result.ShouldBe(0);
             result.ShouldBeTrue();
         }
 
@@ -637,7 +637,7 @@ namespace Rafty.UnitTests
                 return passed == peerState.Count * 2;
             }
             var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
-            _log.Count.ShouldBe(0);
+            _log.Count().Result.ShouldBe(0);
             result.ShouldBeTrue();
         }
     }

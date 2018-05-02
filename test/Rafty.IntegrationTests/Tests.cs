@@ -130,7 +130,7 @@ namespace Rafty.IntegrationTests
                     return false;
                 }
             }
-
+            Thread.Sleep(5000);
             var commandOnAllStateMachines = await WaitFor(20000).Until(async () => await CommandCalledOnAllStateMachines());
             commandOnAllStateMachines.ShouldBeTrue();   
         }
