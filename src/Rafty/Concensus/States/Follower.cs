@@ -68,7 +68,7 @@ namespace Rafty.Concensus
 
             var commitIndexAndLastApplied = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
-            ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
+            await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
 
             SetLeaderId(appendEntries);
             
@@ -153,13 +153,13 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
+        private async Task ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
         {
             while (commitIndex > lastApplied)
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                _fsm.Handle(log);
+                await _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,

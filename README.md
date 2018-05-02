@@ -39,12 +39,14 @@ You must implement ISettings which provides a description of each member in the 
 Rafty provides some in memory implementations of its interfaces (you shouldn't use these for anything serious).
 
 ```csharp
+
     var log = new InMemoryLog();
     var fsm = new InMemoryStateMachine();
     var settings = new InMemorySettings(1000, 3500, 50, 5000);
     var peersProvider = new InMemoryPeersProvider(_peers);
     var node = new Node(fsm, log, settings, peersProvider);
     node.Start();
+
 ```
 
 The above code will get a Rafty node up and running. If the IPeersProvider does not return any IPeers then it will elect itself leader and just run along happily. If something joins the cluster later it will update that new node as the node will get a heartbeat before it can elect itself. Or an election will start!

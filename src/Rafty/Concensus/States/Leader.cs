@@ -65,11 +65,11 @@ namespace Rafty.Concensus
             if(No(peers))
             {
                 var log = _log.Get(indexOfCommand);
-                ApplyToStateMachineAndUpdateCommitIndex(log);
+                await ApplyToStateMachineAndUpdateCommitIndex(log);
                 return Ok(command);
             }
 
-            return Replicate(command, indexOfCommand);
+            return await Replicate(command, indexOfCommand);
         }
 
         public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
@@ -78,7 +78,7 @@ namespace Rafty.Concensus
             {
                 var response = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
-                ApplyToStateMachine(appendEntries, response.commitIndex, response.lastApplied);
+                await ApplyToStateMachine(appendEntries, response.commitIndex, response.lastApplied);
 
                 SetLeaderId(appendEntries);
 
@@ -320,13 +320,13 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        private void ApplyToStateMachine(AppendEntries appendEntries, int commitIndex, int lastApplied)
+        private async Task ApplyToStateMachine(AppendEntries appendEntries, int commitIndex, int lastApplied)
         {
             while (commitIndex > lastApplied)
             {
                 lastApplied++;
                 var log = _log.Get(lastApplied);
-                _fsm.Handle(log);
+                await _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
@@ -348,7 +348,7 @@ namespace Rafty.Concensus
             return false;
         }
 
-        private void ApplyToStateMachineAndUpdateCommitIndex(LogEntry log)
+        private async Task ApplyToStateMachineAndUpdateCommitIndex(LogEntry log)
         {
             var nextCommitIndex = CurrentState.CommitIndex + 1;
             if (_log.GetTermAtIndex(nextCommitIndex) == CurrentState.CurrentTerm)
@@ -357,7 +357,7 @@ namespace Rafty.Concensus
                     CurrentState.VotedFor,  nextCommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
             }
 
-            _fsm.Handle(log);
+            await _fsm.Handle(log);
         }
 
         private OkResponse<T> Ok<T>(T command)
@@ -384,7 +384,7 @@ namespace Rafty.Concensus
             });
         }
 
-        private Response<T> Replicate<T>(T command, int indexOfCommand)
+        private async Task<Response<T>> Replicate<T>(T command, int indexOfCommand)
         {
             SetUpReplication();
             
@@ -407,7 +407,7 @@ namespace Rafty.Concensus
                     if (ReplicatedToMajority(replicated))
                     {
                         var log = _log.Get(indexOfCommand);
-                        _fsm.Handle(log);
+                        await _fsm.Handle(log);
                         FinishWaitingForCommandToReplicate();
                         break;
                     }

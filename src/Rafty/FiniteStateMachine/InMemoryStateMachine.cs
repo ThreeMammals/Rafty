@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Rafty.Log;
 
 namespace Rafty.FiniteStateMachine
@@ -6,9 +7,10 @@ namespace Rafty.FiniteStateMachine
     {
         public int HandledLogEntries {get;private set;}
 
-        public void Handle(LogEntry log)
+        public Task Handle(LogEntry log)
         {
             HandledLogEntries++;
+            return Task.CompletedTask;
         }
     }
 }

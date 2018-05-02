@@ -87,11 +87,9 @@ namespace Rafty.IntegrationTests
                         var response = await httpClient.PostAsync($"{p.HostAndPort}/command", httpContent);
                         response.EnsureSuccessStatusCode();
                         var content = await response.Content.ReadAsStringAsync();
-                        //Console.WriteLine(content);
                         var error = JsonConvert.DeserializeObject<ErrorResponse<FakeCommand>>(content);
                         if (!string.IsNullOrEmpty(error.Error))
                         {
-                            //Console.WriteLine(error.Error);
                             return false;
                         }
                         var ok = JsonConvert.DeserializeObject<OkResponse<FakeCommand>>(content);

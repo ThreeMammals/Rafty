@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Rafty.FiniteStateMachine;
 using Rafty.Infrastructure;
@@ -16,12 +17,12 @@ namespace Rafty.IntegrationTests
             _id = nodeId.Id;
         }
         
-        public void Handle(LogEntry log)
+        public async Task Handle(LogEntry log)
         {
             try
             {
                 var json = JsonConvert.SerializeObject(log.CommandData);
-                File.AppendAllText(_id.Replace("/","").Replace(":","").ToString(), json);
+                await File.AppendAllTextAsync(_id.Replace("/","").Replace(":","").ToString(), json);
             }
             catch(Exception exception)
             {
