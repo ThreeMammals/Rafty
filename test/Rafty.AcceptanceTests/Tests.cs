@@ -52,20 +52,20 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
-        public void ShouldRunInSoloModeAcceptCommandThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
+        public async Task ShouldRunInSoloModeAcceptCommandThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
         {
             CreateServers(1);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(0);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AddNewServers(4);
             AssertLeaderElected(4);
             AssertCommandAccepted(1, 4);
         }
 
         [Fact]
-        public void ShouldRunInSoloModeThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
+        public async Task ShouldRunInSoloModeThenAddNewServersThatBecomeFollowersAndCommandsWorkForAllServers()
         {
             CreateServers(1);
             AssignNodesToPeers();
@@ -73,7 +73,7 @@ namespace Rafty.AcceptanceTests
             AssertLeaderElected(0);
             AddNewServers(4);
             AssertLeaderElected(4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(1, 4);
         }
 
@@ -118,13 +118,13 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
-        public void LeaderShouldAcceptCommandThenPersistToFollowersAndApplyToStateMachine()
+        public async Task LeaderShouldAcceptCommandThenPersistToFollowersAndApplyToStateMachine()
         {
             CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(1, 4);
         }
 
@@ -140,36 +140,36 @@ namespace Rafty.AcceptanceTests
         }
 
         [Fact]
-        public void LeaderShouldAcceptManyCommandsThenPersistToFollowersAndApplyToStateMachine()
+        public async Task LeaderShouldAcceptManyCommandsThenPersistToFollowersAndApplyToStateMachine()
         {
             CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             AssertLeaderElected(4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(1, 4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(2, 4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(3, 4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(4, 4);
         }
 
         [Fact]
-        public void ShouldCatchUpIfNodeDies()
+        public async Task ShouldCatchUpIfNodeDies()
         {
             CreateServers(5);
             AssignNodesToPeers();
             StartNodes();
             KillTheLeader();
             AssertLeaderElected(3);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(1, 3);
             BringPreviousLeaderBackToLife();
             AssertLeaderElected(4);
             AssertCommandAccepted(1, 4);
-            SendCommandToLeader();
+            await SendCommandToLeader();
             AssertCommandAccepted(2, 4);
         }
 
@@ -192,11 +192,11 @@ namespace Rafty.AcceptanceTests
             }
         }
 
-        private void SendCommandToLeader()
+        private async Task SendCommandToLeader()
         {
             var leaderServer = GetLeader();
             var command = new FakeCommand();
-            leaderServer.Value.Node.Accept(command);
+            await leaderServer.Value.Node.Accept(command);
         }
 
         private async Task SendCommandToFollower()
