@@ -4,6 +4,8 @@ using Rafty.FiniteStateMachine;
 
 namespace Rafty.UnitTests
 {
+    using System.Threading.Tasks;
+
     public class RemoteControledPeer : IPeer
     {
         private RequestVoteResponse _requestVoteResponse;
@@ -28,19 +30,19 @@ namespace Rafty.UnitTests
             _appendEntriesResponse = appendEntriesResponse;
         }
 
-        public RequestVoteResponse Request(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Request(RequestVote requestVote)
         {
             RequestVoteResponses++;
             return _requestVoteResponse;
         }
 
-        public AppendEntriesResponse Request(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Request(AppendEntries appendEntries)
         {
             AppendEntriesResponses++;
             return _appendEntriesResponse;
         }
 
-        public Response<T> Request<T>(T command) where T : ICommand
+        public async Task<Response<T>> Request<T>(T command) where T : ICommand
         {
             throw new NotImplementedException();
         }

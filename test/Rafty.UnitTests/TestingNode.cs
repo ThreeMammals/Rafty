@@ -3,6 +3,7 @@ using Rafty.FiniteStateMachine;
 namespace Rafty.UnitTests
 {
     using System;
+    using System.Threading.Tasks;
     using Concensus;
     /* Followers(�5.2):
     � Respond to RPCs from candidates and leaders
@@ -38,14 +39,14 @@ namespace Rafty.UnitTests
             BecomeCandidateCount++;
         }
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
-            return State.Handle(appendEntries);
+            return await State.Handle(appendEntries);
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {
-            return State.Handle(requestVote);
+            return await State.Handle(requestVote);
         }
 
         public void Start(string id)
@@ -58,7 +59,7 @@ namespace Rafty.UnitTests
             throw new NotImplementedException();
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
             throw new NotImplementedException();
         }

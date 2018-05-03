@@ -10,6 +10,8 @@ using Xunit;
 
 namespace Rafty.UnitTests
 {
+    using System.Threading.Tasks;
+
     public class RequestVoteTests : IDisposable
     {
 /*
@@ -42,45 +44,45 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         }
 
         [Fact]
-        public void FollowerShouldReplyFalseIfTermIsLessThanCurrentTerm()
+        public async Task FollowerShouldReplyFalseIfTermIsLessThanCurrentTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
-            var requestVoteResponse = follower.Handle(requestVoteRpc);
+            var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
         }
 
         [Fact]
-        public void FollowerShouldReplyFalseIfVotedForIsNotDefault()
+        public async Task FollowerShouldReplyFalseIfVotedForIsNotDefault()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
-            var requestVoteResponse = follower.Handle(requestVoteRpc);
+            var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
         }
 
         [Fact]
-        public void FollowerShouldReplyFalseIfVotedForIsNotCandidateId()
+        public async Task FollowerShouldReplyFalseIfVotedForIsNotCandidateId()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid().ToString()).WithTerm(0).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
-            var requestVoteResponse = follower.Handle(requestVoteRpc);
+            var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
         }
 
         [Fact]
-        public void FollowerShouldGrantVote()
+        public async Task FollowerShouldGrantVote()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(1).WithLastLogTerm(0).WithTerm(1).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
-            var requestVoteResponse = follower.Handle(requestVoteRpc);
+            var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(true);
             requestVoteResponse.Term.ShouldBe(1);
         }

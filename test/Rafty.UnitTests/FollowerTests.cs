@@ -7,6 +7,7 @@ namespace Rafty.UnitTests
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
     using Concensus;
     using Rafty.Concensus.States;
     using Rafty.FiniteStateMachine;
@@ -134,23 +135,23 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldVoteForNewCandidateInAnotherTermsElection()
+        public async Task ShouldVoteForNewCandidateInAnotherTermsElection()
         {
              _node = new NothingNode();
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
             var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
-            var requestVoteResponse = follower.Handle(requestVote);
+            var requestVoteResponse = await follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
             requestVoteResponse.VoteGranted.ShouldBeTrue();
             requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
-            requestVoteResponse = follower.Handle(requestVote);
+            requestVoteResponse = await follower.Handle(requestVote);
             requestVoteResponse.VoteGranted.ShouldBeTrue();
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
         }
 
         [Fact]
-        public void FollowerShouldForwardCommandToLeader()
+        public async Task FollowerShouldForwardCommandToLeader()
         {             
             _node = new NothingNode();
             var leaderId = Guid.NewGuid().ToString();
@@ -161,18 +162,18 @@ namespace Rafty.UnitTests
             };
             _currentState = new CurrentState(_currentState.Id, _currentState.CurrentTerm, _currentState.VotedFor, _currentState.CommitIndex, _currentState.LastApplied, leaderId);
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
-            var response = follower.Accept(new FakeCommand());
+            var response = await follower.Accept(new FakeCommand());
             response.ShouldBeOfType<OkResponse<FakeCommand>>();
             leader.ReceivedCommands.ShouldBe(1);
         }
 
         [Fact]
-        public void FollowerShouldReturnRetryIfNoLeader()
+        public async Task FollowerShouldReturnRetryIfNoLeader()
         {             
             _node = new NothingNode();
             _currentState = new CurrentState(_currentState.Id, _currentState.CurrentTerm, _currentState.VotedFor, _currentState.CommitIndex, _currentState.LastApplied, _currentState.LeaderId);
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
-            var response = follower.Accept(new FakeCommand());
+            var response = await follower.Accept(new FakeCommand());
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Please retry command later. Unable to find leader.");
         }

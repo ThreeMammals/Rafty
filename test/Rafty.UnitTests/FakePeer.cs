@@ -4,6 +4,7 @@ namespace Rafty.UnitTests
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
     using Concensus;
 
     internal class FakePeer : IPeer
@@ -68,14 +69,14 @@ namespace Rafty.UnitTests
 
         public string Id => _id;
 
-        public RequestVoteResponse Request(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Request(RequestVote requestVote)
         {
             var response = new RequestVoteResponse(_grantVote, _term);
             RequestVoteResponses.Add(response);
             return response;
         }
 
-        public AppendEntriesResponse Request(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Request(AppendEntries appendEntries)
         {
             AppendEntriesResponse response;
             if (AppendEntriesResponses.Count == 1)
@@ -97,7 +98,7 @@ namespace Rafty.UnitTests
             return response;
         }
 
-        public Response<T> Request<T>(T command) where T : ICommand
+        public async Task<Response<T>> Request<T>(T command) where T : ICommand
         {
             ReceivedCommands++;
             return new OkResponse<T>(command);

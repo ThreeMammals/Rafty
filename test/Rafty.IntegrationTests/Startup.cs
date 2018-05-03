@@ -70,7 +70,7 @@ namespace Rafty.IntegrationTests
                             var content = reader.ReadToEnd();
                             var appendEntries = JsonConvert.DeserializeObject<AppendEntries>(content, jsonSerializerSettings);
                             logger.LogInformation(new EventId(1), null, $"{baseSchemeUrlAndPort}/appendentries called, my state is {n.State.GetType().FullName}");
-                            var appendEntriesResponse = n.Handle(appendEntries);
+                            var appendEntriesResponse = await n.Handle(appendEntries);
                             var json = JsonConvert.SerializeObject(appendEntriesResponse);
                             await context.Response.WriteAsync(json);
                             reader.Dispose();
@@ -82,7 +82,7 @@ namespace Rafty.IntegrationTests
                             var reader = new StreamReader(context.Request.Body);
                             var requestVote = JsonConvert.DeserializeObject<RequestVote>(reader.ReadToEnd(), jsonSerializerSettings);
                             logger.LogInformation(new EventId(2), null, $"{baseSchemeUrlAndPort}/requestvote called, my state is {n.State.GetType().FullName}");
-                            var requestVoteResponse = n.Handle(requestVote);
+                            var requestVoteResponse = await n.Handle(requestVote);
                             var json = JsonConvert.SerializeObject(requestVoteResponse);
                             await context.Response.WriteAsync(json);
                             reader.Dispose();
@@ -94,7 +94,7 @@ namespace Rafty.IntegrationTests
                             var reader = new StreamReader(context.Request.Body);
                             var command = JsonConvert.DeserializeObject<FakeCommand>(reader.ReadToEnd(), jsonSerializerSettings);
                             logger.LogInformation(new EventId(3), null, $"{baseSchemeUrlAndPort}/command called, my state is {n.State.GetType().FullName}");
-                            var commandResponse = n.Accept(command);
+                            var commandResponse = await n.Accept(command);
                             var json = JsonConvert.SerializeObject(commandResponse);
                             await context.Response.WriteAsync(json);
                             reader.Dispose();

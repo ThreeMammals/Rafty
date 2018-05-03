@@ -46,7 +46,7 @@ namespace Rafty.Concensus
 
         public CurrentState CurrentState { get; private set;}
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
             var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
 
@@ -55,20 +55,20 @@ namespace Rafty.Concensus
                 return response.appendEntriesResponse;
             }
 
-            response = _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
+            response = await _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
 
             if(response.shouldReturn)
             {
                 return response.appendEntriesResponse;
             }
 
-            _rules.DeleteAnyConflictsInLog(appendEntries, _log);
+            await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
 
-            _rules.ApplyEntriesToLog(appendEntries, _log);
+            await _rules.ApplyEntriesToLog(appendEntries, _log);
 
-            var commitIndexAndLastApplied = _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
+            var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
-            ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
+            await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
 
             SetLeaderId(appendEntries);
             
@@ -77,7 +77,7 @@ namespace Rafty.Concensus
             return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {
             var response = RequestVoteTermIsGreaterThanCurrentTerm(requestVote);
 
@@ -100,7 +100,7 @@ namespace Rafty.Concensus
                 return response.requestVoteResponse;
             }
 
-            response = LastLogIndexAndLastLogTermMatchesThis(requestVote);
+            response = await LastLogIndexAndLastLogTermMatchesThis(requestVote);
 
             _messagesSinceLastElectionExpiry++;
             
@@ -112,12 +112,12 @@ namespace Rafty.Concensus
             return new RequestVoteResponse(false, CurrentState.CurrentTerm);
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
             var leader = _peers.FirstOrDefault(x => x.Id == CurrentState.LeaderId);
             if(leader != null)
             {
-                return leader.Request(command);
+                return await leader.Request(command);
             }
             
             return new ErrorResponse<T>("Please retry command later. Unable to find leader.", command);
@@ -140,10 +140,10 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        private (RequestVoteResponse requestVoteResponse, bool shouldReturn) LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
+        private async Task<(RequestVoteResponse requestVoteResponse, bool shouldReturn)> LastLogIndexAndLastLogTermMatchesThis(RequestVote requestVote)
         {
-             if (requestVote.LastLogIndex == _log.LastLogIndex &&
-                requestVote.LastLogTerm == _log.LastLogTerm)
+             if (requestVote.LastLogIndex == await _log.LastLogIndex() &&
+                requestVote.LastLogTerm == await _log.LastLogTerm())
             {
                 CurrentState = new CurrentState(CurrentState.Id, CurrentState.CurrentTerm, requestVote.CandidateId, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
 
@@ -153,13 +153,13 @@ namespace Rafty.Concensus
             return (null, false);
         }
 
-        private void ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
+        private async Task ApplyToStateMachine(int commitIndex, int lastApplied, AppendEntries appendEntries)
         {
             while (commitIndex > lastApplied)
             {
                 lastApplied++;
-                var log = _log.Get(lastApplied);
-                _fsm.Handle(log);
+                var log = await _log.Get(lastApplied);
+                await _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,

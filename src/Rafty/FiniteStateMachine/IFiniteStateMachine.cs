@@ -9,6 +9,6 @@ namespace Rafty.FiniteStateMachine
         /// <summary>
         /// This will apply the given log to the state machine.
         /// </summary>
-        void Handle(LogEntry log);
+        Task Handle(LogEntry log);
     }
 }

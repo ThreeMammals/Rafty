@@ -15,6 +15,8 @@ using static Rafty.Infrastructure.Wait;
 
 namespace Rafty.IntegrationTests
 {
+    using System.Threading.Tasks;
+
     public class Tests : IDisposable
     {
         private readonly List<IWebHost> _builders;
@@ -30,12 +32,12 @@ namespace Rafty.IntegrationTests
         }
 
         [Fact]
-        public void ShouldPersistCommandToFiveServers()
+        public async Task ShouldPersistCommandToFiveServers()
         {
             var command = new FakeCommand("WHATS UP DOC?");
-            GivenFiveServersAreRunning();
-            WhenISendACommandIntoTheCluster(command);
-            ThenTheCommandIsReplicatedToAllStateMachines(command);
+            await GivenFiveServersAreRunning();
+            await WhenISendACommandIntoTheCluster(command);
+            await ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
 
         private void GivenAServerIsRunning(string url)
@@ -58,9 +60,9 @@ namespace Rafty.IntegrationTests
             _builders.Add(builder);
         }
 
-        private void GivenFiveServersAreRunning()
+        private async Task GivenFiveServersAreRunning()
         {
-            var bytes = File.ReadAllText("peers.json");
+            var bytes = await File.ReadAllTextAsync("peers.json");
             _peers = JsonConvert.DeserializeObject<FilePeers>(bytes);
 
             foreach (var peer in _peers.Peers)
@@ -71,9 +73,9 @@ namespace Rafty.IntegrationTests
             }
         }
 
-        private void WhenISendACommandIntoTheCluster(FakeCommand command)
+        private async Task WhenISendACommandIntoTheCluster(FakeCommand command)
         {
-            bool SendCommand()
+            async Task<bool> SendCommand()
             {
                 try
                 {
@@ -82,9 +84,9 @@ namespace Rafty.IntegrationTests
                     var httpContent = new StringContent(json);
                     using (var httpClient = new HttpClient())
                     {
-                        var response = httpClient.PostAsync($"{p.HostAndPort}/command", httpContent).GetAwaiter().GetResult();
+                        var response = await httpClient.PostAsync($"{p.HostAndPort}/command", httpContent);
                         response.EnsureSuccessStatusCode();
-                        var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                        var content = await response.Content.ReadAsStringAsync();
                         var error = JsonConvert.DeserializeObject<ErrorResponse<FakeCommand>>(content);
                         if (!string.IsNullOrEmpty(error.Error))
                         {
@@ -101,28 +103,35 @@ namespace Rafty.IntegrationTests
                 }
             }
 
-            var leaderElectedAndCommandReceived = WaitFor(20000).Until(SendCommand);
+            var leaderElectedAndCommandReceived = await WaitFor(20000).Until(async () => await SendCommand());
             leaderElectedAndCommandReceived.ShouldBeTrue();
         }
 
-        private void ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand command)
+        private async Task ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand command)
         {
-            bool CommandCalledOnAllStateMachines()
+            async Task<bool> CommandCalledOnAllStateMachines()
             {
-                var passed = 0;
-                foreach (var peer in _peers.Peers)
+                try
                 {
-                    var fsmData = File.ReadAllText(peer.HostAndPort.Replace("/", "").Replace(":", ""));
-                    fsmData.ShouldNotBeNullOrEmpty();
-                    var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
-                    fakeCommand.Value.ShouldBe(command.Value);
-                    passed++;
+                    var passed = 0;
+                    foreach (var peer in _peers.Peers)
+                    {
+                        var fsmData = await File.ReadAllTextAsync(peer.HostAndPort.Replace("/", "").Replace(":", ""));
+                        fsmData.ShouldNotBeNullOrEmpty();
+                        var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
+                        fakeCommand.Value.ShouldBe(command.Value);
+                        passed++;
+                    }
+
+                    return passed == 5;
                 }
-
-                return passed == 5;
+                catch (Exception e)
+                {
+                    return false;
+                }
             }
-
-            var commandOnAllStateMachines = WaitFor(20000).Until(CommandCalledOnAllStateMachines);
+            Thread.Sleep(5000);
+            var commandOnAllStateMachines = await WaitFor(20000).Until(async () => await CommandCalledOnAllStateMachines());
             commandOnAllStateMachines.ShouldBeTrue();   
         }
 

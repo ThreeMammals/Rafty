@@ -8,6 +8,8 @@ using Rafty.Log;
 
 namespace Rafty.Concensus
 {
+    using System.Threading.Tasks;
+
     public class Node : INode
     { 
         private readonly IFiniteStateMachine _fsm;
@@ -72,20 +74,21 @@ namespace Rafty.Concensus
             State = new Follower(state, _fsm, _log, _random, this, _settings, _rules, _getPeers(state));
         }
 
-        public AppendEntriesResponse Handle(AppendEntries appendEntries)
+        public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
-            return State.Handle(appendEntries);
+            return await State.Handle(appendEntries);
         }
 
-        public RequestVoteResponse Handle(RequestVote requestVote)
+        public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
         {
-            return State.Handle(requestVote);
+            return await State.Handle(requestVote);
         }
 
-        public Response<T> Accept<T>(T command) where T : ICommand
+        public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
-            return State.Accept(command);
+            return await State.Accept(command);
         }
+
         public void Stop()
         {
             State.Stop();

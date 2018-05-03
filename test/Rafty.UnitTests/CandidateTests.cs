@@ -62,7 +62,7 @@ follower
         }
 
         [Fact]
-        public void ShouldBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermGreaterThanCurrentTerm()
+        public async Task ShouldBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermGreaterThanCurrentTerm()
         {
             _peers = new List<IPeer>
             {
@@ -73,7 +73,7 @@ follower
             };
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             candidate.BeginElection();
-            var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
+            var appendEntriesResponse = await candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
             appendEntriesResponse.Success.ShouldBeTrue();
             var node = (NothingNode)_node;
             node.BecomeFollowerCount.ShouldBe(1);
@@ -96,7 +96,7 @@ follower
         }
 
         [Fact]
-        public void ShouldNotBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermLessThanCurrentTerm()
+        public async Task ShouldNotBecomeFollowerIfAppendEntriesReceivedFromNewLeaderAndTermLessThanCurrentTerm()
         {
             _peers = new List<IPeer>
             {
@@ -107,7 +107,7 @@ follower
             };
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             candidate.BeginElection();
-            var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
+            var appendEntriesResponse = await candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
             appendEntriesResponse.Success.ShouldBeFalse();
             var node = (NothingNode)_node;
             node.BecomeFollowerCount.ShouldBe(0);
@@ -208,27 +208,27 @@ follower
         }
 
         [Fact]
-        public void ShouldVoteForNewCandidateInAnotherTermsElection()
+        public async Task ShouldVoteForNewCandidateInAnotherTermsElection()
         {
             _node = new NothingNode();
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
             var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
-            var requestVoteResponse = candidate.Handle(requestVote);
+            var requestVoteResponse = await candidate.Handle(requestVote);
             candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
             requestVoteResponse.VoteGranted.ShouldBeTrue();
             requestVote = new RequestVoteBuilder().WithTerm(1).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
-            requestVoteResponse = candidate.Handle(requestVote);
+            requestVoteResponse = await candidate.Handle(requestVote);
             requestVoteResponse.VoteGranted.ShouldBeTrue();
             candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
         }
 
         [Fact]
-        public void CandidateShouldTellClientToRetryCommand()
+        public async Task CandidateShouldTellClientToRetryCommand()
         {
             _node = new NothingNode();
             var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
-            var response = candidate.Accept(new FakeCommand());
+            var response = await candidate.Accept(new FakeCommand());
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");
         }

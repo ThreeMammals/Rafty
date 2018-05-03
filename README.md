@@ -39,12 +39,14 @@ You must implement ISettings which provides a description of each member in the 
 Rafty provides some in memory implementations of its interfaces (you shouldn't use these for anything serious).
 
 ```csharp
+
     var log = new InMemoryLog();
     var fsm = new InMemoryStateMachine();
     var settings = new InMemorySettings(1000, 3500, 50, 5000);
     var peersProvider = new InMemoryPeersProvider(_peers);
     var node = new Node(fsm, log, settings, peersProvider);
     node.Start();
+
 ```
 
 The above code will get a Rafty node up and running. If the IPeersProvider does not return any IPeers then it will elect itself leader and just run along happily. If something joins the cluster later it will update that new node as the node will get a heartbeat before it can elect itself. Or an election will start!
@@ -54,12 +56,14 @@ So in order to get Rafty really running the IPeerProvider needs to return peers.
 Finally you need to expose the INode interface to some kind of HTTP. I would advise just a plain old .net core web api type thing. These are the methods you need to expose and the transport in your IPeer should hit these URLS (hope that makes some sense). You can look at NodePeer to see how I do this in memory.
 
 ```csharp
-AppendEntriesResponse Request(AppendEntries appendEntries);
-RequestVoteResponse Request(RequestVote requestVote);
-Response<T> Request<T>(T command);
+
+Task<AppendEntriesResponse> Request(AppendEntries appendEntries);
+Task<RequestVoteResponse> Request(RequestVote requestVote);
+Task<Response<T>> Request<T>(T command);
+
 ```
 
-## Further help..
+## Further help
 
 The Acceptance and Integration tests will be helpful for anyone who wants to use Rafty.
 

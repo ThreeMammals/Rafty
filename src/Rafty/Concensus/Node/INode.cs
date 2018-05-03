@@ -3,16 +3,18 @@ using Rafty.FiniteStateMachine;
 
 namespace Rafty.Concensus
 {
+    using System.Threading.Tasks;
+
     public interface INode
     {
         IState State { get; }
         void BecomeLeader(CurrentState state);
         void BecomeFollower(CurrentState state);
         void BecomeCandidate(CurrentState state);
-        AppendEntriesResponse Handle(AppendEntries appendEntries);
-        RequestVoteResponse Handle(RequestVote requestVote);
+        Task<AppendEntriesResponse> Handle(AppendEntries appendEntries);
+        Task<RequestVoteResponse> Handle(RequestVote requestVote);
         void Start(string id);
         void Stop();
-        Response<T> Accept<T>(T command) where T : ICommand;
+        Task<Response<T>> Accept<T>(T command) where T : ICommand;
     }
 }

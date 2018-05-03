@@ -67,7 +67,7 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldAppendCommandToLocalLog()
+        public async Task ShouldAppendCommandToLocalLog()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -79,12 +79,12 @@ namespace Rafty.UnitTests
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(string), 0, 0, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules);
-            leader.Accept(new FakeCommand());
+            await leader.Accept(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
         }
 
         [Fact]
-        public void ShouldApplyCommandToStateMachine()
+        public async Task ShouldApplyCommandToStateMachine()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -96,7 +96,7 @@ namespace Rafty.UnitTests
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(string), 0, 0, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules);
-            var response = leader.Accept<FakeCommand>(new FakeCommand());
+            var response = await leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
 
             var fsm = (InMemoryStateMachine)_fsm;
@@ -105,13 +105,13 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldHandleCommandIfNoPeers()
+        public async Task ShouldHandleCommandIfNoPeers()
         {
             _peers = new List<IPeer>();
             var log = new InMemoryLog();
             _currentState = new CurrentState(_id, 0, default(string), 0, 0, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules);
-            var response = leader.Accept<FakeCommand>(new FakeCommand());
+            var response = await leader.Accept<FakeCommand>(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
             var fsm = (InMemoryStateMachine)_fsm;
             fsm.HandledLogEntries.ShouldBe(1);
@@ -198,7 +198,7 @@ namespace Rafty.UnitTests
         }
         
         [Fact]
-        public void ShouldSendAppendEntriesStartingAtNextIndex()
+        public async Task ShouldSendAppendEntriesStartingAtNextIndex()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -208,19 +208,19 @@ namespace Rafty.UnitTests
 
             //add 3 logs
             var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
-            _log.Apply(logOne);
+            await _log.Apply(logOne);
             var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
-            _log.Apply(logTwo);
+            await _log.Apply(logTwo);
             var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
-            _log.Apply(logThree);
+            await _log.Apply(logThree);
             _currentState = new CurrentState(_id, 1, default(string), 2, 2, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
-            var logs = _log.GetFrom(1);
+            var logs = await _log.GetFrom(1);
             logs.Count.ShouldBe(3);
         }
 
         [Fact]
-        public void ShouldUpdateMatchIndexAndNextIndexIfSuccessful()
+        public async Task ShouldUpdateMatchIndexAndNextIndexIfSuccessful()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -230,11 +230,11 @@ namespace Rafty.UnitTests
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(string), 2, 2, default(string));
             var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
-            _log.Apply(logOne);
+            await _log.Apply(logOne);
             var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
-            _log.Apply(logTwo);
+            await _log.Apply(logTwo);
             var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
-            _log.Apply(logThree);
+            await _log.Apply(logThree);
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
 
             bool FirstTest(List<PeerState> peerState)
@@ -261,7 +261,7 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldDecrementNextIndexAndRetry()
+        public async Task ShouldDecrementNextIndexAndRetry()
         {
             //create peers that will initially return false when asked to append entries...
             _peers = new List<IPeer>();
@@ -276,7 +276,7 @@ namespace Rafty.UnitTests
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
 
             //send first command, this wont get commited because the guys are replying false
-            var task = Task.Run(async () => leader.Accept(new FakeCommand()));
+            var task = Task.Run(async () => await leader.Accept(new FakeCommand()));
             bool FirstTest(List<PeerState> peerState)
             {
                 var passed = 0;
@@ -337,7 +337,7 @@ namespace Rafty.UnitTests
             }
 
             //send another command, this wont get commited because the guys are replying false
-            task = Task.Run(async () => leader.Accept(new FakeCommand()));
+            task = Task.Run(async () => await leader.Accept(new FakeCommand()));
             bool ThirdTest(List<PeerState> peerState)
             {
                 var passed = 0;
@@ -391,7 +391,7 @@ namespace Rafty.UnitTests
             result.ShouldBeTrue();
 
             //send another command 
-            leader.Accept(new FakeCommand());
+            await leader.Accept(new FakeCommand());
             bool FirthTest(List<PeerState> peerState)
             {
                 var passed = 0;
@@ -416,7 +416,7 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldSetCommitIndex()
+        public async Task ShouldSetCommitIndex()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -428,9 +428,9 @@ namespace Rafty.UnitTests
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(string), 0, 0, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
-            leader.Accept(new FakeCommand());
-            leader.Accept(new FakeCommand());
-            leader.Accept(new FakeCommand());
+            await leader.Accept(new FakeCommand());
+            await leader.Accept(new FakeCommand());
+            await leader.Accept(new FakeCommand());
 
             bool PeersTest(List<PeerState> peerState)
             {
@@ -492,7 +492,7 @@ namespace Rafty.UnitTests
 
 
         [Fact]
-        public void ShouldReplicateCommand()
+        public async Task ShouldReplicateCommand()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -502,7 +502,7 @@ namespace Rafty.UnitTests
             _currentState = new CurrentState(_id, 1, default(string), 0, 0, default(string));
             var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             var command = new FakeCommand();
-            var response = leader.Accept(command);
+            var response = await leader.Accept(command);
             response.ShouldBeOfType<OkResponse<FakeCommand>>();
             bool TestPeerStates(List<PeerState> peerState)
             {
@@ -561,7 +561,7 @@ namespace Rafty.UnitTests
         }
 
         [Fact]
-        public void ShouldTimeoutAfterXSecondsIfCannotReplicateCommand()
+        public async Task ShouldTimeoutAfterXSecondsIfCannotReplicateCommand()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 4; i++)
@@ -572,7 +572,7 @@ namespace Rafty.UnitTests
             _settings = new InMemorySettingsBuilder().WithCommandTimeout(1).Build();
             var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             var command = new FakeCommand();
-            var response = leader.Accept(command);
+            var response = await leader.Accept(command);
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Unable to replicate command to peers due to timeout.");
             bool TestPeerStates(List<PeerState> peerState)
@@ -595,12 +595,12 @@ namespace Rafty.UnitTests
                 return passed == peerState.Count * 2;
             }
             var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
-            _log.Count.ShouldBe(0);
+            _log.Count().Result.ShouldBe(0);
             result.ShouldBeTrue();
         }
 
         [Fact]
-        public void ShouldTimeoutAfterXSecondsIfCannotReplicateCommandAndRollbackIndexes()
+        public async Task ShouldTimeoutAfterXSecondsIfCannotReplicateCommandAndRollbackIndexes()
         {
             _peers = new List<IPeer>();
             for (var i = 0; i < 3; i++)
@@ -614,7 +614,7 @@ namespace Rafty.UnitTests
             _settings = new InMemorySettingsBuilder().WithCommandTimeout(1).Build();
             var leader = new Leader(_currentState,_fsm, (s) => _peers, _log, _node, _settings, _rules);
             var command = new FakeCommand();
-            var response = leader.Accept(command);
+            var response = await leader.Accept(command);
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Unable to replicate command to peers due to timeout.");
             bool TestPeerStates(List<PeerState> peerState)
@@ -637,7 +637,7 @@ namespace Rafty.UnitTests
                 return passed == peerState.Count * 2;
             }
             var result = WaitFor(1000).Until(() => TestPeerStates(leader.PeerStates));
-            _log.Count.ShouldBe(0);
+            _log.Count().Result.ShouldBe(0);
             result.ShouldBeTrue();
         }
     }
