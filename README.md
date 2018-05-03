@@ -56,12 +56,14 @@ So in order to get Rafty really running the IPeerProvider needs to return peers.
 Finally you need to expose the INode interface to some kind of HTTP. I would advise just a plain old .net core web api type thing. These are the methods you need to expose and the transport in your IPeer should hit these URLS (hope that makes some sense). You can look at NodePeer to see how I do this in memory.
 
 ```csharp
-AppendEntriesResponse Request(AppendEntries appendEntries);
-RequestVoteResponse Request(RequestVote requestVote);
-Response<T> Request<T>(T command);
+
+Task<AppendEntriesResponse> Request(AppendEntries appendEntries);
+Task<RequestVoteResponse> Request(RequestVote requestVote);
+Task<Response<T>> Request<T>(T command);
+
 ```
 
-## Further help..
+## Further help
 
 The Acceptance and Integration tests will be helpful for anyone who wants to use Rafty.
 
