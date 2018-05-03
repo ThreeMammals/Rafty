@@ -337,7 +337,7 @@ namespace Rafty.UnitTests
             }
 
             //send another command, this wont get commited because the guys are replying false
-            task = Task.Run(() => leader.Accept(new FakeCommand()));
+            task = Task.Run(async () => await leader.Accept(new FakeCommand()));
             bool ThirdTest(List<PeerState> peerState)
             {
                 var passed = 0;
