@@ -2,7 +2,7 @@
 
  <PropertyGroup>
     <Description>RAFT consensus implementation</Description>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <RuntimeFrameworkVersion>2.0.0</RuntimeFrameworkVersion>
     <NETStandardImplicitPackageVersion>2.0.0</NETStandardImplicitPackageVersion>
     <AssemblyTitle>Rafty</AssemblyTitle>
@@ -12,7 +12,6 @@
     <PackageTags>API Gateway;.NET core</PackageTags>
     <PackageProjectUrl>https://github.com/TomPallister/Rafty</PackageProjectUrl>
 	<PackageProjectUrl>https://github.com/TomPallister/Rafty</PackageProjectUrl>
-    <RuntimeIdentifiers>win10-x64;osx.10.11-x64;osx.10.12-x64;win7-x64</RuntimeIdentifiers>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
 	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
@@ -25,15 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="10.0.1" />
     <PackageReference Include="Microsoft.DotNet.InternalAbstractions" Version="1.0.500-preview2-1-003177" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.0.0" />
     <PackageReference Include="System.ValueTuple" Version="4.4.0" />
   </ItemGroup>
 
