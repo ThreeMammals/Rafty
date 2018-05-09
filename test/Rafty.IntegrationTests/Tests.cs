@@ -16,6 +16,7 @@ using static Rafty.Infrastructure.Wait;
 namespace Rafty.IntegrationTests
 {
     using System.Threading.Tasks;
+    using Microsoft.Data.Sqlite;
 
     public class Tests : IDisposable
     {
@@ -37,6 +38,7 @@ namespace Rafty.IntegrationTests
             var command = new FakeCommand("WHATS UP DOC?");
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
+            //Thread.Sleep(5000);
             await ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
 
@@ -107,7 +109,7 @@ namespace Rafty.IntegrationTests
             leaderElectedAndCommandReceived.ShouldBeTrue();
         }
 
-        private async Task ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand command)
+        private async Task ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand fakeCommand)
         {
             async Task<bool> CommandCalledOnAllStateMachines()
             {
@@ -116,10 +118,22 @@ namespace Rafty.IntegrationTests
                     var passed = 0;
                     foreach (var peer in _peers.Peers)
                     {
+                        var path = $"{peer.HostAndPort.Replace("/","").Replace(":","")}.db";
+                        using(var connection = new SqliteConnection($"Data Source={path};"))
+                        {
+                            connection.Open();
+                            var sql = @"select count(id) from logs";
+                            using(var command = new SqliteCommand(sql, connection))
+                            {
+                                var index = Convert.ToInt32(command.ExecuteScalar());
+                                index.ShouldBe(1);
+                            }
+                        }
+                        
                         var fsmData = await File.ReadAllTextAsync(peer.HostAndPort.Replace("/", "").Replace(":", ""));
                         fsmData.ShouldNotBeNullOrEmpty();
-                        var fakeCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
-                        fakeCommand.Value.ShouldBe(command.Value);
+                        var storedCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
+                        storedCommand.Value.ShouldBe(fakeCommand.Value);
                         passed++;
                     }
 
@@ -127,6 +141,7 @@ namespace Rafty.IntegrationTests
                 }
                 catch (Exception e)
                 {
+                    Console.WriteLine(e);
                     return false;
                 }
             }
