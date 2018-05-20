@@ -11,6 +11,7 @@ namespace Rafty.Concensus
     using Rafty.FiniteStateMachine;
     using Rafty.Log;
     using System.Diagnostics;
+    using Microsoft.Extensions.Logging;
 
     public sealed class Leader : IState
     {
@@ -26,6 +27,7 @@ namespace Rafty.Concensus
         private Timer _electionTimer;
         public long SendAppendEntriesCount;
         private bool _appendingEntries;
+        private ILogger<Leader> _logger;
 
         public Leader(
             CurrentState currentState, 
@@ -34,8 +36,10 @@ namespace Rafty.Concensus
             ILog log, 
             INode node, 
             ISettings settings,
-            IRules rules)
+            IRules rules,
+            ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<Leader>();
             _rules = rules;
             _settings = settings;
             _node = node;

@@ -11,6 +11,8 @@ using Rafty.Log;
 
 namespace Rafty.Concensus
 {
+    using Microsoft.Extensions.Logging;
+
     public sealed class Follower : IState
     {
         private readonly IFiniteStateMachine _fsm;
@@ -22,6 +24,7 @@ namespace Rafty.Concensus
         private ISettings _settings;
         private IRules _rules;
         private List<IPeer> _peers;
+        private ILogger<Follower> _logger;
 
         public Follower(
             CurrentState state, 
@@ -31,8 +34,10 @@ namespace Rafty.Concensus
             INode node, 
             ISettings settings, 
             IRules rules,
-            List<IPeer> peers)
+            List<IPeer> peers,
+            ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<Follower>();
             _peers = peers;
             _rules = rules;
             _random = random;

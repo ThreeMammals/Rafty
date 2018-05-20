@@ -11,6 +11,8 @@ using Rafty.Log;
 
 namespace Rafty.Concensus
 {
+    using Microsoft.Extensions.Logging;
+
     public sealed class Candidate : IState
     {
         private readonly IFiniteStateMachine _fsm;
@@ -26,6 +28,8 @@ namespace Rafty.Concensus
         private bool _requestVoteResponseWithGreaterTerm;
         private int _votesThisElection;
         private readonly object _lock = new object();
+        private int _applied;
+        private ILogger<Candidate> _logger;
 
         public Candidate(
             CurrentState currentState, 
@@ -35,8 +39,10 @@ namespace Rafty.Concensus
             IRandomDelay random, 
             INode node, 
             ISettings settings,
-            IRules rules)
+            IRules rules,
+            ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<Candidate>();
             _rules = rules;
             _random = random;
             _node = node;
@@ -92,6 +98,13 @@ namespace Rafty.Concensus
             }
           
             await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
+
+            if (_applied > 1 && appendEntries.Entries.Any())
+            {
+                Console.WriteLine("WTF?");
+            }
+
+            _applied++;
 
             await _rules.ApplyEntriesToLog(appendEntries, _log);
 

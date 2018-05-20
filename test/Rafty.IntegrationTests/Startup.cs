@@ -46,6 +46,7 @@ namespace Rafty.IntegrationTests
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IApplicationLifetime applicationLifetime)
         {
+            loggerFactory.AddFile("Logs/myapp-{Date}.txt");
             applicationLifetime.ApplicationStopping.Register(() => OnShutdown(app));
             //loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             var webHostBuilder = (IWebHostBuilder)app.ApplicationServices.GetService(typeof(IWebHostBuilder));

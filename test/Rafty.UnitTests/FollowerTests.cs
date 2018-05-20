@@ -9,6 +9,8 @@ namespace Rafty.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using Concensus;
+    using Microsoft.Extensions.Logging;
+    using Moq;
     using Rafty.Concensus.States;
     using Rafty.FiniteStateMachine;
     using Rafty.Infrastructure;
@@ -27,9 +29,11 @@ namespace Rafty.UnitTests
         private InMemorySettings _settings;
         private IRules _rules;
         private IPeersProvider _peersProvider;
+        private Mock<ILoggerFactory> _loggerFactory;
 
         public FollowerTests()
         {
+            _loggerFactory = new Mock<ILoggerFactory>();
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
@@ -43,7 +47,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void CommitIndexShouldBeInitialisedToMinusOne()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());
             _node.State.CurrentState.CommitIndex.ShouldBe(0);
         }
@@ -51,7 +55,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void CurrentTermShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());
             _node.State.CurrentState.CurrentTerm.ShouldBe(0);
         }
@@ -59,7 +63,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void LastAppliedShouldBeInitialisedToZero()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());
             _node.State.CurrentState.LastApplied.ShouldBe(0);
         }
@@ -69,7 +73,7 @@ namespace Rafty.UnitTests
         {
             _node = new TestingNode();
             var node = (TestingNode)_node;
-            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new InMemorySettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(),_rules, _peers));
+            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new InMemorySettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(),_rules, _peers, _loggerFactory.Object));
             var result = WaitFor(1000).Until(() => node.BecomeCandidateCount > 0);
             result.ShouldBeTrue();
         }
@@ -79,7 +83,7 @@ namespace Rafty.UnitTests
         {
             _node = new TestingNode();
             var node = (TestingNode)_node;
-            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new InMemorySettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(), _rules, _peers));
+            node.SetState(new Follower(_currentState, _fsm, _log, _random, node, new InMemorySettingsBuilder().WithMinTimeout(0).WithMaxTimeout(0).Build(), _rules, _peers, _loggerFactory.Object));
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
             var result = WaitFor(1000).Until(() => node.BecomeCandidateCount > 0);
             result.ShouldBeTrue();
@@ -88,7 +92,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeader()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
@@ -98,7 +102,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void ShouldNotBecomeCandidateWhenFollowerReceivesTimeoutAndHasHeardFromLeaderSinceLastTimeout()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());
             _node.State.ShouldBeOfType<Follower>();
             _node.Handle(new AppendEntriesBuilder().WithTerm(1).WithLeaderCommitIndex(-1).Build());
@@ -110,7 +114,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void ShouldStartAsFollower()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());
             _node.State.ShouldBeOfType<Follower>();
         }
@@ -118,7 +122,7 @@ namespace Rafty.UnitTests
         [Fact]
         public void VotedForShouldBeInitialisedToNone()
         {
-            _node = new Node(_fsm, _log, _settings, _peersProvider);
+            _node = new Node(_fsm, _log, _settings, _peersProvider, _loggerFactory.Object);
             _node.Start(Guid.NewGuid().ToString());  
             _node.State.CurrentState.VotedFor.ShouldBe(default(string));
         }
@@ -128,7 +132,7 @@ namespace Rafty.UnitTests
         {
             _node = new NothingNode();
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var requestVote = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
             var requestVoteResponse = follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
@@ -139,7 +143,7 @@ namespace Rafty.UnitTests
         {
              _node = new NothingNode();
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
             var requestVoteResponse = await follower.Handle(requestVote);
             follower.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
@@ -161,7 +165,7 @@ namespace Rafty.UnitTests
                 leader
             };
             _currentState = new CurrentState(_currentState.Id, _currentState.CurrentTerm, _currentState.VotedFor, _currentState.CommitIndex, _currentState.LastApplied, leaderId);
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var response = await follower.Accept(new FakeCommand());
             response.ShouldBeOfType<OkResponse<FakeCommand>>();
             leader.ReceivedCommands.ShouldBe(1);
@@ -172,7 +176,7 @@ namespace Rafty.UnitTests
         {             
             _node = new NothingNode();
             _currentState = new CurrentState(_currentState.Id, _currentState.CurrentTerm, _currentState.VotedFor, _currentState.CommitIndex, _currentState.LastApplied, _currentState.LeaderId);
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var response = await follower.Accept(new FakeCommand());
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Please retry command later. Unable to find leader.");

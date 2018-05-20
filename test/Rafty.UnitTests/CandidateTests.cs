@@ -4,6 +4,8 @@ namespace Rafty.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using Concensus;
+    using Microsoft.Extensions.Logging;
+    using Moq;
     using Rafty.Concensus.States;
     using Rafty.FiniteStateMachine;
     using Rafty.Log;
@@ -32,8 +34,11 @@ follower
         private CurrentState _currentState;
         private InMemorySettings _settings;
         private IRules _rules;
+        private Mock<ILoggerFactory> _loggerFactory;
+
         public CandidateTests()
         {
+            _loggerFactory = new Mock<ILoggerFactory>();
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
@@ -55,7 +60,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             candidate.ShouldBeOfType<Candidate>();
             candidate.CurrentState.CurrentTerm.ShouldBe(1);
@@ -71,7 +76,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             var appendEntriesResponse = await candidate.Handle(new AppendEntriesBuilder().WithTerm(2).Build());
             appendEntriesResponse.Success.ShouldBeTrue();
@@ -89,7 +94,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             var node = (NothingNode)_node;
             node.BecomeFollowerCount.ShouldBe(1);
@@ -105,7 +110,7 @@ follower
                 new FakePeer(true),
                 new FakePeer(true)
             };
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             var appendEntriesResponse = await candidate.Handle(new AppendEntriesBuilder().WithTerm(0).Build());
             appendEntriesResponse.Success.ShouldBeFalse();
@@ -121,7 +126,7 @@ follower
             {
                 _peers.Add(new FakePeer(false));
             }
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             var node = (NothingNode)_node;
             node.BecomeFollowerCount.ShouldBe(1);
@@ -137,7 +142,7 @@ follower
                 new FakePeer(false),
                 new FakePeer(true)
             };
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             var node = (NothingNode)_node;
             node.BecomeFollowerCount.ShouldBe(1);
@@ -151,7 +156,7 @@ follower
             {
                 _peers.Add(new FakePeer(true));
             }
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             var node = (NothingNode)_node;
             node.BecomeLeaderCount.ShouldBe(1);
@@ -165,7 +170,7 @@ follower
             {
                 _peers.Add(new FakePeer(true));
             }
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             candidate.CurrentState.CurrentTerm.ShouldBe(1);
         }
@@ -178,7 +183,7 @@ follower
             {
                 _peers.Add(new FakePeer(true));
             }
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             _peers.ForEach(x =>
             {
@@ -190,7 +195,7 @@ follower
         [Fact]
         public void ShouldResetTimeoutWhenElectionStarts()
         {
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
         }
 
@@ -202,7 +207,7 @@ follower
             {
                 _peers.Add(new FakePeer(true));
             }
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             candidate.BeginElection();
             candidate.CurrentState.VotedFor.ShouldBe(_id);
         }
@@ -212,7 +217,7 @@ follower
         {
             _node = new NothingNode();
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             var requestVote = new RequestVoteBuilder().WithTerm(0).WithCandidateId(Guid.NewGuid().ToString()).WithLastLogIndex(1).Build();
             var requestVoteResponse = await candidate.Handle(requestVote);
             candidate.CurrentState.VotedFor.ShouldBe(requestVote.CandidateId);
@@ -227,7 +232,7 @@ follower
         public async Task CandidateShouldTellClientToRetryCommand()
         {
             _node = new NothingNode();
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             var response = await candidate.Accept(new FakeCommand());
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");

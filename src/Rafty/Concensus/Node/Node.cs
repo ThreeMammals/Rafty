@@ -9,6 +9,7 @@ using Rafty.Log;
 namespace Rafty.Concensus
 {
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
 
     public class Node : INode
     { 
@@ -19,13 +20,18 @@ namespace Rafty.Concensus
         private readonly ISettings _settings;
         private IRules _rules;
         private IPeersProvider _peersProvider;
+        private ILoggerFactory _loggerFactory;
+        private ILogger<Node> _logger;
 
         public Node(
-            IFiniteStateMachine fsm, 
-            ILog log, 
+            IFiniteStateMachine fsm,
+            ILog log,
             ISettings settings,
-            IPeersProvider peersProvider)
+            IPeersProvider peersProvider,
+            ILoggerFactory loggerFactory)
         {
+            _loggerFactory = loggerFactory;
+            _logger = _loggerFactory.CreateLogger<Node>();
             //dont think rules should be injected at the moment..EEK UNCLE BOB
             _rules = new Rules();
             _fsm = fsm;
@@ -57,7 +63,7 @@ namespace Rafty.Concensus
         public void BecomeCandidate(CurrentState state)
         {
             State.Stop();
-            var candidate = new Candidate(state, _fsm, _getPeers(state), _log, _random, this, _settings, _rules);
+            var candidate = new Candidate(state, _fsm, _getPeers(state), _log, _random, this, _settings, _rules, _loggerFactory);
             State = candidate;
             candidate.BeginElection();
         }
@@ -65,13 +71,13 @@ namespace Rafty.Concensus
         public void BecomeLeader(CurrentState state)
         {
             State.Stop();
-            State = new Leader(state, _fsm, _getPeers, _log, this, _settings, _rules);
+            State = new Leader(state, _fsm, _getPeers, _log, this, _settings, _rules, _loggerFactory);
         }
 
         public void BecomeFollower(CurrentState state)
         {
             State?.Stop();
-            State = new Follower(state, _fsm, _log, _random, this, _settings, _rules, _getPeers(state));
+            State = new Follower(state, _fsm, _log, _random, this, _settings, _rules, _getPeers(state), _loggerFactory);
         }
 
         public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)

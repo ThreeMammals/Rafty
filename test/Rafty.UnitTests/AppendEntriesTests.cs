@@ -10,6 +10,8 @@ using Xunit;
 namespace Rafty.UnitTests
 {
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
+    using Moq;
 
     public class AppendEntriesTests
     {
@@ -33,10 +35,11 @@ min(leaderCommit, index of last new entry)
         private readonly IRandomDelay _random;
         private InMemorySettings _settings;
         private IRules _rules;
-
+        private Mock<ILoggerFactory> _loggerFactory;
 
         public AppendEntriesTests()
         {
+            _loggerFactory = new Mock<ILoggerFactory>();
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
@@ -51,7 +54,7 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 0, 0, default(string));
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(false);
             appendEntriesResponse.Term.ShouldBe(1);
@@ -63,7 +66,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 2, default(string), 0, 0, default(string));
             await _log.Apply(new LogEntry(new FakeCommand(""), typeof(string), 2));
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(1).WithPreviousLogTerm(1).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(false);
             appendEntriesResponse.Term.ShouldBe(2);
@@ -82,7 +85,7 @@ min(leaderCommit, index of last new entry)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
                 .Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(2);
@@ -101,7 +104,7 @@ min(leaderCommit, index of last new entry)
                 .WithPreviousLogIndex(1)
                 .WithPreviousLogTerm(1)
                 .Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(2);
@@ -120,7 +123,7 @@ min(leaderCommit, index of last new entry)
                 .WithPreviousLogTerm(1)
                 .WithLeaderId(Guid.NewGuid().ToString())
                 .Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
             appendEntriesResponse.Success.ShouldBe(true);
             appendEntriesResponse.Term.ShouldBe(1);
@@ -142,7 +145,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(1)
                .Build();
             //assume node has applied log..
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
             follower.CurrentState.CommitIndex.ShouldBe(1);
         }
@@ -162,7 +165,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(1)
                .WithLeaderId(Guid.NewGuid().ToString())
                .Build();
-            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             var appendEntriesResponse = await candidate.Handle(appendEntriesRpc);
             candidate.CurrentState.CommitIndex.ShouldBe(1);
             candidate.CurrentState.LeaderId.ShouldBe(appendEntriesRpc.LeaderId);
@@ -183,7 +186,7 @@ min(leaderCommit, index of last new entry)
                .WithLeaderCommitIndex(1)
                .WithLeaderId(Guid.NewGuid().ToString())
                .Build();
-            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
             var state = await leader.Handle(appendEntriesRpc);
             leader.CurrentState.CommitIndex.ShouldBe(1);
             leader.CurrentState.LeaderId.ShouldBe(appendEntriesRpc.LeaderId);

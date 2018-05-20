@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 
 namespace Rafty.UnitTests
 {
+    using Microsoft.Extensions.Logging;
+    using Moq;
+
     public class AllServersApplyToStateMachineTests
     {
 /*
@@ -23,9 +26,11 @@ namespace Rafty.UnitTests
         private IFiniteStateMachine _fsm;
         private InMemorySettings _settings;
         private IRules _rules;
+        private Mock<ILoggerFactory> _loggerFactory;
 
         public AllServersApplyToStateMachineTests()
         {
+            _loggerFactory = new Mock<ILoggerFactory>();
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
@@ -40,7 +45,7 @@ namespace Rafty.UnitTests
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
-            var follower = new Follower(currentState, fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(currentState, fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var log = new LogEntry(new FakeCommand("test"), typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
@@ -62,7 +67,7 @@ namespace Rafty.UnitTests
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
-            var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(currentState,fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             var log = new LogEntry(new FakeCommand("test"), typeof(string), 1);
             var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)
@@ -87,7 +92,7 @@ namespace Rafty.UnitTests
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             var fsm = new Rafty.FiniteStateMachine.InMemoryStateMachine();
-            var leader = new Leader(currentState, fsm, (s) => _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(currentState, fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
             var log = new LogEntry(new FakeCommand("test"), typeof(string), 1);
                var appendEntries = new AppendEntriesBuilder()
                 .WithTerm(1)

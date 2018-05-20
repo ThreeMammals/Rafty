@@ -10,6 +10,9 @@ using Rafty.Concensus.States;
 
 namespace Rafty.UnitTests
 {
+    using Microsoft.Extensions.Logging;
+    using Moq;
+
     public class AllServersConvertToFollowerTests
     {
 /*All Servers:
@@ -25,9 +28,11 @@ set currentTerm = T, convert to follower (§5.1)*/
         private readonly INode _node;
         private InMemorySettings _settings;
         private IRules _rules;
+        private Mock<ILoggerFactory> _loggerFactory;
 
         public AllServersConvertToFollowerTests()
         {
+            _loggerFactory = new Mock<ILoggerFactory>();
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
@@ -44,7 +49,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(),currentTerm, default(string), 0, 0, default(string));
-            var follower = new Follower(currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = follower.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             follower.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
@@ -55,7 +60,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void FollowerShouldSetTermAsRpcTermAndStayFollowerWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), currentTerm, default(string), 0, 0, default(string));
-            var follower = new Follower(currentState, _fsm, _log, _random, _node, _settings, _rules, _peers);
+            var follower = new Follower(currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = follower.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).Build());
             follower.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
@@ -67,7 +72,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), currentTerm, default(string), 0, 0, default(string));
-            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             var appendEntriesResponse = candidate.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode)_node;
@@ -80,7 +85,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void CandidateShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), currentTerm, default(string), 0, 0, default(string));
-            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings, _rules);
+            var candidate = new Candidate(currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
             var requestVoteResponse = candidate.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).WithLastLogIndex(1).Build());
             candidate.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
             var node = (NothingNode) _node;
@@ -94,7 +99,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesAppendEntries(int currentTerm, int rpcTerm, int expectedTerm)
         {            
             var currentState = new CurrentState(Guid.NewGuid().ToString(), currentTerm, default(string), 0, 0, default(string));
-            var leader = new Leader(currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
             var appendEntriesResponse = leader.Handle(new AppendEntriesBuilder().WithTerm(rpcTerm).Build());
             leader.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }
@@ -105,7 +110,7 @@ set currentTerm = T, convert to follower (§5.1)*/
         public void LeaderShouldSetTermAsRpcTermAndBecomeStateWhenReceivesRequestVote(int currentTerm, int rpcTerm, int expectedTerm)
         {
             var currentState = new CurrentState(Guid.NewGuid().ToString(), currentTerm, default(string), 0, 0, default(string));
-            var leader = new Leader(currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules);
+            var leader = new Leader(currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
             var state = leader.Handle(new RequestVoteBuilder().WithTerm(rpcTerm).WithLastLogIndex(1).Build());
             leader.CurrentState.CurrentTerm.ShouldBe(expectedTerm);
         }

@@ -17,6 +17,7 @@ namespace Rafty.IntegrationTests
 {
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
+    using Microsoft.Extensions.Logging;
 
     public class Tests : IDisposable
     {
@@ -50,8 +51,14 @@ namespace Rafty.IntegrationTests
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .ConfigureServices(x =>
                 {
+                    x.AddLogging();
                     x.AddSingleton(webHostBuilder);
                     x.AddSingleton(new NodeId(url));
+                })
+                .ConfigureLogging((hostingContext, logging) =>
+                {
+                    logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
+                    logging.AddConsole();
                 })
                 .UseStartup<Startup>();
 
