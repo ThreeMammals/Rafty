@@ -63,6 +63,7 @@ namespace Rafty.Concensus
         public void BecomeCandidate(CurrentState state)
         {
             State.Stop();
+            _logger.LogInformation($"{state.Id} became candidate");
             var candidate = new Candidate(state, _fsm, _getPeers(state), _log, _random, this, _settings, _rules, _loggerFactory);
             State = candidate;
             candidate.BeginElection();
@@ -71,18 +72,27 @@ namespace Rafty.Concensus
         public void BecomeLeader(CurrentState state)
         {
             State.Stop();
+            _logger.LogInformation($"{state.Id} became leader");
             State = new Leader(state, _fsm, _getPeers, _log, this, _settings, _rules, _loggerFactory);
         }
 
         public void BecomeFollower(CurrentState state)
         {
             State?.Stop();
+            _logger.LogInformation($"{state.Id} became follower");
             State = new Follower(state, _fsm, _log, _random, this, _settings, _rules, _getPeers(state), _loggerFactory);
         }
 
         public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
-            return await State.Handle(appendEntries);
+            var response = await State.Handle(appendEntries);
+            
+            if(appendEntries.Entries.Any())
+            {
+                _logger.LogInformation($"{State.GetType().Name} id: {State.CurrentState.Id} responded to appendentries with success: {response.Success} and term: {response.Term}");
+            }
+
+            return response;
         }
 
         public async Task<RequestVoteResponse> Handle(RequestVote requestVote)

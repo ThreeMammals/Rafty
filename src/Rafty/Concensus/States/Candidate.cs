@@ -97,7 +97,7 @@ namespace Rafty.Concensus
                 return response.appendEntriesResponse;
             }
           
-            await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
+            await _rules.DeleteAnyConflictsInLog(appendEntries, _log, _logger, CurrentState.Id);
 
             if (_applied > 1 && appendEntries.Entries.Any())
             {
@@ -106,7 +106,9 @@ namespace Rafty.Concensus
 
             _applied++;
 
-            await _rules.ApplyEntriesToLog(appendEntries, _log);
+            _logger.LogInformation($"{CurrentState.Id} as {nameof(Candidate)} applying entry to log");
+
+            await _rules.ApplyNewEntriesToLog(appendEntries, _log, _logger, CurrentState.Id);
 
             var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
@@ -154,6 +156,7 @@ namespace Rafty.Concensus
 
         public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
+            _logger.LogInformation("candidate dont forward to leader");
            return new ErrorResponse<T>("Please retry command later. Currently electing new a new leader.", command);
         }
 

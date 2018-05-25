@@ -52,7 +52,7 @@ namespace Rafty.UnitTests
         {
             var log = new InMemoryLog();
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             log.ExposedForTesting.Count.ShouldBe(0);
         }
 
@@ -61,7 +61,7 @@ namespace Rafty.UnitTests
         {
             var log = new InMemoryLog();
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1), null, null);
             log.ExposedForTesting.Count.ShouldBe(1);
         }
 
@@ -72,7 +72,7 @@ namespace Rafty.UnitTests
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             log.ExposedForTesting.Count.ShouldBe(0);
         }
 
@@ -85,7 +85,7 @@ namespace Rafty.UnitTests
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             log.ExposedForTesting.Count.ShouldBe(3);
             log.ExposedForTesting[1].Term.ShouldBe(1);
             log.ExposedForTesting[2].Term.ShouldBe(1);

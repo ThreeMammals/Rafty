@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Rafty.Log
 {
@@ -34,7 +35,13 @@ namespace Rafty.Log
         /// This will delete any conflicts from the log, if the log entry passed in doesnt match the log entry
         //in the log for the given index it will also delete any further logs
         /// </summary>
-        Task DeleteConflictsFromThisLog(int index, LogEntry logEntry);
+        Task DeleteConflictsFromThisLog(int index, LogEntry logEntry, ILogger logger, string id);
+
+        /// <summary>
+        /// This will delete any conflicts from the log, if the log entry passed in doesnt match the log entry
+        //in the log for the given index it will also delete any further logs
+        /// </summary>
+        Task<bool> IsDuplicate(int index, LogEntry logEntry);
         /// <summary>
         /// This returns a count of the logs
         /// </summary>

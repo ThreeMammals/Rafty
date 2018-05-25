@@ -61,7 +61,7 @@ namespace Rafty.UnitTests
         public async Task ShouldDeleteConflict()
         {
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             _log.Count().Result.ShouldBe(0);
         }
 
@@ -69,7 +69,7 @@ namespace Rafty.UnitTests
         public async Task ShouldNotDeleteConflict()
         {
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1), null, null);
             _log.Count().Result.ShouldBe(1);
         }
 
@@ -79,7 +79,7 @@ namespace Rafty.UnitTests
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             _log.Count().Result.ShouldBe(0);
         }
 
@@ -91,7 +91,7 @@ namespace Rafty.UnitTests
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await _log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             _log.Count().Result.ShouldBe(3);
             _log.Get(1).Result.Term.ShouldBe(1);
             _log.Get(2).Result.Term.ShouldBe(1);

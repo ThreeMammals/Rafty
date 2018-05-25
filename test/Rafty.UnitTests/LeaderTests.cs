@@ -27,10 +27,13 @@ namespace Rafty.UnitTests
         private InMemorySettings _settings;
         private IRules _rules;
         private Mock<ILoggerFactory> _loggerFactory;
+        private Mock<ILogger> _logger;
 
         public LeaderTests()
         {
+            _logger = new Mock<ILogger>();
             _loggerFactory = new Mock<ILoggerFactory>();
+            _loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_logger.Object);
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _delay = new RandomDelay();
@@ -86,6 +89,46 @@ namespace Rafty.UnitTests
             var leader = new Leader(_currentState, _fsm, (s) => _peers, log, _node, _settings, _rules, _loggerFactory.Object);
             await leader.Accept(new FakeCommand());
             log.ExposedForTesting.Count.ShouldBe(1);
+
+            bool PeersReceiveCorrectAppendEntries(List<IPeer> peers)
+            {
+                var passed = 0;
+
+                peers.ForEach(p =>
+                {
+                    var rc = (RemoteControledPeer)p;
+                    if (rc.AppendEntriesResponsesWithLogEntries == 1)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peers.Count;
+            }
+            var result = WaitFor(1000).Until(() => PeersReceiveCorrectAppendEntries(_peers));
+            result.ShouldBeTrue();
+
+            bool FirstTest(List<PeerState> peerState)
+            {
+                var passed = 0;
+
+                peerState.ForEach(pS =>
+                {
+                    if (pS.MatchIndex.IndexOfHighestKnownReplicatedLog == 1)
+                    {
+                        passed++;
+                    }
+
+                    if (pS.NextIndex.NextLogIndexToSendToPeer == 2)
+                    {
+                        passed++;
+                    }
+                });
+
+                return passed == peerState.Count * 2;
+            }
+            result = WaitFor(1000).Until(() => FirstTest(leader.PeerStates));
+            result.ShouldBeTrue();
         }
 
         [Fact]

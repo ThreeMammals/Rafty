@@ -7,6 +7,7 @@ using Rafty.Infrastructure;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Rafty.IntegrationTests
 {
@@ -133,7 +134,41 @@ namespace Rafty.IntegrationTests
             }
         }
 
-        public async Task DeleteConflictsFromThisLog(int index, LogEntry logEntry)
+        public async Task DeleteConflictsFromThisLog(int index, LogEntry logEntry, ILogger logger, string id)
+        {
+            _sempaphore.Wait();
+            using(var connection = new SqliteConnection($"Data Source={_path};"))
+            {
+                connection.Open();
+                //todo - sql injection dont copy this..
+                var sql = $"select data from logs where id = {index};";
+                logger.LogInformation($"id: {id} sql: {sql}");
+                using(var command = new SqliteCommand(sql, connection))
+                {
+                    var data = Convert.ToString(await command.ExecuteScalarAsync());
+                    var jsonSerializerSettings = new JsonSerializerSettings() { 
+                        TypeNameHandling = TypeNameHandling.All
+                    };
+                    
+                    logger.LogInformation($"id {id} got log for index: {index}, data is {data} and new log term is {logEntry.Term}");
+
+                    var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
+                    if(logEntry != null && log != null && logEntry.Term != log.Term)
+                    {
+                        //todo - sql injection dont copy this..
+                        var deleteSql = $"delete from logs where id >= {index};";
+                        logger.LogInformation($"id: {id} sql: {deleteSql}");
+                        using(var deleteCommand = new SqliteCommand(deleteSql, connection))
+                        {
+                            var result = await deleteCommand.ExecuteNonQueryAsync();
+                        }
+                    }
+                }
+            }
+            _sempaphore.Release();
+        }
+
+        public async Task<bool> IsDuplicate(int index, LogEntry logEntry)
         {
             _sempaphore.Wait();
             using(var connection = new SqliteConnection($"Data Source={_path};"))
@@ -147,18 +182,17 @@ namespace Rafty.IntegrationTests
                     var jsonSerializerSettings = new JsonSerializerSettings() { 
                         TypeNameHandling = TypeNameHandling.All
                     };
+
                     var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
-                    if(logEntry != null && log != null && logEntry.Term != log.Term)
+
+                    if(logEntry != null && log != null && logEntry.Term == log.Term)
                     {
-                        //todo - sql injection dont copy this..
-                        var deleteSql = $"delete from logs where id >= {index};";
-                        using(var deleteCommand = new SqliteCommand(deleteSql, connection))
-                        {
-                            var result = await deleteCommand.ExecuteNonQueryAsync();
-                        }
+                        return true;
                     }
                 }
             }
+            
+            return false;
             _sempaphore.Release();
         }
 

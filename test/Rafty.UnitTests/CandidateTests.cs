@@ -35,10 +35,13 @@ follower
         private InMemorySettings _settings;
         private IRules _rules;
         private Mock<ILoggerFactory> _loggerFactory;
+        private Mock<ILogger> _logger;
 
         public CandidateTests()
-        {
+        {            
+            _logger = new Mock<ILogger>();
             _loggerFactory = new Mock<ILoggerFactory>();
+            _loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_logger.Object);
             _rules = new Rules();
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
@@ -236,6 +239,39 @@ follower
             var response = await candidate.Accept(new FakeCommand());
             var error = (ErrorResponse<FakeCommand>)response;
             error.Error.ShouldBe("Please retry command later. Currently electing new a new leader.");
+        }
+
+        
+        [Fact]
+        public async Task CandidateShouldAppendNewEntries()
+        {
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
+            var logEntry = new LogEntry(new FakeCommand(), typeof(FakeCommand), 1);
+            var appendEntries = new AppendEntriesBuilder().WithTerm(1).WithEntry(logEntry).Build();
+            var response = await candidate.Handle(appendEntries);
+            response.Success.ShouldBeTrue();
+            response.Term.ShouldBe(1);
+            var inMemoryLog = (InMemoryLog)_log;
+            inMemoryLog.ExposedForTesting.Count.ShouldBe(1);
+        }
+
+        [Fact]
+        public async Task CandidateShouldNotAppendDuplicateEntry()
+        {
+            _node = new NothingNode();
+            _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
+            var candidate = new Candidate(_currentState, _fsm, _peers, _log, _random, _node, _settings, _rules, _loggerFactory.Object);
+            var logEntry = new LogEntry(new FakeCommand(), typeof(FakeCommand), 1);
+            var appendEntries = new AppendEntriesBuilder().WithPreviousLogIndex(1).WithPreviousLogTerm(1).WithTerm(1).WithEntry(logEntry).WithTerm(1).WithLeaderCommitIndex(1).Build();
+            var response = await candidate.Handle(appendEntries);
+            response.Success.ShouldBeTrue();
+            response.Term.ShouldBe(1);
+            response = await candidate.Handle(appendEntries);
+            response.Success.ShouldBeTrue();
+            response.Term.ShouldBe(1);
+            var inMemoryLog = (InMemoryLog)_log;
+            inMemoryLog.ExposedForTesting.Count.ShouldBe(1);
         }
     }
 }

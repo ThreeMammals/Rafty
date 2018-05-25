@@ -15,9 +15,11 @@ using static Rafty.Infrastructure.Wait;
 
 namespace Rafty.IntegrationTests
 {
+    using System.Diagnostics;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
     using Microsoft.Extensions.Logging;
+    using Xunit.Abstractions;
 
     public class Tests : IDisposable
     {
@@ -25,9 +27,11 @@ namespace Rafty.IntegrationTests
         private readonly List<IWebHostBuilder> _webHostBuilders;
         private readonly List<Thread> _threads;
         private FilePeers _peers;
+        private ITestOutputHelper _output;
 
-        public Tests()
+        public Tests(ITestOutputHelper output)
         {
+            _output = output;
             _webHostBuilders = new List<IWebHostBuilder>();
             _builders = new List<IWebHost>();
             _threads = new List<Thread>();
@@ -39,7 +43,7 @@ namespace Rafty.IntegrationTests
             var command = new FakeCommand("WHATS UP DOC?");
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
-            //Thread.Sleep(5000);
+            Thread.Sleep(10000);
             await ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
 
@@ -132,13 +136,20 @@ namespace Rafty.IntegrationTests
                             var sql = @"select count(id) from logs";
                             using(var command = new SqliteCommand(sql, connection))
                             {
-                                var index = Convert.ToInt32(command.ExecuteScalar());
-                                index.ShouldBe(1);
+                                var count = Convert.ToInt32(command.ExecuteScalar());
+                                if(count != 1)
+                                {
+                                    throw new Exception($"{peer.HostAndPort} had {count} logs.");
+                                }
                             }
                         }
                         
                         var fsmData = await File.ReadAllTextAsync(peer.HostAndPort.Replace("/", "").Replace(":", ""));
                         fsmData.ShouldNotBeNullOrEmpty();
+                        if(fsmData.Length != 25)
+                        {
+                            throw new Exception($"{peer.HostAndPort} had {fsmData.Length} length in fsm file");
+                        }
                         var storedCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
                         storedCommand.Value.ShouldBe(fakeCommand.Value);
                         passed++;
@@ -148,11 +159,13 @@ namespace Rafty.IntegrationTests
                 }
                 catch (Exception e)
                 {
+                    _output.WriteLine($"{e.Message}, {e.StackTrace}");
                     Console.WriteLine(e);
+                    Debug.WriteLine(e);
                     return false;
                 }
             }
-            Thread.Sleep(5000);
+            
             var commandOnAllStateMachines = await WaitFor(20000).Until(async () => await CommandCalledOnAllStateMachines());
             commandOnAllStateMachines.ShouldBeTrue();   
         }
