@@ -107,7 +107,7 @@ namespace Rafty.IntegrationTests
             return result;
         }
 
-        public async Task<int> Apply(LogEntry log)
+        public async Task<int> Apply(LogEntry log, ILogger logger, string id)
         {
             _sempaphore.Wait();
             using(var connection = new SqliteConnection($"Data Source={_path};"))
@@ -119,16 +119,20 @@ namespace Rafty.IntegrationTests
                 var data = JsonConvert.SerializeObject(log, jsonSerializerSettings);
                 //todo - sql injection dont copy this..
                 var sql = $"insert into logs (data) values ('{data}')";
+                logger.LogInformation($"id: {id}, sql: {sql}");
                 using(var command = new SqliteCommand(sql, connection))
                 {
                     var result = await command.ExecuteNonQueryAsync();
+                    logger.LogInformation($"id: {id}, insert log result: {result}");
                 }
-                
+
                 sql = "select last_insert_rowid()";
                 using(var command = new SqliteCommand(sql, connection))
                 {
                     var result = await command.ExecuteScalarAsync();
+                    logger.LogInformation($"id: {id}, about to release semaphore");
                     _sempaphore.Release();
+                    logger.LogInformation($"id: {id}, saved log to sqlite");
                     return Convert.ToInt32(result);
                 }   
             }
@@ -187,13 +191,14 @@ namespace Rafty.IntegrationTests
 
                     if(logEntry != null && log != null && logEntry.Term == log.Term)
                     {
+                        _sempaphore.Release();
                         return true;
                     }
                 }
             }
-            
-            return false;
+
             _sempaphore.Release();
+            return false;
         }
 
         public async Task<LogEntry> Get(int index)
@@ -274,7 +279,7 @@ namespace Rafty.IntegrationTests
             _sempaphore.Release();
             return result;
         }
-        public async Task Remove(int indexOfCommand)
+        public async Task Remove(int indexOfCommand, ILogger logger, string id)
         {
             _sempaphore.Wait();
             using(var connection = new SqliteConnection($"Data Source={_path};"))
@@ -282,6 +287,7 @@ namespace Rafty.IntegrationTests
                 connection.Open();
                 //todo - sql injection dont copy this..
                 var deleteSql = $"delete from logs where id >= {indexOfCommand};";
+                logger.LogInformation($"id: Remove {deleteSql}");
                 using(var deleteCommand = new SqliteCommand(deleteSql, connection))
                 {
                     var result = await deleteCommand.ExecuteNonQueryAsync();

@@ -19,7 +19,7 @@ namespace Rafty.UnitTests
         public async Task ShouldApplyLog()
         {
             var log = new InMemoryLog();
-            var index = await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            var index = await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             index.ShouldBe(1);
         }
 
@@ -27,7 +27,7 @@ namespace Rafty.UnitTests
         public async Task ShouldSetLastLogIndex()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             log.LastLogIndex().Result.ShouldBe(1);
         }
 
@@ -35,7 +35,7 @@ namespace Rafty.UnitTests
         public async Task ShouldSetLastLogTerm()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             log.LastLogTerm().Result.ShouldBe(1);
         }
 
@@ -43,7 +43,7 @@ namespace Rafty.UnitTests
         public async Task ShouldGetTermAtIndex()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             log.GetTermAtIndex(1).Result.ShouldBe(1);
         }
 
@@ -51,7 +51,7 @@ namespace Rafty.UnitTests
         public async Task ShouldDeleteConflict()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             log.ExposedForTesting.Count.ShouldBe(0);
         }
@@ -60,7 +60,7 @@ namespace Rafty.UnitTests
         public async Task ShouldNotDeleteConflict()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1), null, null);
             log.ExposedForTesting.Count.ShouldBe(1);
         }
@@ -69,9 +69,9 @@ namespace Rafty.UnitTests
         public async Task ShouldDeleteConflictAndSubsequentLogs()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             log.ExposedForTesting.Count.ShouldBe(0);
         }
@@ -80,11 +80,11 @@ namespace Rafty.UnitTests
         public async Task ShouldDeleteConflictAndSubsequentLogsFromMidPoint()
         {
             var log = new InMemoryLog();
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             log.ExposedForTesting.Count.ShouldBe(3);
             log.ExposedForTesting[1].Term.ShouldBe(1);
@@ -96,8 +96,8 @@ namespace Rafty.UnitTests
         public async Task ShouldRemoveFromLog()
         {
             var log = new InMemoryLog();
-            var index = await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await log.Remove(index);
+            var index = await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await log.Remove(index, null, "");
             log.Count().Result.ShouldBe(0);
         }
     }

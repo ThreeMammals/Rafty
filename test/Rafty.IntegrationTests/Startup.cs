@@ -34,7 +34,7 @@ namespace Rafty.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            var settings = new InMemorySettings(4000, 5000, 100, 5000);
+            var settings = new InMemorySettings(4000, 5000, 500, 10000);
             services.AddSingleton<ILog, SqlLiteLog>();
             services.AddSingleton<IFiniteStateMachine, FileFsm>();
             services.AddSingleton<ISettings>(settings);

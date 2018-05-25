@@ -10,7 +10,7 @@ namespace Rafty.Log
         /// <summary>
         /// This will apply a log entry and return its index
         /// </summary>
-        Task<int> Apply(LogEntry log);
+        Task<int> Apply(LogEntry log, ILogger logger, string id);
         /// <summary>
         /// This will return the log entry at the index passed in
         /// </summary>
@@ -49,6 +49,6 @@ namespace Rafty.Log
         /// <summary>
         /// This removes the command at the index passed in.
         /// </summary>
-        Task Remove(int indexOfCommand);
+        Task Remove(int indexOfCommand, ILogger logger, string id);
     }
 } 

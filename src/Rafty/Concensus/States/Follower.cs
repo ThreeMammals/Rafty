@@ -26,6 +26,7 @@ namespace Rafty.Concensus
         private List<IPeer> _peers;
         private ILogger<Follower> _logger;
         private readonly SemaphoreSlim _appendingEntries = new SemaphoreSlim(1,1);
+        private bool _checkingElectionStatus;
 
         public Follower(
             CurrentState state, 
@@ -209,7 +210,16 @@ namespace Rafty.Concensus
             _electionTimer?.Dispose();
             _electionTimer = new Timer(x =>
             {
+                if (_checkingElectionStatus)
+                {
+                    return;
+                }
+
+                _checkingElectionStatus = true;
+
                 ElectionTimerExpired();
+
+                _checkingElectionStatus = false;
 
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }

@@ -256,11 +256,11 @@ namespace Rafty.UnitTests
 
             //add 3 logs
             var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
-            await _log.Apply(logOne);
+            await _log.Apply(logOne, null, "");
             var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
-            await _log.Apply(logTwo);
+            await _log.Apply(logTwo, null, "");
             var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
-            await _log.Apply(logThree);
+            await _log.Apply(logThree, null, "");
             _currentState = new CurrentState(_id, 1, default(string), 2, 2, default(string));
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
             var logs = await _log.GetFrom(1);
@@ -278,11 +278,11 @@ namespace Rafty.UnitTests
             //add 3 logs
             _currentState = new CurrentState(_id, 1, default(string), 2, 2, default(string));
             var logOne = new LogEntry(new FakeCommand("1"), typeof(string), 1);
-            await _log.Apply(logOne);
+            await _log.Apply(logOne, null, "");
             var logTwo = new LogEntry(new FakeCommand("2"), typeof(string), 1);
-            await _log.Apply(logTwo);
+            await _log.Apply(logTwo, null, "");
             var logThree = new LogEntry(new FakeCommand("3"), typeof(string), 1);
-            await _log.Apply(logThree);
+            await _log.Apply(logThree, null, "");
             var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
 
             bool FirstTest(List<PeerState> peerState)

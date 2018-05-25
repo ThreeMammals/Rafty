@@ -43,7 +43,6 @@ namespace Rafty.IntegrationTests
             var command = new FakeCommand("WHATS UP DOC?");
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
-            Thread.Sleep(10000);
             await ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
 
@@ -114,9 +113,15 @@ namespace Rafty.IntegrationTests
                 {
                     return false;
                 }
+
             }
 
-            var leaderElectedAndCommandReceived = await WaitFor(20000).Until(async () => await SendCommand());
+            var leaderElectedAndCommandReceived = await WaitFor(40000).Until(async () =>
+            {
+                var result =  await SendCommand();
+                Thread.Sleep(1000);
+                return result;
+            });
             leaderElectedAndCommandReceived.ShouldBeTrue();
         }
 
@@ -139,7 +144,8 @@ namespace Rafty.IntegrationTests
                                 var count = Convert.ToInt32(command.ExecuteScalar());
                                 if(count != 1)
                                 {
-                                    throw new Exception($"{peer.HostAndPort} had {count} logs.");
+                                    LogInformation($"{peer.HostAndPort} had {count} logs.");
+                                    continue;
                                 }
                             }
                         }
@@ -148,7 +154,8 @@ namespace Rafty.IntegrationTests
                         fsmData.ShouldNotBeNullOrEmpty();
                         if(fsmData.Length != 25)
                         {
-                            throw new Exception($"{peer.HostAndPort} had {fsmData.Length} length in fsm file");
+                            LogInformation($"{peer.HostAndPort} had {fsmData.Length} length in fsm file");
+                            continue;
                         }
                         var storedCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
                         storedCommand.Value.ShouldBe(fakeCommand.Value);
@@ -159,14 +166,18 @@ namespace Rafty.IntegrationTests
                 }
                 catch (Exception e)
                 {
-                    _output.WriteLine($"{e.Message}, {e.StackTrace}");
-                    Console.WriteLine(e);
-                    Debug.WriteLine(e);
+                    LogException(e);
                     return false;
                 }
             }
             
-            var commandOnAllStateMachines = await WaitFor(20000).Until(async () => await CommandCalledOnAllStateMachines());
+            var commandOnAllStateMachines = await WaitFor(20000).Until(async () =>
+            {
+                var result = await CommandCalledOnAllStateMachines();
+                Thread.Sleep(1000);
+                return result;
+            });
+
             commandOnAllStateMachines.ShouldBeTrue();   
         }
 
@@ -179,9 +190,24 @@ namespace Rafty.IntegrationTests
 
             foreach (var peer in _peers.Peers)
             {
+                LogInformation($"Deleting files for {peer.HostAndPort.Replace("/", "").Replace(":", "")}");
                 File.Delete(peer.HostAndPort.Replace("/", "").Replace(":", ""));
                 File.Delete($"{peer.HostAndPort.Replace("/", "").Replace(":", "")}.db");
             }
+        }
+
+        private void LogInformation(string message)
+        {
+            _output.WriteLine(message);
+            Console.WriteLine(message);
+            Debug.WriteLine(message);
+        }
+
+        private void LogException(Exception e)
+        {
+            _output.WriteLine($"{e.Message}, {e.StackTrace}");
+            Console.WriteLine(e);
+            Debug.WriteLine(e);
         }
     }
 }

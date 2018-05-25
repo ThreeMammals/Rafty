@@ -58,7 +58,7 @@ namespace Rafty.Log
                 return Task.FromResult((long)0);
         }
         
-        public Task<int> Apply(LogEntry logEntry)
+        public Task<int> Apply(LogEntry logEntry, ILogger logger, string id)
         {
             if(_log.Count <= 0)
             {
@@ -161,7 +161,7 @@ namespace Rafty.Log
             throw new Exception("Nothing in log..");
         }
 
-        public Task Remove(int indexOfCommand)
+        public Task Remove(int indexOfCommand, ILogger logger, string id)
         {
             _log.Remove(indexOfCommand);
             return Task.CompletedTask;

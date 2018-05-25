@@ -64,7 +64,7 @@ min(leaderCommit, index of last new entry)
         public async Task ShouldReplyFalseIfLogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesRpcPrevLogTerm()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 2, default(string), 0, 0, default(string));
-            await _log.Apply(new LogEntry(new FakeCommand(""), typeof(string), 2));
+            await _log.Apply(new LogEntry(new FakeCommand(""), typeof(string), 2), null, "");
             var appendEntriesRpc = new AppendEntriesBuilder().WithTerm(2).WithPreviousLogIndex(1).WithPreviousLogTerm(1).Build();
             var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings, _rules, _peers, _loggerFactory.Object);
             var appendEntriesResponse = await follower.Handle(appendEntriesRpc);
@@ -76,9 +76,9 @@ min(leaderCommit, index of last new entry)
         public async Task ShouldDeleteExistingEntryIfItConflictsWithNewOne()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 2, 0, default(string));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 2"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 2"), typeof(string), 1), null, "");
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry(new FakeCommand("term 2 commit index 2"), typeof(string),2))
                 .WithTerm(2)
@@ -95,9 +95,9 @@ min(leaderCommit, index of last new entry)
         public async Task ShouldDeleteExistingEntryIfItConflictsWithNewOneAndAppendNewEntries()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 0, 0, default(string));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 2"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 2"), typeof(string), 1), null, "");
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry(new FakeCommand("term 2 commit index 2"), typeof(string), 2))
                 .WithTerm(2)
@@ -115,7 +115,7 @@ min(leaderCommit, index of last new entry)
         public async Task ShouldAppendAnyEntriesNotInTheLog()
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 0, 0, default(string));
-            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1), null, "");
             var appendEntriesRpc = new AppendEntriesBuilder()
                 .WithEntry(new LogEntry(new FakeCommand("term 1 commit index 1"), typeof(string), 1))
                 .WithTerm(1)
@@ -136,7 +136,7 @@ min(leaderCommit, index of last new entry)
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 0, 0, default(string));
             var log = new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1);
-            await _log.Apply(log);
+            await _log.Apply(log, null, "");
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
                .WithTerm(1)
@@ -156,7 +156,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             //assume log applied by node?
             var log = new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1);
-            await _log.Apply(log);
+            await _log.Apply(log, null, "");
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
                .WithTerm(1)
@@ -177,7 +177,7 @@ min(leaderCommit, index of last new entry)
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), 0, 0, default(string));
             //assume log applied by node?
             var log = new LogEntry(new FakeCommand("term 1 commit index 0"), typeof(string), 1);
-            await _log.Apply(log);
+            await _log.Apply(log, null, "");
             var appendEntriesRpc = new AppendEntriesBuilder()
                .WithEntry(log)
                .WithTerm(1)

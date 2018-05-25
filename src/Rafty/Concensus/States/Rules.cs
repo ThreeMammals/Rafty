@@ -69,7 +69,7 @@ namespace Rafty.Concensus.States
 
                 if(!duplicate)
                 {
-                    await log.Apply(entry);
+                    await log.Apply(entry, logger, id);
                 }
             }
         }

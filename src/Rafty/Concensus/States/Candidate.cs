@@ -30,6 +30,7 @@ namespace Rafty.Concensus
         private readonly object _lock = new object();
         private int _applied;
         private ILogger<Candidate> _logger;
+        private bool _doingElection;
 
         public Candidate(
             CurrentState currentState, 
@@ -42,7 +43,15 @@ namespace Rafty.Concensus
             IRules rules,
             ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger<Candidate>();
+            try
+            {
+                _logger = loggerFactory.CreateLogger<Candidate>();
+            }
+            catch (ObjectDisposedException e)
+            {
+                //happens because asp.net shuts down services sometimes before onshutdown
+            }
+
             _rules = rules;
             _random = random;
             _node = node;
@@ -277,7 +286,16 @@ namespace Rafty.Concensus
             _electionTimer?.Dispose();
             _electionTimer = new Timer(x =>
             {
+                if (_doingElection)
+                {
+                    return;
+                }
+
+                _doingElection = true;
+
                 ElectionTimerExpired();
+
+                _doingElection = false;
 
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }

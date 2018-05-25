@@ -31,36 +31,36 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldApplyLog()
         {
-            var index = await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            var index = await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             index.ShouldBe(1);
         }
 
         [Fact]
         public async Task ShouldSetLastLogIndex()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             _log.LastLogIndex().Result.ShouldBe(2);
         }
 
         [Fact]
         public async Task ShouldSetLastLogTerm()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 2));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 2), null, "");
             _log.LastLogTerm().Result.ShouldBe(2);
         }
 
         [Fact]
         public async Task ShouldGetTermAtIndex()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             _log.GetTermAtIndex(1).Result.ShouldBe(1);
         }
 
         [Fact]
         public async Task ShouldDeleteConflict()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             _log.Count().Result.ShouldBe(0);
         }
@@ -68,7 +68,7 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldNotDeleteConflict()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 1), null, null);
             _log.Count().Result.ShouldBe(1);
         }
@@ -76,9 +76,9 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldDeleteConflictAndSubsequentLogs()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await _log.DeleteConflictsFromThisLog(1, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             _log.Count().Result.ShouldBe(0);
         }
@@ -86,11 +86,11 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldDeleteConflictAndSubsequentLogsFromMidPoint()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             await _log.DeleteConflictsFromThisLog(4, new LogEntry(new FakeCommand("test"), typeof(string), 2), null, null);
             _log.Count().Result.ShouldBe(3);
             _log.Get(1).Result.Term.ShouldBe(1);
@@ -101,11 +101,11 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldGetFrom()
         {
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
             var logs = await _log.GetFrom(3);
             logs.Count.ShouldBe(3);
         }
@@ -113,8 +113,8 @@ namespace Rafty.UnitTests
         [Fact]
         public async Task ShouldRemoveFromLog()
         {
-            var index = await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
-            await _log.Remove(index);
+            var index = await _log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1), null, "");
+            await _log.Remove(index, null, "");
             _log.Count().Result.ShouldBe(0);
         }
         public void Dispose()
