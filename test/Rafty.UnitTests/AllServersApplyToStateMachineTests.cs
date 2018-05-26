@@ -55,7 +55,7 @@ namespace Rafty.UnitTests
                 .WithEntry(log)
                 .Build();
             //assume node has added the log..
-            await _log.Apply(log, null, "");
+            await _log.Apply(log);
             var appendEntriesResponse = follower.Handle(appendEntries);
             follower.CurrentState.CurrentTerm.ShouldBe(1);
             follower.CurrentState.LastApplied.ShouldBe(1);
@@ -77,7 +77,7 @@ namespace Rafty.UnitTests
                 .WithLeaderCommitIndex(1)
                 .Build();
             //assume node has added the log..
-            await _log.Apply(log, null, "");
+            await _log.Apply(log);
             var appendEntriesResponse = candidate.Handle(appendEntries);
             candidate.CurrentState.CurrentTerm.ShouldBe(1);
             candidate.CurrentState.LastApplied.ShouldBe(1);
@@ -102,7 +102,7 @@ namespace Rafty.UnitTests
                 .WithLeaderCommitIndex(1)
                 .Build();
             //assume node has added the log..
-            await _log.Apply(log, null, "");
+            await _log.Apply(log);
             var appendEntriesResponse = leader.Handle(appendEntries);
             leader.CurrentState.CurrentTerm.ShouldBe(1);
             leader.CurrentState.LastApplied.ShouldBe(1);

@@ -58,7 +58,7 @@ namespace Rafty.Log
                 return Task.FromResult((long)0);
         }
         
-        public Task<int> Apply(LogEntry logEntry, ILogger logger, string id)
+        public Task<int> Apply(LogEntry logEntry)
         {
             if(_log.Count <= 0)
             {
@@ -93,7 +93,7 @@ namespace Rafty.Log
             return Task.FromResult(_log[index].Term);
         }
 
-        public Task DeleteConflictsFromThisLog(int logIndex, LogEntry logEntry, ILogger logger, string id)
+        public Task DeleteConflictsFromThisLog(int logIndex, LogEntry logEntry)
         {
             if((logIndex > 1 && logIndex > _log.Count -1) || _log.Count == 0 || logIndex == 0)
             {
@@ -161,7 +161,7 @@ namespace Rafty.Log
             throw new Exception("Nothing in log..");
         }
 
-        public Task Remove(int indexOfCommand, ILogger logger, string id)
+        public Task Remove(int indexOfCommand)
         {
             _log.Remove(indexOfCommand);
             return Task.CompletedTask;

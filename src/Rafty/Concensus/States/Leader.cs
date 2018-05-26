@@ -311,7 +311,7 @@ namespace Rafty.Concensus
         {
             var log = new LogEntry(command, command.GetType(), CurrentState.CurrentTerm);
             _logger.LogInformation($"{CurrentState.Id} leader logging command");
-            var index = await _log.Apply(log, _logger, CurrentState.Id);
+            var index = await _log.Apply(log);
             _logger.LogInformation($"{CurrentState.Id} leader logging command index: {index}");
             return index;
         }
@@ -440,7 +440,7 @@ namespace Rafty.Concensus
         private async Task<ErrorResponse<T>> UnableDueToTimeout<T>(T command, int indexOfCommand)
         {
             DecrementIndexesOfAnyPeersCommandReplicatedTo(indexOfCommand);
-            await _log.Remove(indexOfCommand, _logger, CurrentState.Id);
+            await _log.Remove(indexOfCommand);
             _appendingEntries = false;
             return new ErrorResponse<T>("Unable to replicate command to peers due to timeout.", command);
         }

@@ -69,7 +69,7 @@ namespace Rafty.Concensus.States
 
                 if(!duplicate)
                 {
-                    await log.Apply(entry, logger, id);
+                    await log.Apply(entry);
                 }
             }
         }
@@ -81,7 +81,7 @@ namespace Rafty.Concensus.States
             {
                 var index = appendEntries.PreviousLogIndex;
                 logger.LogInformation($"{id} Deleting index: {index}, appendEntries.PreviousLogIndex: {appendEntries.PreviousLogIndex}");
-                await log.DeleteConflictsFromThisLog(index, newLog, logger, id);
+                await log.DeleteConflictsFromThisLog(index, newLog);
             }
         }
 
