@@ -13,37 +13,40 @@ namespace Rafty.IntegrationTests
 {
     public class SqlLiteLog : ILog
     {
-        private string _path;
+        private readonly string _path;
         private readonly SemaphoreSlim _sempaphore = new SemaphoreSlim(1,1);
-        private ILogger _logger;
-        private NodeId _nodeId;
+        private readonly ILogger _logger;
+        private readonly NodeId _nodeId;
 
         public SqlLiteLog(NodeId nodeId, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<SqlLiteLog>();
             _nodeId = nodeId;
             _path = $"{nodeId.Id.Replace("/","").Replace(":","")}.db";
-
             _sempaphore.Wait();
+
             if (!File.Exists(_path))
             {
-                FileStream fs = File.Create(_path);
+                var fs = File.Create(_path);
+
                 fs.Dispose();
                 
                 using(var connection = new SqliteConnection($"Data Source={_path};"))
                 {
                     connection.Open();
-                    var sql = @"create table logs (
+
+                    const string sql = @"create table logs (
                         id integer primary key,
                         data text not null
                     )";
+
                     using(var command = new SqliteCommand(sql, connection))
                     {
                         var result = command.ExecuteNonQuery();
-                        if (result == 1)
-                        {
-                            _logger.LogInformation($"id: {_nodeId.Id} created database");
-                        }
+
+                        _logger.LogInformation(result == 0
+                            ? $"id: {_nodeId.Id} create database, result: {result}"
+                            : $"id: {_nodeId.Id} did not create database., result: {result}");
                     }
                 }
             }

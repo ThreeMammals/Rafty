@@ -21,10 +21,10 @@ namespace Rafty.Concensus.States
         private Timer _electionTimer;
         private int _messagesSinceLastElectionExpiry;
         private readonly INode _node;
-        private ISettings _settings;
-        private IRules _rules;
+        private readonly ISettings _settings;
+        private readonly IRules _rules;
         private List<IPeer> _peers;
-        private ILogger<Follower> _logger;
+        private readonly ILogger<Follower> _logger;
         private readonly SemaphoreSlim _appendingEntries = new SemaphoreSlim(1,1);
         private bool _checkingElectionStatus;
 
@@ -54,42 +54,54 @@ namespace Rafty.Concensus.States
         public CurrentState CurrentState { get; private set;}
 
         public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
-        {            
-            await _appendingEntries.WaitAsync();
-            var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
+        {
+            try
+            {
+                await _appendingEntries.WaitAsync();
 
-            if(response.shouldReturn)
+                var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
+
+                if (response.shouldReturn)
+                {
+                    return response.appendEntriesResponse;
+                }
+
+                response =
+                    await _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries,
+                        _log, CurrentState);
+
+                if (response.shouldReturn)
+                {
+                    return response.appendEntriesResponse;
+                }
+
+                await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
+
+                var terms = appendEntries.Entries.Any()
+                    ? string.Join(",", appendEntries.Entries.Select(x => x.Term))
+                    : string.Empty;
+
+                _logger.LogInformation(
+                    $"{CurrentState.Id} as {nameof(Follower)} applying {appendEntries.Entries.Count} to log, term {terms}");
+
+                await _rules.ApplyNewEntriesToLog(appendEntries, _log);
+
+                var commitIndexAndLastApplied =
+                    await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
+
+                await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied,
+                    appendEntries);
+
+                SetLeaderId(appendEntries);
+
+                _messagesSinceLastElectionExpiry++;
+
+                return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
+            }
+            finally
             {
                 _appendingEntries.Release();
-                return response.appendEntriesResponse;
             }
-
-            response = await _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
-
-            if(response.shouldReturn)
-            {                
-                _appendingEntries.Release();
-                return response.appendEntriesResponse;
-            }
-
-            await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
-
-            var terms = appendEntries.Entries.Any() ? string.Join(",", appendEntries.Entries.Select(x => x.Term)) : string.Empty;
-
-            _logger.LogInformation($"{CurrentState.Id} as {nameof(Follower)} applying {appendEntries.Entries.Count} to log, term {terms}");
-
-            await _rules.ApplyNewEntriesToLog(appendEntries, _log);
-
-            var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
-
-            await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
-
-            SetLeaderId(appendEntries);
-            
-            _messagesSinceLastElectionExpiry++;
-
-            _appendingEntries.Release();
-            return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 
         public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
@@ -184,18 +196,23 @@ namespace Rafty.Concensus.States
         
         private void ElectionTimerExpired()
         {
-            _appendingEntries.Wait();
-
-            if (_messagesSinceLastElectionExpiry == 0)
+            try
             {
-                _node.BecomeCandidate(CurrentState);
-            }
-            else
-            {
-                ResetElectionTimer();
-            }
+                _appendingEntries.Wait();
 
-            _appendingEntries.Release();
+                if (_messagesSinceLastElectionExpiry == 0)
+                {
+                    _node.BecomeCandidate(CurrentState);
+                }
+                else
+                {
+                    ResetElectionTimer();
+                }
+            }
+            finally
+            {
+                _appendingEntries.Release();
+            }
         }
 
         private void SetLeaderId(AppendEntries appendEntries)
