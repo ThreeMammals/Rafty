@@ -1,34 +1,34 @@
-namespace Rafty.Concensus
-{  
+namespace Rafty.Concensus.States
+{
+    using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
-    using System;
-    using System.Collections.Generic;
     using System.Threading.Tasks;
-    using Newtonsoft.Json;
-    using Rafty.Concensus.States;
-    using Rafty.FiniteStateMachine;
-    using Rafty.Log;
-    using System.Diagnostics;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Log;
+    using Messages;
     using Microsoft.Extensions.Logging;
+    using Node;
+    using Peers;
 
     public sealed class Leader : IState
     {
         private readonly IFiniteStateMachine _fsm;
-        Func<CurrentState, List<IPeer>> _getPeers;
+        readonly Func<CurrentState, List<IPeer>> _getPeers;
         private readonly ILog _log;
         private readonly INode _node;
         private readonly ISettings _settings;
         private IRules _rules;
-        private readonly object _lock = new object();
         private bool _handled;
         private Stopwatch _stopWatch;
         private Timer _electionTimer;
         public long SendAppendEntriesCount;
         private bool _appendingEntries;
-        private ILogger<Leader> _logger;
-        private SemaphoreSlim _semaphore = new SemaphoreSlim(1,1);
+        private readonly ILogger<Leader> _logger;
 
         public Leader(
             CurrentState currentState, 

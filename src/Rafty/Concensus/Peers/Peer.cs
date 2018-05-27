@@ -1,9 +1,10 @@
-using Rafty.FiniteStateMachine;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.Peers
 {
     using System;
     using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Messages;
 
     public class Peer : IPeer
     {

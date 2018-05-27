@@ -1,6 +1,5 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.Messages
 {
-    using System;
     using System.Collections.Generic;
     using Log;
 

@@ -1,5 +1,7 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
+    using Peers;
+
     public class MatchIndex
     {
         public MatchIndex(IPeer peer, int indexOfHighestKnownReplicatedLog)

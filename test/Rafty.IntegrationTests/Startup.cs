@@ -16,6 +16,9 @@ using ConfigurationBuilder = Microsoft.Extensions.Configuration.ConfigurationBui
 
 namespace Rafty.IntegrationTests
 {
+    using Concensus.Messages;
+    using Concensus.Node;
+
     public class Startup
     {
         public Startup(IHostingEnvironment env)
@@ -54,7 +57,7 @@ namespace Rafty.IntegrationTests
             var node = (INode)app.ApplicationServices.GetService(typeof(INode));
             var nodeId = (NodeId)app.ApplicationServices.GetService(typeof(NodeId));
             var logger = loggerFactory.CreateLogger<Startup>();
-            node.Start(nodeId.Id.ToString());
+            node.Start(nodeId);
 
             var jsonSerializerSettings = new JsonSerializerSettings() { 
                 TypeNameHandling = TypeNameHandling.All

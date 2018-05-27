@@ -17,6 +17,9 @@ using static Rafty.Infrastructure.Wait;
 namespace Rafty.AcceptanceTests
 {
     using System.Threading.Tasks;
+    using Concensus.Node;
+    using Concensus.Peers;
+    using Concensus.States;
     using Microsoft.Extensions.Logging;
     using Moq;
 
@@ -201,7 +204,7 @@ namespace Rafty.AcceptanceTests
                 peer.SetNode(server.Node);
                 var nextIndex = _servers.Count;
                 _servers.TryAdd(nextIndex, server);
-                node.Start(Guid.NewGuid().ToString());
+                node.Start(new NodeId(Guid.NewGuid().ToString()));
             }
         }
 
@@ -283,7 +286,7 @@ namespace Rafty.AcceptanceTests
 
         private void BringPreviousLeaderBackToLife()
         {
-            _previousLeader.Value.Node.Start(_previousLeader.Value.Node.State.CurrentState.Id);
+            _previousLeader.Value.Node.Start(new NodeId(_previousLeader.Value.Node.State.CurrentState.Id));
             _servers.TryAdd(_previousLeader.Key, _previousLeader.Value);
         }
 
@@ -417,7 +420,7 @@ namespace Rafty.AcceptanceTests
         {
             foreach(var server in _servers)
             {
-                server.Value.Node.Start(Guid.NewGuid().ToString());
+                server.Value.Node.Start(new NodeId(Guid.NewGuid().ToString()));
             }
         }
     }

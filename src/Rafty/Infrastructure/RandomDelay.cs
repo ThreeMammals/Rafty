@@ -1,6 +1,7 @@
-namespace Rafty.Concensus
+namespace Rafty.Infrastructure
 {
     using System;
+
     public class RandomDelay : IRandomDelay
     {
         private Random _random;

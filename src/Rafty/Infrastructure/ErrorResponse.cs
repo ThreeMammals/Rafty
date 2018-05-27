@@ -1,4 +1,4 @@
-namespace Rafty.Concensus
+namespace Rafty.Infrastructure
 {
     public class ErrorResponse<T> : Response<T>
     {

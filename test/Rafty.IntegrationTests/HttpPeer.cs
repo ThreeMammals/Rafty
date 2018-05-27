@@ -7,6 +7,9 @@ using Rafty.FiniteStateMachine;
 namespace Rafty.IntegrationTests
 {
     using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Peers;
+    using Infrastructure;
 
     public class HttpPeer : IPeer
     {

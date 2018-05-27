@@ -5,12 +5,15 @@ using Rafty.Log;
 
 namespace Rafty.Concensus.States
 {
+    using Infrastructure;
+    using Messages;
+
     public interface IRules 
     {
         (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries, CurrentState currentState);
         Task<(AppendEntriesResponse appendEntriesResponse, bool shouldReturn)> LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries, ILog log, CurrentState currentState);
-        Task DeleteAnyConflictsInLog(AppendEntries appendEntries, ILog log, ILogger logger, string id);
-        Task ApplyNewEntriesToLog(AppendEntries appendEntries, ILog log, ILogger logger, string id);
+        Task DeleteAnyConflictsInLog(AppendEntries appendEntries, ILog log);
+        Task ApplyNewEntriesToLog(AppendEntries appendEntries, ILog log);
         Task<(int commitIndex, int lastApplied)> CommitIndexAndLastApplied(AppendEntries appendEntries, ILog log, CurrentState currentState);
         (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote, CurrentState currentState);
         (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote, CurrentState currentState);
@@ -18,6 +21,15 @@ namespace Rafty.Concensus.States
 
     public class Rules : IRules
     {
+        private ILogger _logger;
+        private NodeId _nodeId;
+
+        public Rules(ILoggerFactory factory, NodeId nodeId)
+        {
+            _logger = factory.CreateLogger<Rules>();
+            _nodeId = nodeId;
+        }
+
         // todo - consolidate with candidate and pass in as function
         public (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote, CurrentState currentState)
         {
@@ -54,7 +66,7 @@ namespace Rafty.Concensus.States
             return (commitIndex, lastApplied);
         }
         // todo - inject as function into candidate and follower as logic is the same...
-        public async Task ApplyNewEntriesToLog(AppendEntries appendEntries, ILog log, ILogger logger, string id)
+        public async Task ApplyNewEntriesToLog(AppendEntries appendEntries, ILog log)
         {
             foreach (var entry in appendEntries.Entries)
             {
@@ -64,7 +76,7 @@ namespace Rafty.Concensus.States
 
                 if(duplicate)
                 {
-                    logger.LogInformation($"id:{id} had dup log, index:{index}, term:{entry.Term}");
+                    _logger.LogInformation($"id:{_nodeId.Id} had dup log, index:{index}, term:{entry.Term}");
                 }
 
                 if(!duplicate)
@@ -75,12 +87,12 @@ namespace Rafty.Concensus.States
         }
 
          // todo - inject as function into candidate and follower as logic is the same...
-        public async Task DeleteAnyConflictsInLog(AppendEntries appendEntries, ILog log, ILogger logger, string id)
+        public async Task DeleteAnyConflictsInLog(AppendEntries appendEntries, ILog log)
         {
             foreach (var newLog in appendEntries.Entries)
             {
                 var index = appendEntries.PreviousLogIndex;
-                logger.LogInformation($"{id} Deleting index: {index}, appendEntries.PreviousLogIndex: {appendEntries.PreviousLogIndex}");
+                _logger.LogInformation($"{_nodeId.Id} Deleting index: {index}, appendEntries.PreviousLogIndex: {appendEntries.PreviousLogIndex}");
                 await log.DeleteConflictsFromThisLog(index, newLog);
             }
         }

@@ -3,6 +3,7 @@ using Rafty.Concensus;
 
 namespace Rafty.Infrastructure
 {
+    using Concensus.Peers;
 
     public class InMemoryPeersProvider : IPeersProvider
     {   

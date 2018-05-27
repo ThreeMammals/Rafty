@@ -1,5 +1,7 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
+    using Peers;
+
     public class PeerState
     {
         public PeerState(IPeer peer, MatchIndex matchIndex, NextIndex nextIndex)

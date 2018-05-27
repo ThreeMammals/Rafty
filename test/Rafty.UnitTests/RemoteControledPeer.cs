@@ -5,6 +5,9 @@ using Rafty.FiniteStateMachine;
 namespace Rafty.UnitTests
 {
     using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Peers;
+    using Infrastructure;
 
     public class RemoteControledPeer : IPeer
     {

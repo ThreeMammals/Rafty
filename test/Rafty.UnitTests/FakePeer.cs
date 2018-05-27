@@ -6,6 +6,9 @@ namespace Rafty.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using Concensus;
+    using Concensus.Messages;
+    using Concensus.Peers;
+    using Infrastructure;
 
     internal class FakePeer : IPeer
     {

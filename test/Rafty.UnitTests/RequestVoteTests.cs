@@ -11,6 +11,10 @@ using Xunit;
 namespace Rafty.UnitTests
 {
     using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Node;
+    using Concensus.Peers;
+    using Infrastructure;
     using Microsoft.Extensions.Logging;
     using Moq;
 
@@ -34,7 +38,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         public RequestVoteTests()
         {
             _loggerFactory = new Mock<ILoggerFactory>();
-            _rules = new Rules();
+            _rules = new Rules(_loggerFactory.Object, new NodeId(default(string)));
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();

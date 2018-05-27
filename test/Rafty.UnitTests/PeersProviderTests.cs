@@ -6,6 +6,8 @@ using Xunit;
 
 namespace Rafty.UnitTests
 {
+    using Concensus.Peers;
+
     public class PeersProviderTests
     {
         [Fact]

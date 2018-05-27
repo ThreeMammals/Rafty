@@ -5,6 +5,10 @@ using Rafty.FiniteStateMachine;
 namespace Rafty.UnitTests
 {
     using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Node;
+    using Concensus.States;
+    using Infrastructure;
 
     public class NothingNode : INode
     {
@@ -39,7 +43,7 @@ namespace Rafty.UnitTests
             return new RequestVoteResponseBuilder().Build();
         }
 
-        public void Start(string id)
+        public void Start(NodeId id)
         {
             throw new System.NotImplementedException();
         }

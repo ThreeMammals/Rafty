@@ -1,13 +1,12 @@
-namespace Rafty.UnitTests
+namespace Rafty.IntegrationTests
 {
     using System;
     using System.IO;
     using System.Threading.Tasks;
+    using Infrastructure;
     using Log;
     using Microsoft.Extensions.Logging;
     using Moq;
-    using Rafty.Infrastructure;
-    using Rafty.IntegrationTests;
     using Shouldly;
     using Xunit;
 

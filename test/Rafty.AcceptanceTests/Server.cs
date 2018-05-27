@@ -4,6 +4,8 @@ using Rafty.Log;
 
 namespace Rafty.AcceptanceTests
 {
+    using Concensus.Node;
+
     public class Server
     {
         public Server(InMemoryLog log, InMemoryStateMachine fsm, Node node)

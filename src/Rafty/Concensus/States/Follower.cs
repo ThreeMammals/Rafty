@@ -1,17 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.VisualBasic;
-using Newtonsoft.Json;
-using Rafty.Concensus.States;
-using Rafty.FiniteStateMachine;
-using Rafty.Log;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Log;
+    using Messages;
     using Microsoft.Extensions.Logging;
+    using Node;
+    using Peers;
 
     public sealed class Follower : IState
     {
@@ -72,13 +72,13 @@ namespace Rafty.Concensus
                 return response.appendEntriesResponse;
             }
 
-            await _rules.DeleteAnyConflictsInLog(appendEntries, _log, _logger, CurrentState.Id);
+            await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
 
             var terms = appendEntries.Entries.Any() ? string.Join(",", appendEntries.Entries.Select(x => x.Term)) : string.Empty;
 
             _logger.LogInformation($"{CurrentState.Id} as {nameof(Follower)} applying {appendEntries.Entries.Count} to log, term {terms}");
 
-            await _rules.ApplyNewEntriesToLog(appendEntries, _log, _logger, CurrentState.Id);
+            await _rules.ApplyNewEntriesToLog(appendEntries, _log);
 
             var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 

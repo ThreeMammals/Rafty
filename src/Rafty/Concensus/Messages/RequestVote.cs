@@ -1,6 +1,4 @@
-using System;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.Messages
 {
     public sealed class RequestVote
     {

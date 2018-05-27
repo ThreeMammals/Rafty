@@ -1,32 +1,35 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Rafty.Concensus;
-using Rafty.Concensus.States;
-using Rafty.FiniteStateMachine;
-using Rafty.Log;
-using Shouldly;
-using Xunit;
-using static Rafty.Infrastructure.Wait;
-
 namespace Rafty.UnitTests
 {
+    using Infrastructure;
     using Microsoft.Extensions.Logging;
     using Moq;
+    using System;
+    using System.Collections.Generic;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Node;
+    using Concensus.Peers;
+    using Rafty.Concensus;
+    using Rafty.Concensus.States;
+    using Rafty.FiniteStateMachine;
+    using Rafty.Log;
+    using Shouldly;
+    using Xunit;
+    using static Rafty.Infrastructure.Wait;
 
     public class LeaderTests
     {
         private readonly IFiniteStateMachine _fsm;
-        private INode _node;
+        private readonly INode _node;
         private readonly string _id;
         private CurrentState _currentState;
         private List<IPeer> _peers;
         private readonly ILog _log;
         private readonly IRandomDelay _delay;
         private InMemorySettings _settings;
-        private IRules _rules;
-        private Mock<ILoggerFactory> _loggerFactory;
+        private readonly IRules _rules;
+        private readonly Mock<ILoggerFactory> _loggerFactory;
         private Mock<ILogger> _logger;
 
         public LeaderTests()
@@ -34,7 +37,7 @@ namespace Rafty.UnitTests
             _logger = new Mock<ILogger>();
             _loggerFactory = new Mock<ILoggerFactory>();
             _loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_logger.Object);
-            _rules = new Rules();
+            _rules = new Rules(_loggerFactory.Object, new NodeId(default(string)));
             _settings = new InMemorySettingsBuilder().Build();
             _delay = new RandomDelay();
             _log = new InMemoryLog();
@@ -54,7 +57,7 @@ namespace Rafty.UnitTests
                 _peers.Add(new FakePeer(true));
             }
             _currentState = new CurrentState(_id, 0, default(string), 0, 0, default(string));
-            var leader = new Leader(_currentState, _fsm, (s) => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
+            var leader = new Leader(_currentState, _fsm, s => _peers, _log, _node, _settings, _rules, _loggerFactory.Object);
             bool TestPeers(List<IPeer> peers)
             {
                 var passed = 0;

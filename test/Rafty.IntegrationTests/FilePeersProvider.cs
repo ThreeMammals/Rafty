@@ -7,6 +7,8 @@ using Rafty.Infrastructure;
 
 namespace Rafty.IntegrationTests
 {
+    using Concensus.Peers;
+
     public class FilePeersProvider : IPeersProvider
     {
         private readonly IOptions<FilePeers> _options;

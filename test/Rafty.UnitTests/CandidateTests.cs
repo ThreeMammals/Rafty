@@ -4,6 +4,10 @@ namespace Rafty.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using Concensus;
+    using Concensus.Messages;
+    using Concensus.Node;
+    using Concensus.Peers;
+    using Infrastructure;
     using Microsoft.Extensions.Logging;
     using Moq;
     using Rafty.Concensus.States;
@@ -12,29 +16,30 @@ namespace Rafty.UnitTests
     using Shouldly;
     using Xunit;
 
-/*Candidates(�5.2):
-� On conversion to candidate, start election:
-� Increment currentTerm
-� Vote for self
-� Reset election timer
-� Send RequestVote RPCs to all other servers
-� If votes received from majority of servers: become leader
-� If AppendEntries RPC received from new leader: convert to
-follower
-� If election timeout elapses: start new election*/
+    /*Candidates(�5.2):
+        � On conversion to candidate, start election:
+        � Increment currentTerm
+        � Vote for self
+        � Reset election timer
+        � Send RequestVote RPCs to all other servers
+        � If votes received from majority of servers: become leader
+        � If AppendEntries RPC received from new leader: convert to
+        follower
+        � If election timeout elapses: start new election
+    */
 
     public class CandidateTests
     {
-        private IFiniteStateMachine _fsm;
-        private ILog _log;
+        private readonly IFiniteStateMachine _fsm;
+        private readonly ILog _log;
         private List<IPeer> _peers;
-        private IRandomDelay _random;
+        private readonly IRandomDelay _random;
         private INode _node;
         private readonly string _id;
         private CurrentState _currentState;
-        private InMemorySettings _settings;
-        private IRules _rules;
-        private Mock<ILoggerFactory> _loggerFactory;
+        private readonly InMemorySettings _settings;
+        private readonly IRules _rules;
+        private readonly Mock<ILoggerFactory> _loggerFactory;
         private Mock<ILogger> _logger;
 
         public CandidateTests()
@@ -42,7 +47,7 @@ follower
             _logger = new Mock<ILogger>();
             _loggerFactory = new Mock<ILoggerFactory>();
             _loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_logger.Object);
-            _rules = new Rules();
+            _rules = new Rules(_loggerFactory.Object, new NodeId(default(string)));
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();

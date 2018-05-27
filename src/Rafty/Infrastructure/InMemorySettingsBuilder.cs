@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Rafty.Concensus
+﻿namespace Rafty.Infrastructure
 {
     public class InMemorySettingsBuilder
     {

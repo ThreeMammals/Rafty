@@ -1,5 +1,7 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
+    using Peers;
+
     public class NextIndex
     {
         public NextIndex(IPeer peer, int nextLogIndexToSendToPeer)

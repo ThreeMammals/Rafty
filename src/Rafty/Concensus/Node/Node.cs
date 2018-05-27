@@ -1,15 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Rafty.Concensus.States;
-using Rafty.FiniteStateMachine;
-using Rafty.Infrastructure;
-using Rafty.Log;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.Node
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Log;
+    using Messages;
     using Microsoft.Extensions.Logging;
+    using Peers;
+    using States;
 
     public class Node : INode
     { 
@@ -32,8 +33,6 @@ namespace Rafty.Concensus
         {
             _loggerFactory = loggerFactory;
             _logger = _loggerFactory.CreateLogger<Node>();
-            //dont think rules should be injected at the moment..EEK UNCLE BOB
-            _rules = new Rules();
             _fsm = fsm;
             _log = log;
             _random = new RandomDelay();
@@ -48,11 +47,13 @@ namespace Rafty.Concensus
 
         public IState State { get; private set; }
 
-        public void Start(string id)
+        public void Start(NodeId id)
         {
-            if(State?.CurrentState == null)
+            _rules = new Rules(_loggerFactory, id);
+
+            if (State?.CurrentState == null)
             {
-                BecomeFollower(new CurrentState(id, 0, default(string), 0, 0, default(string)));
+                BecomeFollower(new CurrentState(id.Id, 0, default(string), 0, 0, default(string)));
             }
             else
             {
