@@ -43,6 +43,7 @@ namespace Rafty.IntegrationTests
             var command = new FakeCommand("WHATS UP DOC?");
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
+            Thread.Sleep(10000);
             await ThenTheCommandIsReplicatedToAllStateMachines(command);
         }
 

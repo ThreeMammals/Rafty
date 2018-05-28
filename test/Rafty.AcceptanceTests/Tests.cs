@@ -189,15 +189,9 @@ namespace Rafty.AcceptanceTests
                 var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
                 var peersProvider = new InMemoryPeersProvider(_peers);
 
-                ILogger<Node> nodeLogger = new AcceptanceTestLogger<Node>();
-                ILogger<Candidate> candidateLogger = new AcceptanceTestLogger<Candidate>();
-                ILogger<Leader> leaderLogged = new AcceptanceTestLogger<Leader>();
-                ILogger<Follower> followerLogger = new AcceptanceTestLogger<Follower>();
+                var logger = new Mock<ILogger>();
                 var loggerFactory = new Mock<ILoggerFactory>();
-                loggerFactory.Setup(x => x.CreateLogger("Node")).Returns(nodeLogger);
-                loggerFactory.Setup(x => x.CreateLogger("Candidate")).Returns(candidateLogger);
-                loggerFactory.Setup(x => x.CreateLogger("Leader")).Returns(leaderLogged);
-                loggerFactory.Setup(x => x.CreateLogger("Follower")).Returns(followerLogger);
+                loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
 
                 var node = new Node(fsm, log, settings, peersProvider, loggerFactory.Object);
                 var server = new Server(log, fsm, node);
@@ -319,15 +313,9 @@ namespace Rafty.AcceptanceTests
             var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
             var peersProvider = new InMemoryPeersProvider(_peers);
 
-            ILogger<Node> nodeLogger = new AcceptanceTestLogger<Node>();
-            ILogger<Candidate> candidateLogger = new AcceptanceTestLogger<Candidate>();
-            ILogger<Leader> leaderLogged = new AcceptanceTestLogger<Leader>();
-            ILogger<Follower> followerLogger = new AcceptanceTestLogger<Follower>();
+            var logger = new Mock<ILogger>();
             var loggerFactory = new Mock<ILoggerFactory>();
-            loggerFactory.Setup(x => x.CreateLogger("Node")).Returns(nodeLogger);
-            loggerFactory.Setup(x => x.CreateLogger("Candidate")).Returns(candidateLogger);
-            loggerFactory.Setup(x => x.CreateLogger("Leader")).Returns(leaderLogged);
-            loggerFactory.Setup(x => x.CreateLogger("Follower")).Returns(followerLogger);
+            loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
 
             var node = new Node(fsm, log, settings, peersProvider, loggerFactory.Object);
             var server = new Server(log, fsm, node);
@@ -428,28 +416,5 @@ namespace Rafty.AcceptanceTests
     class FakeCommand : ICommand
     {
         public string Value => "FakeCommand";
-    }
-
-    public class AcceptanceTestLogger<T> : ILogger<T>, IDisposable
-    {
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
-        {
-            Console.WriteLine($"{logLevel}, {eventId}, {state}, {exception}, {formatter(state, exception)}");
-            Debug.WriteLine($"{logLevel}, {eventId}, {state}, {exception}, {formatter(state, exception)}");
-        }
-
-        public bool IsEnabled(LogLevel logLevel)
-        {
-            return true;
-        }
-
-        public IDisposable BeginScope<TState>(TState state)
-        {
-            return this;
-        }
-
-        public void Dispose()
-        {
-        }
     }
 }
