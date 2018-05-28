@@ -48,6 +48,7 @@ namespace Rafty.UnitTests
             _fsm = new InMemoryStateMachine();
             _peersProvider = new InMemoryPeersProvider(_peers);
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 0, default(string), -1, -1, default(string));
+            _node = new NothingNode();
         }
 
         [Fact]

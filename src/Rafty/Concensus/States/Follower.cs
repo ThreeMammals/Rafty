@@ -27,6 +27,7 @@ namespace Rafty.Concensus.States
         private readonly ILogger<Follower> _logger;
         private readonly SemaphoreSlim _appendingEntries = new SemaphoreSlim(1,1);
         private bool _checkingElectionStatus;
+        private bool _disposed;
 
         public Follower(
             CurrentState state, 
@@ -153,6 +154,7 @@ namespace Rafty.Concensus.States
 
         public void Stop()
         {
+            _disposed = true;
             _electionTimer.Dispose();
         }
 
