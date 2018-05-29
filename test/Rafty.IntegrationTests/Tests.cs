@@ -1,27 +1,28 @@
-﻿namespace Rafty.IntegrationTests
-{
-    using System.Diagnostics;
-    using System.Threading.Tasks;
-    using Microsoft.Data.Sqlite;
-    using Microsoft.Extensions.Logging;
-    using Rafty.Log;
-    using Xunit.Abstractions;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
-    using System.Net.Http;
-    using System.Threading;
-    using Microsoft.AspNetCore.Hosting;
-    using Microsoft.Extensions.DependencyInjection;
-    using Newtonsoft.Json;
-    using Rafty.Concensus;
-    using Rafty.Infrastructure;
-    using Shouldly;
-    using Xunit;
-    using static Rafty.Infrastructure.Wait;
-    using Rafty.FiniteStateMachine;
+﻿using System.Diagnostics;
+using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+using Rafty.Log;
+using Xunit.Abstractions;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
+using Rafty.Concensus;
+using Rafty.Infrastructure;
+using Shouldly;
+using Xunit;
+using static Rafty.Infrastructure.Wait;
+using Rafty.FiniteStateMachine;
 
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+namespace Rafty.IntegrationTests
+{
     public class Tests : IDisposable
     {
         private readonly List<IWebHost> _builders;
