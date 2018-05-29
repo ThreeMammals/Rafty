@@ -59,7 +59,7 @@ namespace Rafty.Concensus.States
 
             var lastApplied = currentState.LastApplied;
 
-            _logger.LogInformation($"id: {_nodeId.Id} getting CommitIndexAndLastApplied before if statment, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied},commitIndex: {commitIndex}");
+            _logger.LogInformation($"id: {_nodeId.Id} £ before if statment, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied},commitIndex: {commitIndex}");
 
             if (appendEntries.LeaderCommitIndex > commitIndex)
             {

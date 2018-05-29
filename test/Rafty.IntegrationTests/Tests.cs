@@ -41,7 +41,21 @@
         [Fact]
         public async Task ShouldPersistCommandToFiveServers()
         {
+            var peers = new List<FilePeer>
+            {
+                new FilePeer {HostAndPort = "http://localhost:5000"},
+
+                new FilePeer {HostAndPort = "http://localhost:5001"},
+
+                new FilePeer {HostAndPort = "http://localhost:5002"},
+
+                new FilePeer {HostAndPort = "http://localhost:5003"},
+
+                new FilePeer {HostAndPort = "http://localhost:5004"}
+            };
+      
             var command = new FakeCommand("WHATS UP DOC?");
+            GivenThePeersAre(peers);
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
             Thread.Sleep(10000);
@@ -51,12 +65,34 @@
         [Fact]
         public async Task ShouldPersistTwoCommandsToFiveServers()
         {
+            var peers = new List<FilePeer>
+            {
+                new FilePeer {HostAndPort = "http://localhost:5005"},
+
+                new FilePeer {HostAndPort = "http://localhost:5006"},
+
+                new FilePeer {HostAndPort = "http://localhost:5007"},
+
+                new FilePeer {HostAndPort = "http://localhost:5008"},
+
+                new FilePeer {HostAndPort = "http://localhost:5009"}
+            };
+      
             var command = new FakeCommand("WHATS UP DOC?");
+            GivenThePeersAre(peers);            
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
             await WhenISendACommandIntoTheCluster(command);
             Thread.Sleep(10000);
             await ThenTheCommandIsReplicatedToAllStateMachines(command, 2);
+        }
+
+        private void GivenThePeersAre(List<FilePeer> peers)
+        {
+            FilePeers filePeers = new FilePeers();
+            filePeers.Peers.AddRange(peers);
+            var json = JsonConvert.SerializeObject(filePeers);
+            File.WriteAllText("peers.json", json);
         }
 
         private void GivenAServerIsRunning(string url)
@@ -74,7 +110,6 @@
                 .ConfigureLogging((hostingContext, logging) =>
                 {
                     logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
-                    logging.AddConsole();
                 })
                 .UseStartup<Startup>();
 

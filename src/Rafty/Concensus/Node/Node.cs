@@ -60,7 +60,7 @@ namespace Rafty.Concensus.Node
 
         public void BecomeCandidate(CurrentState state)
         {
-            State.Stop();
+            State?.Stop();
             _logger.LogInformation($"{state.Id} became candidate");
             var candidate = new Candidate(state, _fsm, _getPeers(state), _log, _random, this, _settings, _rules, _loggerFactory);
             State = candidate;
@@ -134,6 +134,7 @@ namespace Rafty.Concensus.Node
         public void Stop()
         {
             State.Stop();
+            State = null;
         }
     }
 }
