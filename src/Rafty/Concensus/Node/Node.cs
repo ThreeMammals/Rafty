@@ -136,5 +136,10 @@ namespace Rafty.Concensus.Node
             State.Stop();
             State = null;
         }
+
+        public void Pause()
+        {
+            State.Stop();
+        }
     }
 }

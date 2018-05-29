@@ -296,7 +296,7 @@ namespace Rafty.AcceptanceTests
             leaderElectedAndCommandReceived.ShouldBeTrue();
 
             var leaderServer = GetLeader();
-            leaderServer.Value.Node.Stop();
+            leaderServer.Value.Node.Pause();
 
             if (!_servers.TryRemove(leaderServer.Key, out Server _))
             {
