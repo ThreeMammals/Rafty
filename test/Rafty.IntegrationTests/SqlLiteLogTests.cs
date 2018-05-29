@@ -1,11 +1,12 @@
-namespace Rafty.UnitTests
+namespace Rafty.IntegrationTests
 {
     using System;
     using System.IO;
     using System.Threading.Tasks;
+    using Infrastructure;
     using Log;
-    using Rafty.Infrastructure;
-    using Rafty.IntegrationTests;
+    using Microsoft.Extensions.Logging;
+    using Moq;
     using Shouldly;
     using Xunit;
 
@@ -14,10 +15,14 @@ namespace Rafty.UnitTests
         private SqlLiteLog _log;
         private string _id;
 
+
         public SqlLiteLogTests()
         {
+            var factory = new Mock<ILoggerFactory>();
+            var logger = new Mock<ILogger>();
+            factory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
             _id = Guid.NewGuid().ToString();
-            _log = new SqlLiteLog(new NodeId(_id));
+            _log = new SqlLiteLog(new NodeId(_id), factory.Object);
         }
 
         [Fact]
@@ -117,9 +122,29 @@ namespace Rafty.UnitTests
             await _log.Remove(index);
             _log.Count().Result.ShouldBe(0);
         }
+
+        [Fact]
+        public async Task ShouldBeDuplicate()
+        {
+            var entry = new LogEntry(new FakeCommand("test"), typeof(string), 1);
+            var index = await _log.Apply(entry);
+            var result = await _log.IsDuplicate(index, entry);
+            result.ShouldBeTrue();
+        }
+
+        [Fact]
+        public async Task ShouldNotBeDuplicate()
+        {
+            var entry = new LogEntry(new FakeCommand("test"), typeof(string), 1);
+            var index = await _log.Apply(entry);
+            var newEntry = new LogEntry(new FakeCommand("test"), typeof(string), 2);
+            var result = await _log.IsDuplicate(index, newEntry);
+            result.ShouldBeFalse();        
+        }
+
         public void Dispose()
         {
-            File.Delete($"{_id.ToString()}.db");
+            File.Delete($"{_id}.db");
         }
     }
 }

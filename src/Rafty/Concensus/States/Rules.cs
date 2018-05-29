@@ -1,15 +1,19 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Rafty.Log;
 
 namespace Rafty.Concensus.States
 {
+    using Infrastructure;
+    using Messages;
+
     public interface IRules 
     {
         (AppendEntriesResponse appendEntriesResponse, bool shouldReturn) AppendEntriesTermIsLessThanCurrentTerm(AppendEntries appendEntries, CurrentState currentState);
         Task<(AppendEntriesResponse appendEntriesResponse, bool shouldReturn)> LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(AppendEntries appendEntries, ILog log, CurrentState currentState);
         Task DeleteAnyConflictsInLog(AppendEntries appendEntries, ILog log);
-        Task ApplyEntriesToLog(AppendEntries appendEntries, ILog log);
+        Task ApplyNewEntriesToLog(AppendEntries appendEntries, ILog log);
         Task<(int commitIndex, int lastApplied)> CommitIndexAndLastApplied(AppendEntries appendEntries, ILog log, CurrentState currentState);
         (RequestVoteResponse requestVoteResponse, bool shouldReturn) RequestVoteTermIsLessThanCurrentTerm(RequestVote requestVote, CurrentState currentState);
         (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote, CurrentState currentState);
@@ -17,6 +21,15 @@ namespace Rafty.Concensus.States
 
     public class Rules : IRules
     {
+        private ILogger _logger;
+        private NodeId _nodeId;
+
+        public Rules(ILoggerFactory factory, NodeId nodeId)
+        {
+            _logger = factory.CreateLogger<Rules>();
+            _nodeId = nodeId;
+        }
+
         // todo - consolidate with candidate and pass in as function
         public (RequestVoteResponse requestVoteResponse, bool shouldReturn) VotedForIsNotThisOrNobody(RequestVote requestVote, CurrentState currentState)
         {
@@ -43,32 +56,55 @@ namespace Rafty.Concensus.States
         public async Task<(int commitIndex, int lastApplied)> CommitIndexAndLastApplied(AppendEntries appendEntries, ILog log, CurrentState currentState)
         {
             var commitIndex = currentState.CommitIndex;
+
             var lastApplied = currentState.LastApplied;
-            if (appendEntries.LeaderCommitIndex > currentState.CommitIndex)
+
+            _logger.LogInformation($"id: {_nodeId.Id} £ before if statment, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied},commitIndex: {commitIndex}");
+
+            if (appendEntries.LeaderCommitIndex > commitIndex)
             {
-                var lastNewEntry = await log.LastLogIndex();
-                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+                var indexOfLastLog = await log.LastLogIndex();
+
+                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, indexOfLastLog);
+
+                _logger.LogInformation($"id: {_nodeId.Id} getting CommitIndexAndLastApplied in if statement, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied}, indexOfLastLog: {indexOfLastLog}, commitIndex: {commitIndex}");
+            }
+            else
+            {
+                _logger.LogInformation($"id: {_nodeId.Id} getting CommitIndexAndLastApplied in else statement, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied}, commitIndex: {commitIndex}");
             }
 
             return (commitIndex, lastApplied);
         }
         // todo - inject as function into candidate and follower as logic is the same...
-        public async Task ApplyEntriesToLog(AppendEntries appendEntries, ILog log)
+        public async Task ApplyNewEntriesToLog(AppendEntries appendEntries, ILog log)
         {
             foreach (var entry in appendEntries.Entries)
             {
-                await log.Apply(entry);
+                var index = appendEntries.PreviousLogIndex;
+
+                var duplicate = await log.IsDuplicate(index, entry);
+
+                if(duplicate)
+                {
+                    _logger.LogInformation($"id:{_nodeId.Id} had dup log, index:{index}, term:{entry.Term}");
+                }
+
+                if(!duplicate)
+                {
+                    await log.Apply(entry);
+                }
             }
         }
 
          // todo - inject as function into candidate and follower as logic is the same...
         public async Task DeleteAnyConflictsInLog(AppendEntries appendEntries, ILog log)
         {
-            var count = 1;
             foreach (var newLog in appendEntries.Entries)
             {
-                await log.DeleteConflictsFromThisLog(appendEntries.PreviousLogIndex + 1, newLog);
-                count++;
+                var index = appendEntries.PreviousLogIndex;
+                _logger.LogInformation($"{_nodeId.Id} Deleting index: {index}, appendEntries.PreviousLogIndex: {appendEntries.PreviousLogIndex}");
+                await log.DeleteConflictsFromThisLog(index, newLog);
             }
         }
 

@@ -16,6 +16,9 @@ using ConfigurationBuilder = Microsoft.Extensions.Configuration.ConfigurationBui
 
 namespace Rafty.IntegrationTests
 {
+    using Concensus.Messages;
+    using Concensus.Node;
+
     public class Startup
     {
         public Startup(IHostingEnvironment env)
@@ -34,7 +37,7 @@ namespace Rafty.IntegrationTests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            var settings = new InMemorySettings(4000, 5000, 100, 5000);
+            var settings = new InMemorySettings(4000, 6000, 500, 10000);
             services.AddSingleton<ILog, SqlLiteLog>();
             services.AddSingleton<IFiniteStateMachine, FileFsm>();
             services.AddSingleton<ISettings>(settings);
@@ -46,6 +49,7 @@ namespace Rafty.IntegrationTests
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IApplicationLifetime applicationLifetime)
         {
+            loggerFactory.AddFile("Logs/myapp-{Date}.txt");
             applicationLifetime.ApplicationStopping.Register(() => OnShutdown(app));
             //loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             var webHostBuilder = (IWebHostBuilder)app.ApplicationServices.GetService(typeof(IWebHostBuilder));
@@ -53,7 +57,7 @@ namespace Rafty.IntegrationTests
             var node = (INode)app.ApplicationServices.GetService(typeof(INode));
             var nodeId = (NodeId)app.ApplicationServices.GetService(typeof(NodeId));
             var logger = loggerFactory.CreateLogger<Startup>();
-            node.Start(nodeId.Id.ToString());
+            node.Start(nodeId);
 
             var jsonSerializerSettings = new JsonSerializerSettings() { 
                 TypeNameHandling = TypeNameHandling.All

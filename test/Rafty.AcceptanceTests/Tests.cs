@@ -17,6 +17,11 @@ using static Rafty.Infrastructure.Wait;
 namespace Rafty.AcceptanceTests
 {
     using System.Threading.Tasks;
+    using Concensus.Node;
+    using Concensus.Peers;
+    using Concensus.States;
+    using Microsoft.Extensions.Logging;
+    using Moq;
 
     public class Tests
     {
@@ -183,12 +188,17 @@ namespace Rafty.AcceptanceTests
                 var fsm = new InMemoryStateMachine();
                 var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
                 var peersProvider = new InMemoryPeersProvider(_peers);
-                var node = new Node(fsm, log, settings, peersProvider);
+
+                var logger = new Mock<ILogger>();
+                var loggerFactory = new Mock<ILoggerFactory>();
+                loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+
+                var node = new Node(fsm, log, settings, peersProvider, loggerFactory.Object);
                 var server = new Server(log, fsm, node);
                 peer.SetNode(server.Node);
                 var nextIndex = _servers.Count;
                 _servers.TryAdd(nextIndex, server);
-                node.Start(Guid.NewGuid().ToString());
+                node.Start(new NodeId(Guid.NewGuid().ToString()));
             }
         }
 
@@ -270,7 +280,7 @@ namespace Rafty.AcceptanceTests
 
         private void BringPreviousLeaderBackToLife()
         {
-            _previousLeader.Value.Node.Start(_previousLeader.Value.Node.State.CurrentState.Id);
+            _previousLeader.Value.Node.Start(new NodeId(_previousLeader.Value.Node.State.CurrentState.Id));
             _servers.TryAdd(_previousLeader.Key, _previousLeader.Value);
         }
 
@@ -286,7 +296,7 @@ namespace Rafty.AcceptanceTests
             leaderElectedAndCommandReceived.ShouldBeTrue();
 
             var leaderServer = GetLeader();
-            leaderServer.Value.Node.Stop();
+            leaderServer.Value.Node.Pause();
 
             if (!_servers.TryRemove(leaderServer.Key, out Server _))
             {
@@ -302,7 +312,12 @@ namespace Rafty.AcceptanceTests
             var fsm = new InMemoryStateMachine();
             var settings = new InMemorySettingsBuilder().WithMinTimeout(1000).WithMaxTimeout(3500).WithHeartbeatTimeout(50).Build();
             var peersProvider = new InMemoryPeersProvider(_peers);
-            var node = new Node(fsm, log, settings, peersProvider);
+
+            var logger = new Mock<ILogger>();
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+
+            var node = new Node(fsm, log, settings, peersProvider, loggerFactory.Object);
             var server = new Server(log, fsm, node);
             _servers.TryAdd(index, server);
         }
@@ -393,7 +408,7 @@ namespace Rafty.AcceptanceTests
         {
             foreach(var server in _servers)
             {
-                server.Value.Node.Start(Guid.NewGuid().ToString());
+                server.Value.Node.Start(new NodeId(Guid.NewGuid().ToString()));
             }
         }
     }

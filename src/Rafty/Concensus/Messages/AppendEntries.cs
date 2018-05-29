@@ -1,7 +1,8 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.Messages
 {
     using System;
     using System.Collections.Generic;
+    using Infrastructure;
     using Log;
 
     public sealed class AppendEntries : Message

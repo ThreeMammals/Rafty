@@ -1,4 +1,4 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.Messages
 {
     public class AppendEntriesResponseBuilder
     {

@@ -7,35 +7,51 @@ using Rafty.Infrastructure;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Rafty.IntegrationTests
 {
     public class SqlLiteLog : ILog
     {
-        private string _path;
+        private readonly string _path;
         private readonly SemaphoreSlim _sempaphore = new SemaphoreSlim(1,1);
+        private readonly ILogger _logger;
+        private readonly NodeId _nodeId;
 
-        public SqlLiteLog(NodeId nodeId)
+        public SqlLiteLog(NodeId nodeId, ILoggerFactory loggerFactory)
         {
-            _path = $"{nodeId.Id.Replace("/","").Replace(":","").ToString()}.db";
-            if(!File.Exists(_path))
+            _logger = loggerFactory.CreateLogger<SqlLiteLog>();
+            _nodeId = nodeId;
+            _path = $"{nodeId.Id.Replace("/","").Replace(":","")}.db";
+            _sempaphore.Wait();
+
+            if (!File.Exists(_path))
             {
-                FileStream fs = File.Create(_path);
+                var fs = File.Create(_path);
+
                 fs.Dispose();
                 
                 using(var connection = new SqliteConnection($"Data Source={_path};"))
                 {
                     connection.Open();
-                    var sql = @"create table logs (
+
+                    const string sql = @"create table logs (
                         id integer primary key,
                         data text not null
                     )";
+
                     using(var command = new SqliteCommand(sql, connection))
                     {
                         var result = command.ExecuteNonQuery();
+
+                        _logger.LogInformation(result == 0
+                            ? $"id: {_nodeId.Id} create database, result: {result}"
+                            : $"id: {_nodeId.Id} did not create database., result: {result}");
                     }
                 }
             }
+
+            _sempaphore.Release();
         }
 
         public async Task<int> LastLogIndex()
@@ -118,16 +134,20 @@ namespace Rafty.IntegrationTests
                 var data = JsonConvert.SerializeObject(log, jsonSerializerSettings);
                 //todo - sql injection dont copy this..
                 var sql = $"insert into logs (data) values ('{data}')";
+                _logger.LogInformation($"id: {_nodeId.Id}, sql: {sql}");
                 using(var command = new SqliteCommand(sql, connection))
                 {
                     var result = await command.ExecuteNonQueryAsync();
+                    _logger.LogInformation($"id: {_nodeId.Id}, insert log result: {result}");
                 }
-                
+
                 sql = "select last_insert_rowid()";
                 using(var command = new SqliteCommand(sql, connection))
                 {
                     var result = await command.ExecuteScalarAsync();
+                    _logger.LogInformation($"id: {_nodeId.Id}, about to release semaphore");
                     _sempaphore.Release();
+                    _logger.LogInformation($"id: {_nodeId.Id}, saved log to sqlite");
                     return Convert.ToInt32(result);
                 }   
             }
@@ -141,17 +161,22 @@ namespace Rafty.IntegrationTests
                 connection.Open();
                 //todo - sql injection dont copy this..
                 var sql = $"select data from logs where id = {index};";
+                _logger.LogInformation($"id: {_nodeId.Id} sql: {sql}");
                 using(var command = new SqliteCommand(sql, connection))
                 {
                     var data = Convert.ToString(await command.ExecuteScalarAsync());
                     var jsonSerializerSettings = new JsonSerializerSettings() { 
                         TypeNameHandling = TypeNameHandling.All
                     };
+
+                    _logger.LogInformation($"id {_nodeId.Id} got log for index: {index}, data is {data} and new log term is {logEntry.Term}");
+
                     var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
                     if(logEntry != null && log != null && logEntry.Term != log.Term)
                     {
                         //todo - sql injection dont copy this..
                         var deleteSql = $"delete from logs where id >= {index};";
+                        _logger.LogInformation($"id: {_nodeId.Id} sql: {deleteSql}");
                         using(var deleteCommand = new SqliteCommand(deleteSql, connection))
                         {
                             var result = await deleteCommand.ExecuteNonQueryAsync();
@@ -160,6 +185,35 @@ namespace Rafty.IntegrationTests
                 }
             }
             _sempaphore.Release();
+        }
+
+        public async Task<bool> IsDuplicate(int index, LogEntry logEntry)
+        {
+            _sempaphore.Wait();
+            using(var connection = new SqliteConnection($"Data Source={_path};"))
+            {
+                connection.Open();
+                //todo - sql injection dont copy this..
+                var sql = $"select data from logs where id = {index};";
+                using(var command = new SqliteCommand(sql, connection))
+                {
+                    var data = Convert.ToString(await command.ExecuteScalarAsync());
+                    var jsonSerializerSettings = new JsonSerializerSettings() { 
+                        TypeNameHandling = TypeNameHandling.All
+                    };
+
+                    var log = JsonConvert.DeserializeObject<LogEntry>(data, jsonSerializerSettings);
+
+                    if(logEntry != null && log != null && logEntry.Term == log.Term)
+                    {
+                        _sempaphore.Release();
+                        return true;
+                    }
+                }
+            }
+
+            _sempaphore.Release();
+            return false;
         }
 
         public async Task<LogEntry> Get(int index)
@@ -248,6 +302,7 @@ namespace Rafty.IntegrationTests
                 connection.Open();
                 //todo - sql injection dont copy this..
                 var deleteSql = $"delete from logs where id >= {indexOfCommand};";
+                _logger.LogInformation($"id: {_nodeId.Id} Remove {deleteSql}");
                 using(var deleteCommand = new SqliteCommand(deleteSql, connection))
                 {
                     var result = await deleteCommand.ExecuteNonQueryAsync();

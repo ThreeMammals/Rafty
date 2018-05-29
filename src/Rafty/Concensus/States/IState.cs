@@ -1,8 +1,9 @@
-using Rafty.FiniteStateMachine;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
     using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Messages;
 
     public interface IState
     {

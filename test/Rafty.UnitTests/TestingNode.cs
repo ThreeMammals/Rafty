@@ -5,6 +5,11 @@ namespace Rafty.UnitTests
     using System;
     using System.Threading.Tasks;
     using Concensus;
+    using Concensus.Messages;
+    using Concensus.Node;
+    using Concensus.States;
+    using Infrastructure;
+
     /* Followers(�5.2):
     � Respond to RPCs from candidates and leaders
     � If election timeout elapses without receiving AppendEntries
@@ -49,7 +54,7 @@ namespace Rafty.UnitTests
             return await State.Handle(requestVote);
         }
 
-        public void Start(string id)
+        public void Start(NodeId id)
         {
             throw new NotImplementedException();
         }

@@ -1,9 +1,10 @@
-﻿using System;
-using Rafty.FiniteStateMachine;
-
-namespace Rafty.Concensus
+﻿namespace Rafty.Concensus.Node
 {
     using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Messages;
+    using States;
 
     public interface INode
     {
@@ -13,7 +14,7 @@ namespace Rafty.Concensus
         void BecomeCandidate(CurrentState state);
         Task<AppendEntriesResponse> Handle(AppendEntries appendEntries);
         Task<RequestVoteResponse> Handle(RequestVote requestVote);
-        void Start(string id);
+        void Start(NodeId id);
         void Stop();
         Task<Response<T>> Accept<T>(T command) where T : ICommand;
     }

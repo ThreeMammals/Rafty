@@ -1,16 +1,19 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Rafty.Concensus.States;
-using Rafty.FiniteStateMachine;
-using Rafty.Log;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Log;
+    using Messages;
+    using Microsoft.Extensions.Logging;
+    using Node;
+    using Peers;
+
     public sealed class Candidate : IState
     {
         private readonly IFiniteStateMachine _fsm;
@@ -26,6 +29,9 @@ namespace Rafty.Concensus
         private bool _requestVoteResponseWithGreaterTerm;
         private int _votesThisElection;
         private readonly object _lock = new object();
+        private int _applied;
+        private ILogger<Candidate> _logger;
+        private bool _doingElection;
 
         public Candidate(
             CurrentState currentState, 
@@ -35,8 +41,18 @@ namespace Rafty.Concensus
             IRandomDelay random, 
             INode node, 
             ISettings settings,
-            IRules rules)
+            IRules rules,
+            ILoggerFactory loggerFactory)
         {
+            try
+            {
+                _logger = loggerFactory.CreateLogger<Candidate>();
+            }
+            catch (ObjectDisposedException e)
+            {
+                //happens because asp.net shuts down services sometimes before onshutdown
+            }
+
             _rules = rules;
             _random = random;
             _node = node;
@@ -93,7 +109,16 @@ namespace Rafty.Concensus
           
             await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
 
-            await _rules.ApplyEntriesToLog(appendEntries, _log);
+            if (_applied > 1 && appendEntries.Entries.Any())
+            {
+                Console.WriteLine("WTF?");
+            }
+
+            _applied++;
+
+            _logger.LogInformation($"{CurrentState.Id} as {nameof(Candidate)} applying entry to log");
+
+            await _rules.ApplyNewEntriesToLog(appendEntries, _log);
 
             var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
 
@@ -141,6 +166,7 @@ namespace Rafty.Concensus
 
         public async Task<Response<T>> Accept<T>(T command) where T : ICommand
         {
+            _logger.LogInformation("candidate dont forward to leader");
            return new ErrorResponse<T>("Please retry command later. Currently electing new a new leader.", command);
         }
 
@@ -261,7 +287,16 @@ namespace Rafty.Concensus
             _electionTimer?.Dispose();
             _electionTimer = new Timer(x =>
             {
+                if (_doingElection)
+                {
+                    return;
+                }
+
+                _doingElection = true;
+
                 ElectionTimerExpired();
+
+                _doingElection = false;
 
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }

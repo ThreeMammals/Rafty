@@ -1,11 +1,11 @@
-using System;
-using System.Net.Http;
-using Rafty.Concensus;
-using Rafty.FiniteStateMachine;
-
-namespace Rafty.AcceptanceTests
+namespace Rafty.Concensus.Node
 {
+    using System;
     using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Messages;
+    using Peers;
 
     public class NodePeer : IPeer
     {

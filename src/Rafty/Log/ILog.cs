@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Rafty.Log
@@ -35,6 +34,11 @@ namespace Rafty.Log
         //in the log for the given index it will also delete any further logs
         /// </summary>
         Task DeleteConflictsFromThisLog(int index, LogEntry logEntry);
+
+        /// <summary>
+        /// This says if the log passed it at the given index is already in the log
+        /// </summary>
+        Task<bool> IsDuplicate(int index, LogEntry logEntry);
         /// <summary>
         /// This returns a count of the logs
         /// </summary>

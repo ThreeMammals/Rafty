@@ -1,6 +1,7 @@
-namespace Rafty.Concensus
+namespace Rafty.Infrastructure
 {
     using System;
+
     public abstract class Message
     {
         public Message(Guid messageId)

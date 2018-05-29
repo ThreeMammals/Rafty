@@ -5,6 +5,7 @@ namespace Rafty.Log
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
     using Rafty.Infrastructure;
 
     public class InMemoryLog : ILog
@@ -86,7 +87,7 @@ namespace Rafty.Log
 
             if (index <= 0)
             {
-                throw new Exception("Log starts at 1...");
+                return Task.FromResult((long)0);
             }
 
             return Task.FromResult(_log[index].Term);
@@ -94,7 +95,7 @@ namespace Rafty.Log
 
         public Task DeleteConflictsFromThisLog(int logIndex, LogEntry logEntry)
         {
-            if(logIndex > 1 && logIndex > _log.Count -1)
+            if((logIndex > 1 && logIndex > _log.Count -1) || _log.Count == 0 || logIndex == 0)
             {
                 return Task.CompletedTask;;
             }
@@ -111,6 +112,25 @@ namespace Rafty.Log
             }
 
             return Task.CompletedTask;
+        }
+
+        public async Task<bool> IsDuplicate(int logIndex, LogEntry logEntry)
+        {
+            if((logIndex > 1 && logIndex > _log.Count -1) || _log.Count == 0)
+            {
+                return false;
+            }
+
+            for (int i = logIndex; i <= _log.Max(x => x.Key); i++)
+            {
+                var match = _log[logIndex];
+                if(logEntry.Term == match.Term)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private Task RemoveRange(int indexToRemove, int toRemove)

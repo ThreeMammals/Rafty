@@ -1,8 +1,6 @@
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
     using System;
-    using System.Collections.Generic;
-    using Rafty.Log;
 
     public class CurrentState
     {

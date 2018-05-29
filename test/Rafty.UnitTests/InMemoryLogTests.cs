@@ -1,5 +1,6 @@
 namespace Rafty.UnitTests
 {
+    using System;
     using System.Threading.Tasks;
     using Log;
     using Shouldly;
@@ -99,6 +100,27 @@ namespace Rafty.UnitTests
             var index = await log.Apply(new LogEntry(new FakeCommand("test"), typeof(string), 1));
             await log.Remove(index);
             log.Count().Result.ShouldBe(0);
+        }
+
+        [Fact]
+        public async Task ShouldBeDuplicate()
+        {
+            var log = new InMemoryLog();
+            var entry = new LogEntry(new FakeCommand("test"), typeof(string), 1);
+            var index = await log.Apply(entry);
+            var result = await log.IsDuplicate(index, entry);
+            result.ShouldBeTrue();
+        }
+
+        [Fact]
+        public async Task ShouldNotBeDuplicate()
+        {
+            var log = new InMemoryLog();
+            var entry = new LogEntry(new FakeCommand("test"), typeof(string), 1);
+            var index = await log.Apply(entry);
+            var newEntry = new LogEntry(new FakeCommand("test"), typeof(string), 2);
+            var result = await log.IsDuplicate(index, newEntry);
+            result.ShouldBeFalse();
         }
     }
 }

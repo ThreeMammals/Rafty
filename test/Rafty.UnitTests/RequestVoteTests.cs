@@ -11,6 +11,12 @@ using Xunit;
 namespace Rafty.UnitTests
 {
     using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Node;
+    using Concensus.Peers;
+    using Infrastructure;
+    using Microsoft.Extensions.Logging;
+    using Moq;
 
     public class RequestVoteTests : IDisposable
     {
@@ -27,10 +33,12 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         private readonly IRandomDelay _random;
         private InMemorySettings _settings;
         private IRules _rules;
+        private Mock<ILoggerFactory> _loggerFactory;
 
         public RequestVoteTests()
         {
-            _rules = new Rules();
+            _loggerFactory = new Mock<ILoggerFactory>();
+            _rules = new Rules(_loggerFactory.Object, new NodeId(default(string)));
             _settings = new InMemorySettingsBuilder().Build();
             _random = new RandomDelay();
             _log = new InMemoryLog();
@@ -48,7 +56,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
@@ -59,7 +67,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
@@ -70,7 +78,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithCandidateId(Guid.NewGuid().ToString()).WithTerm(0).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(false);
             requestVoteResponse.Term.ShouldBe(1);
@@ -81,7 +89,7 @@ least as up-to-date as receiver’s log, grant vote(§5.2, §5.4)
         {
             _currentState = new CurrentState(Guid.NewGuid().ToString(), 1, default(string), 1, 0, default(string));
             var requestVoteRpc = new RequestVoteBuilder().WithLastLogIndex(1).WithLastLogTerm(0).WithTerm(1).Build();
-            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers);
+            var follower = new Follower(_currentState, _fsm, _log, _random, _node, _settings,_rules, _peers, _loggerFactory.Object);
             var requestVoteResponse = await follower.Handle(requestVoteRpc);
             requestVoteResponse.VoteGranted.ShouldBe(true);
             requestVoteResponse.Term.ShouldBe(1);

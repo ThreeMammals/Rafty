@@ -1,16 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.VisualBasic;
-using Newtonsoft.Json;
-using Rafty.Concensus.States;
-using Rafty.FiniteStateMachine;
-using Rafty.Log;
-
-namespace Rafty.Concensus
+namespace Rafty.Concensus.States
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using FiniteStateMachine;
+    using Infrastructure;
+    using Log;
+    using Messages;
+    using Microsoft.Extensions.Logging;
+    using Node;
+    using Peers;
+
     public sealed class Follower : IState
     {
         private readonly IFiniteStateMachine _fsm;
@@ -19,9 +21,13 @@ namespace Rafty.Concensus
         private Timer _electionTimer;
         private int _messagesSinceLastElectionExpiry;
         private readonly INode _node;
-        private ISettings _settings;
-        private IRules _rules;
+        private readonly ISettings _settings;
+        private readonly IRules _rules;
         private List<IPeer> _peers;
+        private readonly ILogger<Follower> _logger;
+        private readonly SemaphoreSlim _appendingEntries = new SemaphoreSlim(1,1);
+        private bool _checkingElectionStatus;
+        private bool _disposed;
 
         public Follower(
             CurrentState state, 
@@ -31,8 +37,10 @@ namespace Rafty.Concensus
             INode node, 
             ISettings settings, 
             IRules rules,
-            List<IPeer> peers)
+            List<IPeer> peers,
+            ILoggerFactory loggerFactory)
         {
+            _logger = loggerFactory.CreateLogger<Follower>();
             _peers = peers;
             _rules = rules;
             _random = random;
@@ -48,33 +56,53 @@ namespace Rafty.Concensus
 
         public async Task<AppendEntriesResponse> Handle(AppendEntries appendEntries)
         {
-            var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
-
-            if(response.shouldReturn)
+            try
             {
-                return response.appendEntriesResponse;
+                await _appendingEntries.WaitAsync();
+
+                var response = _rules.AppendEntriesTermIsLessThanCurrentTerm(appendEntries, CurrentState);
+
+                if (response.shouldReturn)
+                {
+                    return response.appendEntriesResponse;
+                }
+
+                response =
+                    await _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries,
+                        _log, CurrentState);
+
+                if (response.shouldReturn)
+                {
+                    return response.appendEntriesResponse;
+                }
+
+                await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
+
+                var terms = appendEntries.Entries.Any()
+                    ? string.Join(",", appendEntries.Entries.Select(x => x.Term))
+                    : string.Empty;
+
+                _logger.LogInformation(
+                    $"{CurrentState.Id} as {nameof(Follower)} applying {appendEntries.Entries.Count} to log, term {terms}");
+
+                await _rules.ApplyNewEntriesToLog(appendEntries, _log);
+
+                var commitIndexAndLastApplied =
+                    await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
+
+                await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied,
+                    appendEntries);
+
+                SetLeaderId(appendEntries);
+
+                _messagesSinceLastElectionExpiry++;
+
+                return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
             }
-
-            response = await _rules.LogDoesntContainEntryAtPreviousLogIndexWhoseTermMatchesPreviousLogTerm(appendEntries, _log, CurrentState);
-
-            if(response.shouldReturn)
+            finally
             {
-                return response.appendEntriesResponse;
+                _appendingEntries.Release();
             }
-
-            await _rules.DeleteAnyConflictsInLog(appendEntries, _log);
-
-            await _rules.ApplyEntriesToLog(appendEntries, _log);
-
-            var commitIndexAndLastApplied = await _rules.CommitIndexAndLastApplied(appendEntries, _log, CurrentState);
-
-            await ApplyToStateMachine(commitIndexAndLastApplied.commitIndex, commitIndexAndLastApplied.lastApplied, appendEntries);
-
-            SetLeaderId(appendEntries);
-            
-            _messagesSinceLastElectionExpiry++;
-            
-            return new AppendEntriesResponse(CurrentState.CurrentTerm, true);
         }
 
         public async Task<RequestVoteResponse> Handle(RequestVote requestVote)
@@ -117,6 +145,7 @@ namespace Rafty.Concensus
             var leader = _peers.FirstOrDefault(x => x.Id == CurrentState.LeaderId);
             if(leader != null)
             {
+                _logger.LogInformation($"follower id: {CurrentState.Id} forward to leader id: {leader.Id}");
                 return await leader.Request(command);
             }
             
@@ -125,6 +154,7 @@ namespace Rafty.Concensus
 
         public void Stop()
         {
+            _disposed = true;
             _electionTimer.Dispose();
         }
 
@@ -157,24 +187,41 @@ namespace Rafty.Concensus
         {
             while (commitIndex > lastApplied)
             {
+                _logger.LogInformation($"id: {CurrentState.Id} handling log in fsm in loop, commitIndex: {commitIndex}, lastApplied: {lastApplied}, ae.Count: {appendEntries.Entries.Count}");
+
                 lastApplied++;
+
                 var log = await _log.Get(lastApplied);
+
                 await _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
                 CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.LeaderId);
+
+            _logger.LogInformation($"id: {CurrentState.Id} handling log in fsm out of loop now, commitIndex: {commitIndex}, lastApplied: {lastApplied}, ae.Count: {appendEntries.Entries.Count}");
+
+            _logger.LogInformation($"id: {CurrentState.Id} CurrentState.CommitIndex: {CurrentState.CommitIndex}, CurrentState.LastApplied: {CurrentState.LastApplied}");
         }
         
         private void ElectionTimerExpired()
         {
-            if (_messagesSinceLastElectionExpiry == 0)
+            try
             {
-                _node.BecomeCandidate(CurrentState);
+                _appendingEntries.Wait();
+
+                if (_messagesSinceLastElectionExpiry == 0)
+                {
+                    _node.BecomeCandidate(CurrentState);
+                }
+                else
+                {
+                    ResetElectionTimer();
+                }
             }
-            else
+            finally
             {
-                ResetElectionTimer();
+                _appendingEntries.Release();
             }
         }
 
@@ -190,7 +237,16 @@ namespace Rafty.Concensus
             _electionTimer?.Dispose();
             _electionTimer = new Timer(x =>
             {
+                if (_checkingElectionStatus)
+                {
+                    return;
+                }
+
+                _checkingElectionStatus = true;
+
                 ElectionTimerExpired();
+
+                _checkingElectionStatus = false;
 
             }, null, Convert.ToInt32(timeout.TotalMilliseconds), Convert.ToInt32(timeout.TotalMilliseconds));
         }

@@ -5,6 +5,9 @@ using Rafty.FiniteStateMachine;
 namespace Rafty.UnitTests
 {
     using System.Threading.Tasks;
+    using Concensus.Messages;
+    using Concensus.Peers;
+    using Infrastructure;
 
     public class RemoteControledPeer : IPeer
     {
@@ -12,6 +15,7 @@ namespace Rafty.UnitTests
         private AppendEntriesResponse _appendEntriesResponse;
         public int RequestVoteResponses { get; private set; }
         public int AppendEntriesResponses { get; private set; }
+        public int AppendEntriesResponsesWithLogEntries {get;private set;}
 
         public RemoteControledPeer()
         {
@@ -38,6 +42,10 @@ namespace Rafty.UnitTests
 
         public async Task<AppendEntriesResponse> Request(AppendEntries appendEntries)
         {
+            if(appendEntries.Entries.Count > 0)
+            {
+                AppendEntriesResponsesWithLogEntries++;
+            }
             AppendEntriesResponses++;
             return _appendEntriesResponse;
         }
