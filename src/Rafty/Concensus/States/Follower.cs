@@ -145,7 +145,7 @@ namespace Rafty.Concensus.States
             var leader = _peers.FirstOrDefault(x => x.Id == CurrentState.LeaderId);
             if(leader != null)
             {
-                _logger.LogInformation("follower forward to leader");
+                _logger.LogInformation($"follower id: {CurrentState.Id} forward to leader id: {leader.Id}");
                 return await leader.Request(command);
             }
             
@@ -187,13 +187,21 @@ namespace Rafty.Concensus.States
         {
             while (commitIndex > lastApplied)
             {
+                _logger.LogInformation($"id: {CurrentState.Id} handling log in fsm in loop, commitIndex: {commitIndex}, lastApplied: {lastApplied}, ae.Count: {appendEntries.Entries.Count}");
+
                 lastApplied++;
+
                 var log = await _log.Get(lastApplied);
+
                 await _fsm.Handle(log);
             }
 
             CurrentState = new CurrentState(CurrentState.Id, appendEntries.Term,
                 CurrentState.VotedFor, commitIndex, lastApplied, CurrentState.LeaderId);
+
+            _logger.LogInformation($"id: {CurrentState.Id} handling log in fsm out of loop now, commitIndex: {commitIndex}, lastApplied: {lastApplied}, ae.Count: {appendEntries.Entries.Count}");
+
+            _logger.LogInformation($"id: {CurrentState.Id} CurrentState.CommitIndex: {CurrentState.CommitIndex}, CurrentState.LastApplied: {CurrentState.LastApplied}");
         }
         
         private void ElectionTimerExpired()

@@ -176,13 +176,10 @@ namespace Rafty.Concensus.States
 
         private async Task SendAppendEntries(int electionTimerId)
         {
-            //await _semaphore.WaitAsync();
-
             var peers = _getPeers(CurrentState);
 
             if(No(peers))
             {
-                //_semaphore.Release();
                 return;
             }
 
@@ -222,8 +219,6 @@ namespace Rafty.Concensus.States
                 tasks[i] = Do(peerState);
             }
 
-            //Parallel.ForEach(PeerStates, async peer => await Do(peer));
-
             await Task.WhenAll(tasks);
 
             var response = DoesResponseContainsGreaterTerm(appendEntriesResponses);
@@ -233,13 +228,10 @@ namespace Rafty.Concensus.States
                 CurrentState = new CurrentState(CurrentState.Id, response.newTerm, 
                         CurrentState.VotedFor, CurrentState.CommitIndex, CurrentState.LastApplied, CurrentState.LeaderId);
                 _node.BecomeFollower(CurrentState);
-                //_semaphore.Release();
                 return;
             }
 
             await UpdateCommitIndex();
-            
-            //_semaphore.Release();
         }
 
         private (bool conainsGreaterTerm, long newTerm) DoesResponseContainsGreaterTerm(ConcurrentBag<AppendEntriesResponse> appendEntriesResponses)

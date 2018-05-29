@@ -36,8 +36,7 @@ namespace Rafty.Log
         Task DeleteConflictsFromThisLog(int index, LogEntry logEntry);
 
         /// <summary>
-        /// This will delete any conflicts from the log, if the log entry passed in doesnt match the log entry
-        //in the log for the given index it will also delete any further logs
+        /// This says if the log passed it at the given index is already in the log
         /// </summary>
         Task<bool> IsDuplicate(int index, LogEntry logEntry);
         /// <summary>

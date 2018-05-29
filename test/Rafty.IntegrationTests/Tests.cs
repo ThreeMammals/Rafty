@@ -1,25 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
-using Rafty.Concensus;
-using Rafty.Infrastructure;
-using Shouldly;
-using Xunit;
-using static Rafty.Infrastructure.Wait;
-
-namespace Rafty.IntegrationTests
+﻿namespace Rafty.IntegrationTests
 {
     using System.Diagnostics;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
     using Microsoft.Extensions.Logging;
+    using Rafty.Log;
     using Xunit.Abstractions;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Net.Http;
+    using System.Threading;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.DependencyInjection;
+    using Newtonsoft.Json;
+    using Rafty.Concensus;
+    using Rafty.Infrastructure;
+    using Shouldly;
+    using Xunit;
+    using static Rafty.Infrastructure.Wait;
+    using Rafty.FiniteStateMachine;
 
     public class Tests : IDisposable
     {
@@ -44,7 +45,18 @@ namespace Rafty.IntegrationTests
             await GivenFiveServersAreRunning();
             await WhenISendACommandIntoTheCluster(command);
             Thread.Sleep(10000);
-            await ThenTheCommandIsReplicatedToAllStateMachines(command);
+            await ThenTheCommandIsReplicatedToAllStateMachines(command, 1);
+        }
+
+        [Fact]
+        public async Task ShouldPersistTwoCommandsToFiveServers()
+        {
+            var command = new FakeCommand("WHATS UP DOC?");
+            await GivenFiveServersAreRunning();
+            await WhenISendACommandIntoTheCluster(command);
+            await WhenISendACommandIntoTheCluster(command);
+            Thread.Sleep(10000);
+            await ThenTheCommandIsReplicatedToAllStateMachines(command, 2);
         }
 
         private void GivenAServerIsRunning(string url)
@@ -126,7 +138,7 @@ namespace Rafty.IntegrationTests
             leaderElectedAndCommandReceived.ShouldBeTrue();
         }
 
-        private async Task ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand fakeCommand)
+        private async Task ThenTheCommandIsReplicatedToAllStateMachines(FakeCommand fakeCommand, int expectedCommands)
         {
             async Task<bool> CommandCalledOnAllStateMachines()
             {
@@ -143,24 +155,36 @@ namespace Rafty.IntegrationTests
                             using(var command = new SqliteCommand(sql, connection))
                             {
                                 var count = Convert.ToInt32(command.ExecuteScalar());
-                                if(count != 1)
+                                if(count != expectedCommands)
                                 {
-                                    LogInformation($"{peer.HostAndPort} had {count} logs.");
+                                    LogInformation($"{peer.HostAndPort} had {count} logs, expected {expectedCommands}");
                                     continue;
                                 }
                             }
                         }
                         
                         var fsmData = await File.ReadAllTextAsync(peer.HostAndPort.Replace("/", "").Replace(":", ""));
+
                         fsmData.ShouldNotBeNullOrEmpty();
-                        if(fsmData.Length != 25)
+
+                        var storedCommands = JsonConvert.DeserializeObject<List<ICommand>>(fsmData, new JsonSerializerSettings() { 
+                            TypeNameHandling = TypeNameHandling.All
+                        });
+
+                        if(storedCommands.Count != expectedCommands)
                         {
-                            LogInformation($"{peer.HostAndPort} had {fsmData.Length} length in fsm file");
+                            LogInformation($"{peer.HostAndPort} had {fsmData.Length} length in fsm file and stored {storedCommands.Count} commands");
                             continue;
                         }
-                        var storedCommand = JsonConvert.DeserializeObject<FakeCommand>(fsmData);
-                        storedCommand.Value.ShouldBe(fakeCommand.Value);
-                        passed++;
+                        else
+                        {
+                            foreach(var command in storedCommands)
+                            {
+                                var fC = (FakeCommand)command;
+                                fC.Value.ShouldBe(fakeCommand.Value);
+                            }
+                            passed++;
+                        }
                     }
 
                     return passed == 5;

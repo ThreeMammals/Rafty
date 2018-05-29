@@ -56,11 +56,22 @@ namespace Rafty.Concensus.States
         public async Task<(int commitIndex, int lastApplied)> CommitIndexAndLastApplied(AppendEntries appendEntries, ILog log, CurrentState currentState)
         {
             var commitIndex = currentState.CommitIndex;
+
             var lastApplied = currentState.LastApplied;
-            if (appendEntries.LeaderCommitIndex > currentState.CommitIndex)
+
+            _logger.LogInformation($"id: {_nodeId.Id} getting CommitIndexAndLastApplied before if statment, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied},commitIndex: {commitIndex}");
+
+            if (appendEntries.LeaderCommitIndex > commitIndex)
             {
-                var lastNewEntry = await log.LastLogIndex();
-                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, lastNewEntry);
+                var indexOfLastLog = await log.LastLogIndex();
+
+                commitIndex = System.Math.Min(appendEntries.LeaderCommitIndex, indexOfLastLog);
+
+                _logger.LogInformation($"id: {_nodeId.Id} getting CommitIndexAndLastApplied in if statement, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied}, indexOfLastLog: {indexOfLastLog}, commitIndex: {commitIndex}");
+            }
+            else
+            {
+                _logger.LogInformation($"id: {_nodeId.Id} getting CommitIndexAndLastApplied in else statement, appendEntries.LeaderCommitIndex: {appendEntries.LeaderCommitIndex}, currentState.CommitIndex: {currentState.CommitIndex}, lastApplied: {lastApplied}, commitIndex: {commitIndex}");
             }
 
             return (commitIndex, lastApplied);

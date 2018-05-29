@@ -124,15 +124,22 @@ namespace Rafty.IntegrationTests
         }
 
         [Fact]
-        public void ShouldBeDuplicate()
+        public async Task ShouldBeDuplicate()
         {
-            throw new NotImplementedException();
+            var entry = new LogEntry(new FakeCommand("test"), typeof(string), 1);
+            var index = await _log.Apply(entry);
+            var result = await _log.IsDuplicate(index, entry);
+            result.ShouldBeTrue();
         }
 
         [Fact]
-        public void ShouldNotBeDuplicate()
+        public async Task ShouldNotBeDuplicate()
         {
-            throw new NotImplementedException();
+            var entry = new LogEntry(new FakeCommand("test"), typeof(string), 1);
+            var index = await _log.Apply(entry);
+            var newEntry = new LogEntry(new FakeCommand("test"), typeof(string), 2);
+            var result = await _log.IsDuplicate(index, newEntry);
+            result.ShouldBeFalse();        
         }
 
         public void Dispose()
