@@ -192,6 +192,12 @@ namespace Rafty.Concensus.States
                     var nextIndex = new NextIndex(p, await _log.LastLogIndex());
                     PeerStates.Add(new PeerState(p, matchIndex, nextIndex));
                 });
+
+                var peerStatesNotInPeers = PeerStates.Where(p => !peers.Select(x => x.Id).Contains(p.Peer.Id)).ToList();
+                foreach (var peerState in peerStatesNotInPeers)
+                {
+                    PeerStates.Remove(peerState);
+                }
             }
 
             var appendEntriesResponses = SetUpAppendingEntries();
